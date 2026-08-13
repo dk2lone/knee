@@ -274,6 +274,24 @@ Language is close to a site key: Dutch, German and Greek reports are 100% Siemen
 The same probe is reassuring in one direction: **there is no metadata shortcut**. The 0.9+
 leaderboard scores reflect real image reading, not a leak.
 
+**Why site predicts labels at all — measured here.** Over the 30 scanner groups holding ≥50
+studies, weak-label prevalence per site:
+
+| Label | min | median | max | range |
+|---|---|---|---|---|
+| ACL | 0.06 | 0.23 | **0.62** | 0.57 |
+| Effusion | 0.21 | 0.58 | 0.77 | 0.57 |
+| Lateral OA | 0.10 | 0.33 | 0.64 | 0.54 |
+| Synovitis | 0.19 | 0.32 | 0.72 | 0.53 |
+| PF OA | 0.23 | 0.53 | 0.72 | 0.49 |
+| … | | | | |
+| Fracture | 0.08 | 0.17 | 0.30 | 0.22 |
+
+Mean range **0.404**. ACL runs 10× between sites — some are sports-medicine centres, others
+arthritis clinics. That case-mix difference is what a model memorises when it learns the
+scanner, and it is why random folds inflate the score. It also makes the host's warning
+concrete: if the private split has a different site composition, a site-fitted model breaks.
+
 **Resolution.** A 130 mm crop covers 99.57% of series. At 224 px that is 0.58 mm/px; Nyquist
 needs ≤0.5 mm for a 1 mm meniscal tear. 336 px gives 0.387 mm. The two labels that fell below
 chance in one team's first run were Medial Meniscus and MCL.
