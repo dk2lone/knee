@@ -1,0 +1,50 @@
+[{"stream_name":"stderr","time":7.661053187,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":7.661118074,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":7.661124244,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":7.661128024,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":8.280196798,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":8.280227103,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":8.28023264,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":8.280237328,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":322.278714978,"data":"[    0.1s] input root: /kaggle/input/competitions/rsna-knee-abnormality-detection\n"}
+,{"stream_name":"stdout","time":322.39815165,"data":"[    0.2s] memory: 29.8 GB available, 13.4 GB to the cache; sizing for 4407 train + 1322 test studies -\u003e 1 group(s) of 3 = 3 slices per slot\n"}
+,{"stream_name":"stdout","time":322.399530898,"data":"[    0.2s] cache layout: 1 groups x 3 slices = 3 per slot\n"}
+,{"stream_name":"stdout","time":324.116663084,"data":"[    1.9s] weights package: 20 member(s) from /kaggle/input/datasets/pilkwang/rsna-knee-weights\n"}
+,{"stream_name":"stdout","time":324.194298288,"data":"[    2.0s] test header pass: 15 series\n"}
+,{"stream_name":"stdout","time":324.195287144,"data":"[    2.0s] decode group 1/1: 336px x 12 slices, crop 130.0 mm -\u003e 20 member(s)\n"}
+,{"stream_name":"stdout","time":324.22455037,"data":"[    2.0s] test laterality: 1 from the tag, 2 from geometry, 0 unresolved; tag and geometry disagree on 0 (0.0% of the tagged)\n"}
+,{"stream_name":"stdout","time":324.225691787,"data":"[    2.0s] test g1: cache (3, 6, 12, 336, 336) = 0.0 GB\n"}
+,{"stream_name":"stdout","time":324.226916503,"data":"[    2.0s] test g1: ordering 12 slot-series (469 slice headers)\n"}
+,{"stream_name":"stdout","time":326.115764129,"data":"[    3.9s] test g1: ordered 12/12 by geometry (0 kept arbitrary) in 2s\n"}
+,{"stream_name":"stdout","time":326.116652218,"data":"[    3.9s] test g1: decoding 12 slot-series\n"}
+,{"stream_name":"stdout","time":327.005978249,"data":"[    4.8s]   test g1 12/12\n"}
+,{"stream_name":"stdout","time":327.107883053,"data":"[    4.8s] test g1: 12/12 slots filled\n"}
+,{"stream_name":"stdout","time":349.84613857,"data":"[   27.4s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":351.680908974,"data":"[   29.5s] e5427d6c21: fingerprint matches within 2.8e-06\n"}
+,{"stream_name":"stdout","time":352.52147674,"data":"[   30.3s]   e5427d6c21 fold 2: predicted 3 studies over 10 window(s) in 25s\n"}
+,{"stream_name":"stdout","time":353.88296741,"data":"[   31.4s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":353.902637591,"data":"[   31.7s] d47313baef: fingerprint matches within 2.1e-06\n"}
+,{"stream_name":"stdout","time":354.456498255,"data":"[   32.3s]   d47313baef fold 2: predicted 3 studies over 10 window(s) in 2s\n"}
+,{"stream_name":"stdout","time":355.644668418,"data":"[   33.2s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":355.691419571,"data":"[   33.5s] ea3fbf6edf: fingerprint matches within 3.8e-06\n"}
+,{"stream_name":"stdout","time":356.242820688,"data":"[   34.1s]   ea3fbf6edf fold 2: predicted 3 studies over 10 window(s) in 2s\n"}
+,{"stream_name":"stdout","time":357.638515757,"data":"[   35.2s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":357.690466777,"data":"[   35.5s] 5f8ba4c5ea: fingerprint matches within 3.3e-06\n"}
+,{"stream_name":"stdout","time":358.242664835,"data":"[   36.1s]   5f8ba4c5ea fold 2: predicted 3 studies over 10 window(s) in 2s\n"}
+,{"stream_name":"stdout","time":359.716212075,"data":"[   37.3s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":359.757995067,"data":"[   37.6s] 013dc75703: fingerprint matches within 3.3e-06\n"}
+,{"stream_name":"stdout","time":360.306934954,"data":"[   38.1s]   013dc75703 fold 4: predicted 3 studies over 10 window(s) in 2s\n"}
+,{"stream_name":"stdout","time":360.733277032,"data":"[   38.5s] submission.csv = rank mean of 5 member(s); (3, 13); nulls 0\n"}
+,{"stream_name":"stdout","time":360.734092813,"data":"[   38.5s] done\n"}
+,{"stream_name":"stdout","time":360.735347324,"data":"[   38.5s] done\n"}
+,{"stream_name":"stderr","time":366.144023536,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":366.144055667,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":366.296937159,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":366.296967106,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":366.969658009,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":367.339371123,"data":"[NbConvertApp] Writing 3069588 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":369.732988524,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":370.987251158,"data":"[NbConvertApp] Support files will be in __results___files/\n"}
+,{"stream_name":"stderr","time":370.987275525,"data":"[NbConvertApp] Making directory __results___files\n"}
+,{"stream_name":"stderr","time":370.9889019,"data":"[NbConvertApp] Writing 864255 bytes to __results__.html\n"}
+]
