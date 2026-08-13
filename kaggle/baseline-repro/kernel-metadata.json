@@ -1,0 +1,20 @@
+{
+  "id": "dk2lone/knee-baseline-repro",
+  "title": "knee baseline repro",
+  "code_file": "knee-baseline-repro.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "pilkwang/pilkwang-public-dataset-for-notebooks-figures",
+    "pilkwang/rsna-knee-llm-labels",
+    "pilkwang/rsna-knee-weights"
+  ],
+  "kernel_sources": [],
+  "competition_sources": ["rsna-knee-abnormality-detection"],
+  "model_sources": ["metaresearch/dinov2/PyTorch/small/1"],
+  "machine_shape": "NvidiaTeslaT4"
+}
