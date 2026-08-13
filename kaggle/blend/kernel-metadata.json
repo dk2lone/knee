@@ -9,10 +9,11 @@
   "enable_tpu": false,
   "enable_internet": false,
   "dataset_sources": [
-    "pilkwang/rsna-knee-weights",
-    "dk2lone/knee-weights-v1"
+    "pilkwang/rsna-knee-weights"
   ],
-  "kernel_sources": [],
+  "kernel_sources": [
+    "dk2lone/knee-train-v1"
+  ],
   "competition_sources": [
     "rsna-knee-abnormality-detection"
   ],

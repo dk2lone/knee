@@ -445,6 +445,31 @@ Its stated reason for `CROP_MM = 130`: the acquired field of view has median 160
 70–320 mm, so a 160 mm crop is *larger than the image* in 60% of series and silently does
 nothing. 130 mm is below the FOV of 99.6% of series.
 
+**The shipped weights are not what the notebook trains.** Read from the `manifest.json`
+inside `pilkwang/rsna-knee-weights` (copied to `data/weights/pilkwang_manifest.json`):
+
+| | notebook | shipped weights |
+|---|---|---|
+| Members | 1 | **20** = 5 folds × 4 seeds |
+| Epochs | 10 | **20 to 60**, median 27 |
+| Cached slices | 3 | **12**, so 10 overlapping TTA windows |
+| Seeds | 2026 | 2026, 7717, 31337, 20260808 |
+| Trained | in the scored kernel | off the platform, `source_run: base-s336x12` |
+
+Everything else is byte-identical to this pipeline: same six slots, same native pixel rules,
+same 336 px, same 130 mm crop, same 0.20–0.80 band, same DINOv2-small with 6 blocks open,
+same `cls_mean` pooling, no slot prior. Per-member holdout runs 0.8279–0.8600, median 0.8377;
+against the 58 annotated studies 0.7356–0.9164, median 0.8441.
+
+So the 0.891 is not a better model. It is the same model trained longer, four times over,
+and read over four times the slices. Run 5 scored 0.831 with one member, 10 epochs and 3
+slices — every part of that difference is bought with runtime, not with a new idea.
+
+The 12 slices are the one part that is not free here. Training inside the scored kernel has
+to hold the training corpus and the test set in memory at once, and `plan_cache` sized that
+at 3 slices per slot for 4,407 studies. Training off the platform, or in a kernel that never
+touches the test set, is what buys the other nine.
+
 Public LLM label datasets, ready to attach:
 
 | Dataset | Downloads |
