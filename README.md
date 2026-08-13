@@ -319,6 +319,12 @@ Synovitis is present in 27 of the 58 gold studies and named in one report in six
 and the whole label key 0.878 → 0.887. Generalising the same imputation to all twelve labels
 made things **worse** (0.8805). Targeted beats blanket.
 
+**Synovitis wants its own model.** A second team reached the same conclusion from the image
+side: a dedicated frozen DINOv2-base ensemble scored **0.826** on Synovitis against 0.742 for
+their general model, and it overwrites only that column, leaving the other eleven bit-for-bit
+unchanged. Measured here from the other direction — Synovitis has the worst text separation of
+the twelve (0.252) — the two agree. Treat it as a separate problem.
+
 **Negation ordering.** Test negation before pathology keywords, or `"medial meniscus: no tear"`
 matches `TEAR`.
 
@@ -349,9 +355,30 @@ Best public score per backbone, from the Models tab:
 | DINOv2-base | ViT-B/14 | 9 | 0.861 |
 | EfficientNet-B3 | CNN | 1 | 0.701 |
 
-Transformers beat CNNs by ~0.2 here, and small beats large — which fits 58 gold labels and
-suits the efficiency track. BioMedCLIP matches DINOv2-small with one user on it. Note these are
-whole-solution scores, attributed to whichever backbone the solution used.
+**Do not read that table as "transformers beat CNNs".** These are whole-solution scores
+attributed to whichever backbone the solution used, and the EfficientNet-B3 row reflects one
+person's weak solution. A different EfficientNet-B3 solution scored **0.903** — above every
+DINOv2 row. The backbone is not what separates these numbers.
+
+That 0.903 recipe (`yashbishnoi98/rsna-knee-infer-v1` v5, documented in
+`prvsiyan/rsna-knee-read-the-report-then-the-knee` §9):
+
+| | |
+|---|---|
+| Backbone | single-channel ImageNet **EfficientNet-B3** |
+| Input | 3 fluid-sensitive, plane-diverse series per study |
+| Sampling | 12 slices/series training, **32 at inference** |
+| Resolution | **288 px**, depth centre-cropped at 64 |
+| Pooling | max over slice embeddings, then mean over series logits |
+| Augmentation | rotation, gamma, scale — **no horizontal flip** |
+| Folds | 5 study-grouped, 8 epochs each, ~12.4 h total |
+| Labels | Qwen3.6-35B reader fused **per target** with `pilkwang` labels, weighted by each reader's measured accuracy for that finding |
+| Result | OOF macro **0.8544**, cross-fitted gold-58 **0.8568** |
+
+Two things to take from it. Selection was by `0.7 × CV AUC + 0.3 × gold58 AUC` over 20 proxy
+trials on 10% of studies — architecture chosen from disjoint offline checks, never from
+leaderboard feedback. And the label fusion is **per target**, because one global reader weight
+throws away the fact that readers differ by finding.
 
 Public notebooks by votes (pulled to `nb/`):
 
