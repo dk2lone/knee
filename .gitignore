@@ -1,5 +1,6 @@
-.venv/
 data/
 nb/
+.venv/
 __pycache__/
 *.pt
+kaggle/*/out/
