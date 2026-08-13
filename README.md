@@ -292,6 +292,59 @@ arthritis clinics. That case-mix difference is what a model memorises when it le
 scanner, and it is why random folds inflate the score. It also makes the host's warning
 concrete: if the private split has a different site composition, a site-fitted model breaks.
 
+**Where the missing 0.045 has to come from — measured here.** Macro AUC is the mean of twelve
+per-label AUCs, so +0.045 macro is **+0.540 summed across the twelve**. Fixing one label cannot
+do it: synovitis alone would need +0.540 on a scale that ends at 1.0. Even fixing the four
+weakest labels needs +0.135 each. Whatever closes this gap has to move nearly every label.
+
+**A quarter of the training signal is a coin flip.** The label table carries a per-cell
+confidence — the reader's own judgement of whether the report addressed that finding at all.
+Over the 696 (study, label) cells of the 58 annotated studies:
+
+| | share of cells | gold AUC there |
+|---|---|---|
+| reader was confident | 72.8% | **0.890** |
+| reader was not | 27.2% | **0.580** |
+
+0.580 is barely above chance. Per label it is worse than chance in places — Fracture 0.336 over
+the 46.6% of its cells the reader was unsure of, Baker's 0.483 over 51.7%.
+
+**And the silence is a property of the site, not of the study.** Mean confidence per scanner
+group, over the 30 groups holding ≥50 studies, runs **0.258 to 0.812**. Permuting studies across
+groups 200 times, the observed between-group variance is 0.02177 against a shuffled median of
+0.00027 — *p* = 0.000. By report language it runs 0.522 (Spanish) to 0.773 (French).
+
+That distinction decides everything downstream. Random label noise averages out and a model can
+exceed the labels it was trained on. Noise that correlates with a feature the model can see —
+and the pixels leak the site by +0.136 — does not average out. It is learned.
+
+**But a better reader cannot fix all of it, because much of the text is genuinely silent.**
+Confidence tracks report length at Spearman **+0.578**. Holding length roughly fixed, the spread
+between languages falls from 0.251 to 0.137, so about half the language effect is simply how much
+text there is. Confidence in the longest fifth of reports against the shortest fifth:
+
+| Label | longest | shortest | gain |
+|---|---|---|---|
+| **Synovitis** | **0.303** | 0.126 | +0.177 |
+| Fracture | 0.593 | 0.305 | +0.287 |
+| Baker's | 0.744 | 0.322 | **+0.422** |
+| Contusion | 0.844 | 0.428 | +0.416 |
+| Effusion | 0.906 | 0.678 | +0.228 |
+
+Read that table by column, not by row:
+
+- **Synovitis is 0.303 even in a 287-word report.** Radiologists do not write it down. No reader,
+  at any price, recovers it from text. It is present in 27 of the 58 annotated studies and named
+  in one report in six. The only source is the image, which is why a dedicated model is not a
+  refinement here — it is the only instrument that works.
+- **Baker's and Contusion more than double with length.** Those are reader-recoverable: the text
+  exists and the current extractor is not getting it. This is where a second reader pays.
+- **The shortest fifth — 893 studies at a median of 40 words — is thin no matter who reads it.**
+  Buying a better reader for those is buying a better reading of nothing.
+
+So relabelling is worth doing on the reports that have text, and is worth skipping on the ones
+that do not. Sorting by report length before spending is free.
+
 **Resolution is real but secondary — adaptation is the big lever.** The Nyquist argument says
 a 130 mm crop at 224 px gives 0.58 mm/px, above the 0.5 mm a 1 mm meniscal tear needs, and 336 px
 gives 0.387 mm. True, and measured on the leaderboard it is worth **+0.017** (0.866 → 0.883 for
