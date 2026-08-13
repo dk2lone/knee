@@ -345,6 +345,40 @@ Read that table by column, not by row:
 So relabelling is worth doing on the reports that have text, and is worth skipping on the ones
 that do not. Sorting by report length before spending is free.
 
+**How much is knowing the scanner worth? Measured here.** A model with no pixels at all,
+scoring each study by its own scanner's prevalence in the training folds:
+
+| Fold scheme | keyed on `lang\|make\|model` | on `make\|model` | on language |
+|---|---|---|---|
+| random | **0.6505** | 0.6225 | 0.6019 |
+| site-grouped | 0.5000 | 0.5171 | 0.5656 |
+
+0.6505 against the published probe's 0.6516 — the same number from a different direction,
+which says this repo's folds and labels line up with theirs. Under grouped folds the site is
+never in both halves, the prediction falls back to the global prior, and AUC collapses to
+chance. **The 0.15 between those rows is what site memorisation is worth**, and whether any of
+it survives to the leaderboard depends on a fact nobody has published: whether the test studies
+were scanned on machines the training set also contains.
+
+`kaggle/siteprobe/` asks exactly that, and nothing else. It reads one DICOM header per test
+series, maps each study to its scanner's training prevalence, and submits that. No pixels, no
+GPU, about two minutes.
+
+- **~0.62** — the scanners overlap. Site memorisation is real leaderboard score, and grouping
+  folds is leaving it on the table.
+- **~0.50** — they are disjoint. Grouped folds are the honest estimate and a site-fitted model
+  breaks when the private split is scored.
+
+On the three visible test studies, **3 of 3 land on a scanner the training set has.**
+
+**The `Manufacturer` tag holds twelve spellings for seven makers.** `Siemens Healthineers`,
+`SIEMENS` and `Siemens` are one vendor; Canon's scanners still report `TOSHIBA` and Fujifilm's
+still report `Hitachi Medical Corporation`. `eda/make_folds.py` normalises them and the first
+version of the probe did not, which made 2 of 3 test studies look like unseen machines. That is
+the wrong answer to the only question the probe exists to ask, and it would have been indistinguishable
+from a real finding on the leaderboard. `eda/test_siteprobe.py` now rebuilds the key and requires
+it to reproduce the `scanner` column of `data/folds.csv` exactly.
+
 **Resolution is real but secondary — adaptation is the big lever.** The Nyquist argument says
 a 130 mm crop at 224 px gives 0.58 mm/px, above the 0.5 mm a 1 mm meniscal tear needs, and 336 px
 gives 0.387 mm. True, and measured on the leaderboard it is worth **+0.017** (0.866 → 0.883 for
