@@ -347,13 +347,25 @@ positives.
 
 ## Plan
 
-1. Submission notebook writing a constant 0.5. Submit it. Confirm the rerun works before any
-   modelling.
-2. Report extractor. Score it on the 58 gold studies.
-3. Metadata scan: series table, laterality, fold groups.
-4. Cache at 336 px, 130 mm crop, laterality-normalised.
-5. Train from DINOv2-small. Report grouped **and** random CV every run, and log runtime — it is
-   half the efficiency metric and cannot be reconstructed later.
+Tracked in [issues](https://github.com/dk2lone/knee/issues). Steps in order:
+
+| # | Step |
+|---|---|
+| [#1](https://github.com/dk2lone/knee/issues/1) | Constant-0.5 submission — prove the rerun works |
+| [#2](https://github.com/dk2lone/knee/issues/2) | Attach the public LLM label tables, score on the 58 gold studies |
+| [#3](https://github.com/dk2lone/knee/issues/3) | Site-grouped folds, report grouped + random CV every run |
+| [#4](https://github.com/dk2lone/knee/issues/4) | Build the 336 px / 130 mm cache |
+| [#5](https://github.com/dk2lone/knee/issues/5) | Train DINOv2-small, one fold, runtime logged |
+| [#6](https://github.com/dk2lone/knee/issues/6) | Rank-average everything — what the metric rewards |
+| [#19](https://github.com/dk2lone/knee/issues/19) | Slot priors, anti-site augmentation, five folds, BioMedCLIP |
+
+Challenges: [#7](https://github.com/dk2lone/knee/issues/7) synovitis · [#8](https://github.com/dk2lone/knee/issues/8) MCL ·
+[#9](https://github.com/dk2lone/knee/issues/9) severity thresholds · [#10](https://github.com/dk2lone/knee/issues/10) no text at inference ·
+[#11](https://github.com/dk2lone/knee/issues/11) 58-study CIs · [#12](https://github.com/dk2lone/knee/issues/12) laterality ·
+[#13](https://github.com/dk2lone/knee/issues/13) efficiency track · [#14](https://github.com/dk2lone/knee/issues/14) data description errors ·
+[#17](https://github.com/dk2lone/knee/issues/17) language/site bias · [#18](https://github.com/dk2lone/knee/issues/18) extractor bugs
+
+Open questions: [#15](https://github.com/dk2lone/knee/issues/15) test split · [#16](https://github.com/dk2lone/knee/issues/16) external datasets
 
 ## Sources
 
