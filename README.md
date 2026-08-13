@@ -292,9 +292,45 @@ arthritis clinics. That case-mix difference is what a model memorises when it le
 scanner, and it is why random folds inflate the score. It also makes the host's warning
 concrete: if the private split has a different site composition, a site-fitted model breaks.
 
-**Resolution.** A 130 mm crop covers 99.57% of series. At 224 px that is 0.58 mm/px; Nyquist
-needs ≤0.5 mm for a 1 mm meniscal tear. 336 px gives 0.387 mm. The two labels that fell below
-chance in one team's first run were Medial Meniscus and MCL.
+**Resolution is real but secondary — adaptation is the big lever.** The Nyquist argument says
+a 130 mm crop at 224 px gives 0.58 mm/px, above the 0.5 mm a 1 mm meniscal tear needs, and 336 px
+gives 0.387 mm. True, and measured on the leaderboard it is worth **+0.017** (0.866 → 0.883 for
+one extra hour).
+
+But the same team showed the focal-finding collapse is mostly *not* a resolution problem.
+Fine-tuning at the **same 224 px** moved exactly those findings:
+
+| finding | frozen backbone | fine-tuned @224 | Δ |
+|---|---|---|---|
+| Medial Meniscus | 0.679 | 0.850 | **+0.171** |
+| MCL | 0.708 | 0.825 | +0.118 |
+| ACL | 0.727 | 0.840 | +0.113 |
+| Contusion | 0.676 | 0.775 | +0.099 |
+
+A backbone trained on natural images does not know *what to look for* in an MRI. Once it does,
+224 px finds a meniscal tear. Adaptation bought +0.090 on the leaderboard, resolution +0.017.
+Fine-tune first; raise resolution second. For the efficiency track, 224 px at 0.866 in ~3 h may
+beat 336 px at 0.883 in ~4 h.
+
+**Your local metric understates the gains that matter.** OOF is scored against report-derived
+targets, which have a ceiling near 0.88–0.90 because report and image genuinely disagree. When
+the model gets better at *seeing the knee*, it departs from the labels precisely on the studies
+where the report was wrong — so a real vision gain is partly booked as disagreement with the
+teacher. Measured: OOF +0.0035 corresponded to LB +0.017, and OOF +0.035 to LB +0.090. That team
+nearly archived their better model because a pre-set OOF gate of +0.010 read the gain as +0.0035.
+
+The corrected protocol they published:
+
+- **OOF (n≈4,407)** selects epochs and detects breakage. Low variance, right tool for "did this
+  run go wrong".
+- **gold-58** decides whether a direction is worth pursuing. Noisy — bootstrap ±0.04 — but it
+  measures against the same ground truth the leaderboard does.
+- When they disagree, that is not a tie broken by sample size. They measure different things.
+
+**A gold-58 → leaderboard offset of about +0.044** is reported across systems: 0.824 → 0.866,
+and an unrelated architecture at 0.857 → 0.903. *Caveat: their own third data point, 0.771 →
+0.776, is +0.005, not +0.044, so either the table has a typo or the constant does not hold at the
+low end.* Worth measuring your own offset rather than assuming theirs.
 
 **Laterality.** Half the series carry no `Laterality` tag. Recover the side from image-centre
 x in patient coordinates (~97–98%), or from the report's first line (~98.8% where it fires).
