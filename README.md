@@ -92,8 +92,10 @@ efficiency leaderboard notebook, updated daily, showing rank only during the com
 - **Winning means publishing**: training code, inference code, weights and method under
   CC-BY-NC 4.0, weights as a public Kaggle dataset, plus a short video.
 - **Merge budget**: a merged team's combined submissions must be ≤ 5 × days elapsed.
-- **Rule 4.b (data security)** plausibly forbids sending report text to a hosted LLM API.
-  The host has not ruled. Run open-weight models in-notebook.
+- **Hosted LLM APIs are permitted.** The host ruled on this directly ([thread](https://www.kaggle.com/competitions/rsna-knee-abnormality-detection/discussion/733965)):
+  sending report text to an external LLM for label extraction "will not, by itself, be
+  considered prohibited PRIVATE SHARING". The service must still be cheap and available to
+  all. Earlier guesses that Rule 4.b forbade this were wrong.
 
 ## Data
 
@@ -125,21 +127,49 @@ efficiency leaderboard notebook, updated daily, showing rank only during the com
 | `test.csv`, `test_series.csv`, `test_series/` | same schema, swapped for real data at scoring |
 | `sample_submission.csv` | all labels 0.5 — also the efficiency benchmark |
 
-**Competitor claims** (measured by another entrant, not verified here)
+**Measured here from the downloaded CSVs**
 
 | | |
 |---|---|
 | Training studies | 4,407 |
 | Series | 24,371 |
-| Studies with real labels | **58** |
+| Studies with real labels | **58** (1.3%) |
 | Studies with a report only | 4,349 |
-| Report languages | 9–12 |
+| Reports missing | 0 |
 | Series per study | 3–14, median 5 |
-| Train transfer syntax | 100% uncompressed, 5.2 ms/slice decode |
+| Planes | Sagittal 9,864 · Coronal 8,609 · Axial 5,898 |
 
-The last one matters: the data description lists four syntaxes, but one team measured only
-uncompressed in *training*. The hidden test set may still contain the compressed ones, so keep
-`pylibjpeg` available at inference.
+Two discrepancies against the Data tab:
+
+- **`PatientSex` does not exist** in `train.csv`. The columns are `StudyInstanceUID`,
+  `Report`, and the 12 labels.
+- **`Fluid_Sensitive` and `Fat_Suppression` are identical** — both split 14,010 / 10,361 on
+  the same rows. One of the two carries no information.
+
+Gold prevalence over the 58 labelled studies:
+
+| Effusion | Synovitis | Med Men | ACL | Lat Men | PF OA | Contusion | Fracture | Med OA | Baker's | Lat OA | MCL |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 60.3% | 46.6% | 44.8% | 41.4% | 39.7% | 36.2% | 32.8% | 31.0% | 25.9% | 20.7% | 19.0% | **15.5%** |
+
+MCL has 9 positives out of 58. Nothing about that label is measurable.
+
+Report languages, by script and lexical cue (approximate):
+
+| | en | tr | es | el | cyr | nl | fr | de |
+|---|---|---|---|---|---|---|---|---|
+| studies | 1,540 | 1,168 | 682 | 321 | 220 | 150 | 124 | 38 |
+| median words | 185 | 102 | 104 | 118 | 146 | 114 | 204 | 69 |
+| under 50 words | 14% | 6% | **44%** | 1% | 1% | 5% | 0% | **32%** |
+
+Report length tracks language, which tracks site. Spanish and German reports are short, so
+"not mentioned" means much less there — mapping silence to 0 injects a site-correlated bias.
+
+Gold studies are unevenly distributed too: en 25, tr 12, es 10, el 3, cyr 3, nl 2, fr 1.
+
+**Competitor claim, unverified:** training data is 100% uncompressed, 5.2 ms/slice decode. The
+data description lists four transfer syntaxes, so the hidden test set may contain compressed
+ones. Keep `pylibjpeg` available at inference.
 
 ## The shape of the problem
 
@@ -154,19 +184,51 @@ MRI study    ->  series selection  ->  slices  ->  backbone  ->  12 logits
 
 The 58 gold studies do not train the model. They grade the extractor.
 
-Ground truth is **image-derived, not report-derived**: two MSK radiologists plus an
-adjudicator, using severity thresholds, grading uncertain cases negative. Report-derived
-labels agree only ~82%, and the disagreement is systematic — reports mention findings the
-rubric calls negative, and stay silent on findings the rubric calls positive.
+`test.csv` has no `Report` column. Text exists at training time and not at inference. That
+rules out a fusion model with a text branch — it would have nothing to read at scoring. Text
+is usable only as a target, or as a weight on the target.
+
+Ground truth is **image-derived, not report-derived**. The host confirmed this directly: labels
+were assigned from the images, and where the image and the report disagree, "the image-derived
+label should be considered authoritative". Two MSK radiologists labelled each study, a third
+adjudicated. Report-derived labels agree only ~82%.
+
+### The official label thresholds
+
+Every label is severity-thresholded, and "on the fence" was graded **negative** to favour
+specificity. This is the single most useful thing the host published:
+
+| Label | Positive means | Negative despite a mention |
+|---|---|---|
+| ACL | High-grade partial or full tear: complete discontinuity, or >50% of fibres disrupted | Signal change, degeneration or thickening without discontinuity |
+| MCL | High-grade partial or complete **acute** tear, disrupted fibres with edema | Low-grade sprain, chronic or remote stress change |
+| Meniscus (each) | Abnormal signal definitely contacting the surface on **≥2 images**, or truncated/diminutive/displaced fragment | Intrasubstance degeneration not reaching the surface |
+| OA (each compartment) | **≥1 cm** area of >50%-thickness cartilage loss | Smaller or lower-grade cartilage loss; chondropathy below threshold |
+| Effusion | **Moderate or large** fluid distending the joint | "Small"/"mild"/"trace" effusion |
+| Synovitis | Inflammation and thickening of the synovial lining | — |
+| Baker's | **Moderate or large** fluid collection in the characteristic location | Small cyst |
+| Contusion | Marrow edema-like signal from impact **without** a discrete fracture line | — |
+| Fracture | An **acute** cortical break or fracture line | Osteochondral / subchondral / insufficiency fracture may not count |
+
+A report saying "mild joint effusion" sits against a negative label by design. Any rule of the
+form *term present ⇒ positive* is wrong by construction. Grade the mention instead.
+
+Bilateral studies exist. The host says each was individually reviewed and the report text or
+DICOM metadata was adjusted so participants can disambiguate which knee is labelled.
 
 ## Known traps
 
 Measured and published by other entrants. Not verified here.
 
-**Site leakage.** Random K-fold inflates AUC ~0.053 through metadata alone; one team measured
-a +0.136 grouped-vs-random gap on their own model, so the pixels leak site too — noise texture,
-reconstruction kernel, native resolution. Group folds on `language | manufacturer | model`.
+**Site leakage.** A published probe fitted DICOM headers alone against report labels: 0.6516
+macro AUC under random folds, 0.5981 under scanner-grouped folds — a 0.053 gap that is pure
+site memorisation. Series composition alone (the four columns in `train_series.csv`, no DICOM
+reads) already gives 0.5954. A second team measured a +0.136 grouped-vs-random gap on their own
+vision model, so the pixels leak site too. Group folds on `language | manufacturer | model`.
 Language is close to a site key: Dutch, German and Greek reports are 100% Siemens.
+
+The same probe is reassuring in one direction: **there is no metadata shortcut**. The 0.9+
+leaderboard scores reflect real image reading, not a leak.
 
 **Resolution.** A 130 mm crop covers 99.57% of series. At 224 px that is 0.58 mm/px; Nyquist
 needs ≤0.5 mm for a 1 mm meniscal tear. 336 px gives 0.387 mm. The two labels that fell below
@@ -176,8 +238,24 @@ chance in one team's first run were Medial Meniscus and MCL.
 x in patient coordinates (~97–98%), or from the report's first line (~98.8% where it fires).
 Mirror right knees so the model learns one anatomy.
 
-**Reports under-report.** Gold prevalence vs mention rate: Synovitis 46.6% vs 11.9%, Fracture
-31.0% vs 19.9%. Some labels have to come from pixels.
+**Reports under-report, unevenly.** One team asked an LLM for a probability per finding with an
+explicit "the report does not address this" option. **25.4% of all cells came back undecided**,
+and the rate per label is wildly uneven:
+
+| Label | "not addressed" | gold AUC of the text label |
+|---|---|---|
+| Synovitis | **83.7%** | 0.678 |
+| Baker's | 48.2% | 0.946 |
+| Fracture | 42.9% | 0.793 |
+| ACL | 8.3% | 0.993 |
+| Medial Meniscus | 5.5% | 0.954 |
+
+Synovitis is present in 27 of the 58 gold studies and named in one report in six.
+
+**The effusion→synovitis trick.** Because the two co-occur (P(syn\|eff)=0.63 vs 0.22), filling
+*only the undecided* synovitis cells from the effusion field moves that column 0.678 → 0.790
+and the whole label key 0.878 → 0.887. Generalising the same imputation to all twelve labels
+made things **worse** (0.8805). Targeted beats blanket.
 
 **Negation ordering.** Test negation before pathology keywords, or `"medial meniscus: no tear"`
 matches `TEAR`.
@@ -187,6 +265,12 @@ score variable can rank silent studies above explicit mild findings. Keep the ra
 and the doubt in a separate weight.
 
 **Not the P100.** Kaggle's PyTorch ships no Pascal kernels. Set `"machine_shape": "NvidiaTeslaT4"`.
+
+**58 studies cannot resolve small effects.** A pre-registered replication found graded (SOFT)
+targets beat binary (HARD) targets on all 3 paired seeds, +0.0143 macro AUC — but the 95%
+bootstrap interval was [-0.0041, +0.0330]. It crosses zero. On a 430-study surrogate endpoint
+HARD won instead. Expect your gold-58 measurements to be inconclusive, and pre-register what
+you will conclude before you run.
 
 ## Where the field is
 
@@ -207,18 +291,47 @@ Transformers beat CNNs by ~0.2 here, and small beats large — which fits 58 gol
 suits the efficiency track. BioMedCLIP matches DINOv2-small with one user on it. Note these are
 whole-solution scores, attributed to whichever backbone the solution used.
 
-Public notebooks worth reading (votes · score):
+Public notebooks by votes (pulled to `nb/`):
 
-| Notebook | Votes | Score |
+| Notebook | Author | Votes |
 |---|---|---|
-| RSNA Knee \| DINOsaur V2 🦖 | 75 | 0.899 |
-| rsna-knee-enhanced-ensemble | 74 | 0.899 |
-| RSNA Knee: Take Care Of Your Knee | 33 | 0.89 |
-| RSNA Knee +90% reports LLM 30 epochs | 23 | 0.899 |
-| RSNA Knee Abnormality DetectionV1 | 24 | 0.899 |
-| Domain adaptation beats resolution: DINOv2 on knee | 13 | 0.866 |
-| knee submit baseline | 10 | 0.75 |
-| RSNA Knee Abnormalities — Efficiency LB (pinned) | 134 | — |
+| `pilkwang/rsna-knee-baseline-v1` | Pilkwang Kim | 299 |
+| `prvsiyan/rsna-knee-read-the-report-then-the-knee` | prvsiyan | 197 |
+| `ryanholbrook/rsna-knee-abnormalities-efficiency-lb` | Ryan Holbrook (host) | 135 |
+| `romanrozen/rsna-knee-data-structure-eda-baseline` | Roman Rozen | 92 |
+| `wguesdon/rsna-knee-dinov2-at-meniscus-resolution` | Will | 83 |
+| `aadigupta7686/0-899-let-me-cook` | AADIGUPTA | 79 |
+| `romantamrazov/rsna-knee-dinosaur-v2` | Roman Tamrazov | 75 |
+
+`pilkwang/rsna-knee-baseline-v1` is the reference implementation, and several of the others are
+forks of it. Its configuration:
+
+| | |
+|---|---|
+| Backbone | DINOv2-small, last **6** blocks trainable, rest frozen |
+| LR | 1e-3 head, **8e-6** backbone — "the encoder is adapted, not retrained" |
+| Cache | 336 px, `CROP_MM = 130`, 3 slices stacked as RGB channels |
+| Slots | 6 = 3 planes × 2 acquisition axes, with a presence mask |
+| Slot priors | Per-label attention tilt, e.g. Baker's → sagittal fluid only, strength 0.55 |
+| Epochs | 10, seed 2026, batch 8 studies |
+| Time budget | 8 h of the 9 h cap |
+
+Its stated reason for `CROP_MM = 130`: the acquired field of view has median 160 mm and runs
+70–320 mm, so a 160 mm crop is *larger than the image* in 60% of series and silently does
+nothing. 130 mm is below the FOV of 99.6% of series.
+
+Public LLM label datasets, ready to attach:
+
+| Dataset | Downloads |
+|---|---|
+| `pilkwang/rsna-knee-llm-labels` | 900 |
+| `stevenleehans/rsna-knee-llm-report-labels` | 533 |
+| `lixin73/rsna-knee-llm-report-labels-sol56` | 329 |
+| `barun2104/rsna-knee-mri-processed-3d-volumes` (cache, 17 GB) | 1,002 |
+
+Measured against the 58 gold studies: lexicon 0.8136, LLM 0.8780, LLM + synovitis imputation
+0.8873. DINOv3 is not registered on Kaggle; one competitor reports v3 scoring **below** v2
+(0.763 vs 0.775) on the same pipeline.
 
 Older competitor numbers, kept for the trajectory:
 
