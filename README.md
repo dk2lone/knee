@@ -381,6 +381,19 @@ you will conclude before you run.
 Public leaderboard, 12 Aug 2026: **0.946** at the top, five teams within 0.005 of each other.
 1,317 teams, 1,397 participants, 6,968 submissions.
 
+The paying places, pulled 13 Aug 2026:
+
+| Rank | Score |
+|---|---|
+| 1–3 | 0.946 |
+| 5 | 0.942 |
+| **10** | **0.936** |
+| 20 | 0.930 |
+
+Tenth is 0.936 and twentieth is 0.930, so the whole paying half of the board sits inside
+0.010. Best public score for any single backbone is 0.906. Assembling public parts does not
+reach 0.936 — the top of the board is running something that is not on the Models tab.
+
 Best public score per backbone, from the Models tab:
 
 | Model | Architecture | Users | Best public LB |
