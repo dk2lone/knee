@@ -373,3 +373,20 @@ Open questions: [#15](https://github.com/dk2lone/knee/issues/15) test split · [
 - [RSNA challenge page](https://www.rsna.org/artificial-intelligence/ai-image-challenge/knee-mri-ai-challenge)
 - [JunhaoLiXD/RSNA_Knee_Abnormality_Detection](https://github.com/JunhaoLiXD/RSNA_Knee_Abnormality_Detection)
 - [homeshwarnelakurthi/RSNA-Knee-Abnormality-Detection](https://github.com/homeshwarnelakurthi/RSNA-Knee-Abnormality-Detection)
+
+## Submission loop
+
+The CLI cannot submit to a code competition — `kaggle competitions submit -f` returns HTTP 400.
+Kaggle only accepts a submission that came from a notebook run, because that is how the 9 h cap
+and the internet-off rule are enforced. The working loop:
+
+```
+kaggle kernels push -p kaggle/<name>          # upload and run
+kaggle kernels status dk2lone/<id>            # wait for COMPLETE
+# browser: ... menu -> Submit to Competition -> version -> Submit
+kaggle competitions submissions -c rsna-knee-abnormality-detection
+```
+
+| Submission | Score | Runtime |
+|---|---|---|
+| `kaggle/benchmark` — constant 0.5 | 0.500 | 23 s |

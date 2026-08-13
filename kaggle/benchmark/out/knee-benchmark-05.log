@@ -1,0 +1,36 @@
+[{"stream_name":"stderr","time":7.562516619,"data":"/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py:96: MissingIDFieldWarning: Cell is missing an id field, this will become a hard error in future nbformat versions. You may want to use `normalize()` on your notebooks before validations (available since nbformat 5.1.4). Previous versions of nbformat are fixing this issue transparently, and will stop doing so in the future.\n"}
+,{"stream_name":"stderr","time":7.56257625,"data":"  validate(nb)\n"}
+,{"stream_name":"stderr","time":8.784060245,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":8.784104965000001,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":8.784109227,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":8.784156676,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":9.663384109999999,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":9.663426617,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":9.663433758,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":9.663438725,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":12.4633849,"data":"test studies: 3\n"}
+,{"stream_name":"stdout","time":12.463441789,"data":"(3, 13)\n"}
+,{"stream_name":"stdout","time":12.463447778,"data":"                                    StudyInstanceUID  ACL  MCL  \\\n"}
+,{"stream_name":"stdout","time":12.463452374,"data":"0  1.2.826.0.1.3680043.8.498.10047035057544427318...  0.5  0.5   \n"}
+,{"stream_name":"stdout","time":12.463456404,"data":"1  1.2.826.0.1.3680043.8.498.10062861783145312629...  0.5  0.5   \n"}
+,{"stream_name":"stdout","time":12.463460666,"data":"2  1.2.826.0.1.3680043.8.498.10067514707072572280...  0.5  0.5   \n"}
+,{"stream_name":"stdout","time":12.463465,"data":"\n"}
+,{"stream_name":"stdout","time":12.463468823,"data":"   Medial Meniscus  Lateral Meniscus  Medial OA  Lateral OA  PF OA  Effusion  \\\n"}
+,{"stream_name":"stdout","time":12.463472987,"data":"0              0.5               0.5        0.5         0.5    0.5       0.5   \n"}
+,{"stream_name":"stdout","time":12.463477826,"data":"1              0.5               0.5        0.5         0.5    0.5       0.5   \n"}
+,{"stream_name":"stdout","time":12.463481972,"data":"2              0.5               0.5        0.5         0.5    0.5       0.5   \n"}
+,{"stream_name":"stdout","time":12.463486197,"data":"\n"}
+,{"stream_name":"stdout","time":12.463489748,"data":"   Synovitis  Baker's  Contusion  Fracture  \n"}
+,{"stream_name":"stdout","time":12.463494065999999,"data":"0        0.5      0.5        0.5       0.5  \n"}
+,{"stream_name":"stdout","time":12.463497806,"data":"1        0.5      0.5        0.5       0.5  \n"}
+,{"stream_name":"stdout","time":12.463501987,"data":"2        0.5      0.5        0.5       0.5  \n"}
+,{"stream_name":"stdout","time":12.463505572,"data":"runtime: 0.1s\n"}
+,{"stream_name":"stderr","time":16.044480259,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":16.04453199,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":16.266478365,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":16.266543168,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":17.204754686,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":17.599669063,"data":"[NbConvertApp] Writing 4122 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":21.012889894,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":22.21569595,"data":"[NbConvertApp] Writing 279768 bytes to __results__.html\n"}
+]

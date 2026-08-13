@@ -1,0 +1,13 @@
+{
+  "id": "dk2lone/knee-benchmark-05",
+  "title": "knee benchmark 05",
+  "code_file": "knee-benchmark-05.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": [],
+  "competition_sources": ["rsna-knee-abnormality-detection"],
+  "kernel_sources": []
+}
