@@ -1,0 +1,18 @@
+[{"stream_name":"stdout","time":4.141511579,"data":"root /kaggle/input/competitions/rsna-knee-abnormality-detection; 3 test studies\n"}
+,{"stream_name":"stdout","time":4.222826322,"data":"training prior from 4407 studies over 46 scanners\n"}
+,{"stream_name":"stdout","time":4.237943357,"data":"29 scanners with \u003e= 20 studies cover 98.1% of the corpus\n"}
+,{"stream_name":"stdout","time":4.368945532,"data":"test scanners: 3 distinct; 1 of 3 studies land on a scanner the training set has (33.3%)\n"}
+,{"stream_name":"stdout","time":4.36908333,"data":"  unseen: ['GE MEDICAL SYSTEMS|SIGNA ARTIST', 'SIEMENS HEALTHINEERS|MAGNETOM AVANTO FIT']\n"}
+,{"stream_name":"stdout","time":4.381284389,"data":"submission.csv (3, 13); nulls 0\n"}
+,{"stream_name":"stdout","time":4.384412554,"data":"distinct predicted rows: 2 of 3 — if this is 1, every study got the global prior and the probe measured nothing\n"}
+,{"stream_name":"stdout","time":4.392418154,"data":"                                                   StudyInstanceUID       ACL       MCL  Medial Meniscus  Lateral Meniscus  Medial OA  Lateral OA     PF OA  Effusion  Synovitis   Baker's  Contusion  Fracture\n"}
+,{"stream_name":"stdout","time":4.392455929,"data":"0  1.2.826.0.1.3680043.8.498.10047035057544427318018579121635276191  0.208305  0.153392         0.403903          0.156569   0.371681    0.272521  0.457454  0.597686   0.126390  0.247107   0.175176  0.071931\n"}
+,{"stream_name":"stdout","time":4.392461545,"data":"1  1.2.826.0.1.3680043.8.498.10062861783145312629332250977456991776  0.620155  0.271318         0.434109          0.240310   0.465116    0.325581  0.503876  0.736434   0.651163  0.333333   0.302326  0.155039\n"}
+,{"stream_name":"stdout","time":4.392465415,"data":"2  1.2.826.0.1.3680043.8.498.10067514707072572280263481548497591402  0.208305  0.153392         0.403903          0.156569   0.371681    0.272521  0.457454  0.597686   0.126390  0.247107   0.175176  0.071931\n"}
+,{"stream_name":"stderr","time":7.37492019,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":7.374977134,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":7.7778379090000005,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":7.777888871,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":9.694799354,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":11.372134094,"data":"[NbConvertApp] Writing 306559 bytes to __results__.html\n"}
+]

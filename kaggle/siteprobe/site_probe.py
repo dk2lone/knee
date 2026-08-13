@@ -64,6 +64,22 @@ def find(name):
     return p if p.is_file() else None
 
 
+def vendor(s):
+    """Siemens ships as SIEMENS, Siemens and Siemens Healthineers. Same scanner maker.
+
+    Copied from eda/make_folds.py, which is what built the scanner column this probe
+    joins against. The raw tag holds twelve spellings for seven makers - Canon's scanners
+    still say TOSHIBA, Fujifilm's still say Hitachi - so joining on the raw string finds
+    almost nothing and reports it as "the test set uses unseen scanners", which is the
+    exact wrong answer to the question being asked.
+    """
+    s = str(s).upper()
+    for k in ("SIEMENS", "PHILIPS", "GE", "TOSHIBA", "CANON", "FUJI", "HITACHI"):
+        if k in s:
+            return k
+    return "OTHER"
+
+
 def scanner_of_series(item):
     """One header read per series: the two tags that name the machine."""
     study, path = item
@@ -72,9 +88,9 @@ def scanner_of_series(item):
         if f is None:
             return study, None
         ds = pydicom.dcmread(os.path.join(path, f), stop_before_pixels=True, force=True)
-        mk = str(getattr(ds, "Manufacturer", "") or "").strip().upper()
-        md = str(getattr(ds, "ManufacturerModelName", "") or "").strip().upper()
-        return study, f"{mk}|{md}" if (mk or md) else None
+        mk = getattr(ds, "Manufacturer", None)
+        md = str(getattr(ds, "ManufacturerModelName", "") or "?").strip().upper()
+        return study, f"{vendor(mk)}|{md}"
     except Exception:
         return study, None
 
@@ -142,6 +158,15 @@ def main():
           f"{hit.sum()} of {len(ts)} studies land on a scanner the training set has "
           f"({hit.mean():.1%})", flush=True)
     print("  unseen:", sorted(set(ts[~hit]))[:8], flush=True)
+
+    # A near-total miss means the key is not joining, not that the test set came from
+    # different machines - the first run of this probe read the raw Manufacturer tag and
+    # reported 33% overlap for that reason alone. Both readings are worth knowing apart,
+    # so say which one this is rather than leaving it to the leaderboard to imply.
+    if hit.mean() < 0.5:
+        print(f"  WARNING: under half the test studies join. Check the vendor "
+              f"normalisation before reading anything into the score. Training keys look "
+              f"like {sorted(prior.index)[:3]}", flush=True)
 
     pred = score(test["StudyInstanceUID"], ts, prior, globl)
     sub = pred.reset_index()

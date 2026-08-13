@@ -40,8 +40,43 @@ def auc(y, s):
     return (r[y == 1].sum() - npos * (npos + 1) / 2) / (npos * nneg)
 
 
+def test_the_key_joins(probe):
+    """The probe's scanner key must be the one data/folds.csv was built with.
+
+    This is the bug the first run actually had. Reading the raw Manufacturer tag gives
+    `SIEMENS HEALTHINEERS|MAGNETOM AVANTO FIT` where the training column says
+    `SIEMENS|MAGNETOM AVANTO FIT`, so almost nothing joins, every study falls back to the
+    global prior, and the probe returns 0.500 - which is indistinguishable from the
+    finding that the test set came from different machines. The wrong answer to the only
+    question the submission was spent on.
+    """
+    meta = pd.read_csv("data/series_meta.csv")
+    folds = pd.read_csv("data/folds.csv").set_index("StudyInstanceUID")["scanner"]
+
+    raw = meta["Manufacturer"].dropna().unique()
+    assert len(raw) > 7, f"only {len(raw)} raw spellings; the tag stopped being read"
+    mapped = {probe.vendor(s) for s in raw}
+    assert "OTHER" not in mapped, \
+        f"a maker fell through: {[s for s in raw if probe.vendor(s) == 'OTHER']}"
+    print(f"  {len(raw)} raw Manufacturer spellings collapse to {len(mapped)} makers: "
+          f"{sorted(mapped)}")
+
+    # Rebuild the key the probe's own way and require it to reproduce the training column.
+    key = (meta["Manufacturer"].map(probe.vendor) + "|"
+           + meta["ManufacturerModelName"].fillna("?").str.strip().str.upper())
+    built = (meta.assign(k=key).groupby("StudyInstanceUID")["k"]
+                 .agg(lambda s: s.mode().iat[0]))
+    both = built.index.intersection(folds.index)
+    agree = (built.loc[both] == folds.loc[both]).mean()
+    assert agree > 0.999, f"the probe's key reproduces only {agree:.1%} of folds.csv"
+    print(f"  the probe's key reproduces {agree:.1%} of the scanner column in folds.csv")
+
+
 def main():
     probe = load_probe()
+    print("the join:")
+    test_the_key_joins(probe)
+    print("the prior:")
     folds = pd.read_csv("data/folds.csv").set_index("StudyInstanceUID")
     labels = pd.read_csv("kaggle/labels/report_labels_dk.csv").set_index("StudyInstanceUID")
     idx = folds.index.intersection(labels.index)
