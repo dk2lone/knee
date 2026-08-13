@@ -25,6 +25,15 @@ RUN5_HOLDOUT = 0.8084
 RUN5_LB = 0.831
 BASELINE_LB = 0.891
 
+# The public members, read out of pilkwang/rsna-knee-weights manifest.json. Twenty of
+# them, 5 folds x 4 seeds, fitted on the same slots, rules, crop, band, resolution and
+# backbone as this pipeline - they differ only in holding 12 cached slices against 3, and
+# in having been trained for 20 to 60 epochs off the platform. Their per-member scores are
+# the comparison that decides whether blending is worth a submission: members far below
+# these drag a rank mean rather than diversifying it.
+PUBLIC_HOLDOUT = (0.8279, 0.8377, 0.8600)     # min, median, max
+PUBLIC_ANNOT = (0.7356, 0.8441, 0.9164)
+
 
 def auc(y, s):
     y = np.asarray(y)
@@ -74,10 +83,14 @@ def main(path):
 
     # Per fold, because one bad fold hides inside a mean over five.
     if "fold" in oof.columns:
-        print("\n  per fold")
+        print("\n  per fold, against the public members' per-member holdout "
+              f"(min {PUBLIC_HOLDOUT[0]:.4f}, median {PUBLIC_HOLDOUT[1]:.4f})")
         for f, g in oof.loc[idx].groupby("fold"):
             gy = (weak.loc[g.index, L] > 0.5).astype(int)
-            print(f"    fold {int(f)}  n={len(g):4d}  {macro(gy, g[L]):.4f}")
+            v = macro(gy, g[L])
+            where = ("at parity" if v >= PUBLIC_HOLDOUT[0]
+                     else f"{PUBLIC_HOLDOUT[0] - v:.4f} below their weakest")
+            print(f"    fold {int(f)}  n={len(g):4d}  {v:.4f}  {where}")
 
     # --- is it worth a submission ------------------------------------------ #
     gold = train[train[L].notna().all(axis=1)][L].astype(int)
@@ -90,6 +103,11 @@ def main(path):
         print(f"  gold macro {gm:.4f}  95% [{lo:.4f}, {hi:.4f}]")
         print(f"  the interval is {hi - lo:.3f} wide, so treat anything inside it "
               f"as a tie")
+        print(f"  the public members score {PUBLIC_ANNOT[0]:.4f} to "
+              f"{PUBLIC_ANNOT[2]:.4f} here, median {PUBLIC_ANNOT[1]:.4f}")
+        if gm < PUBLIC_ANNOT[0]:
+            print("  below their weakest member: blending these in would drag the rank "
+                  "mean, so submit the public members alone and keep the slot cheap")
 
     # --- is the fold grouping doing anything ------------------------------- #
     # If a site-grouped OOF reads the same as a random-grouped one, the grouping is not
