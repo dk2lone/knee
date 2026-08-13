@@ -9,7 +9,13 @@ that a bootstrap interval is the only honest way to read it.
 
 They measure different things. When they disagree that is not a tie broken by sample size.
 
-Run: .venv/bin/python eda/score_oof.py kaggle/train-v1/out/oof.csv
+Give it a second file and it reports the paired difference instead of two numbers. That is
+what `oof_nosex.csv` is for: same weights, same folds, same epoch, same pixels, differing
+only in whether the sex bias was applied. Paired, because the noise between two readings of
+the same studies is shared and subtracting removes it.
+
+Run: .venv/bin/python eda/score_oof.py kaggle/train-v2/out/oof.csv
+     .venv/bin/python eda/score_oof.py kaggle/train-v2/out/oof.csv kaggle/train-v2/out/oof_nosex.csv
 """
 import sys
 
@@ -129,5 +135,49 @@ def main(path):
           "so a small OOF move is not a reason to stop, and a large one is not a promise.")
 
 
+def compare(a_path, b_path):
+    """The paired difference between two out-of-fold files over the studies both cover."""
+    a = pd.read_csv(a_path).set_index("StudyInstanceUID")
+    b = pd.read_csv(b_path).set_index("StudyInstanceUID")
+    weak = pd.read_csv("data/labels/llm_labels_v4_blend.csv").set_index("StudyInstanceUID")
+    train = pd.read_csv("data/train.csv").set_index("StudyInstanceUID")
+
+    idx = a.index.intersection(b.index).intersection(weak.index)
+    y = (weak.loc[idx, L] > 0.5).astype(int).reset_index(drop=True)
+    pa, pb = a.loc[idx, L].reset_index(drop=True), b.loc[idx, L].reset_index(drop=True)
+
+    rng = np.random.default_rng(2026)
+    d = [macro(y.iloc[i].reset_index(drop=True), pa.iloc[i].reset_index(drop=True))
+         - macro(y.iloc[i].reset_index(drop=True), pb.iloc[i].reset_index(drop=True))
+         for i in (rng.integers(0, len(idx), len(idx)) for _ in range(400))]
+    lo, hi = np.percentile(d, [2.5, 97.5])
+    print(f"\n{a_path}\n  minus {b_path}\n")
+    print(f"OOF over {len(idx)} studies: {macro(y, pa):.4f} against {macro(y, pb):.4f}")
+    print(f"  paired delta {macro(y, pa) - macro(y, pb):+.4f}  "
+          f"95% [{lo:+.4f}, {hi:+.4f}]")
+    if lo <= 0 <= hi:
+        print("  the interval crosses zero: this reads as no effect at this sample size")
+
+    print("\nper label")
+    per = pd.Series({c: auc(y[c].values, pa[c].values) - auc(y[c].values, pb[c].values)
+                     for c in L}).sort_values()
+    print(per.round(4).to_string())
+    print("\nOA and ACL are where the header says the effect lives; a delta concentrated\n"
+          "elsewhere is a sign the bias is fitting something other than epidemiology.")
+
+    gold = train[train[L].notna().all(axis=1)][L].astype(int)
+    gi = idx.intersection(gold.index)
+    if len(gi):
+        ga = macro(gold.loc[gi].reset_index(drop=True),
+                   a.loc[gi, L].reset_index(drop=True))
+        gb = macro(gold.loc[gi].reset_index(drop=True),
+                   b.loc[gi, L].reset_index(drop=True))
+        print(f"\nannotated studies (n={len(gi)}): {ga:.4f} against {gb:.4f} "
+              f"({ga - gb:+.4f}) — too few to resolve this, reported for direction only")
+
+
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "kaggle/train-v1/out/oof.csv")
+    if len(sys.argv) > 2:
+        compare(sys.argv[1], sys.argv[2])
+    else:
+        main(sys.argv[1] if len(sys.argv) > 1 else "kaggle/train-v1/out/oof.csv")

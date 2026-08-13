@@ -34,8 +34,8 @@ def load(*names):
 
 
 def fake_ours(n=5):
-    """A package in the layout the training notebook writes, at 3 cached slices."""
-    key = json.dumps({"img": 336, "group": 3, "slices": 3, "crop_mm": 130.0,
+    """A package in the layout the training notebook writes, at 6 cached slices."""
+    key = json.dumps({"img": 336, "group": 3, "slices": 6, "crop_mm": 130.0,
                       "band": [0.2, 0.8],
                       "rules": {"order": "normal", "lat": "centre",
                                 "slot_fallback": False, "decode_fill": "nearest"},
@@ -98,7 +98,7 @@ def main():
         groups = {m["pixel_group"] for m in got}
         assert len(groups) == 2, f"{len(groups)} decode group(s), expected 2"
         slices = sorted(json.loads(g)["slices"] for g in groups)
-        assert slices == [3, 12], slices
+        assert slices == [6, 12], slices
         print(f"  2 decode groups, {slices[0]} and {slices[1]} cached slices")
 
         # Everything else about the pixels has to match, or the members are not
