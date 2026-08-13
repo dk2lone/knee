@@ -515,3 +515,33 @@ kaggle competitions submissions -c rsna-knee-abnormality-detection
 | Submission | Score | Runtime |
 |---|---|---|
 | `kaggle/benchmark` — constant 0.5 | 0.500 | 23 s |
+
+## Runs
+
+| # | submission | public LB | notes |
+|---|---|---|---|
+| 1 | constant 0.5 | 0.500 | the benchmark the efficiency metric divides by |
+| 2 | public baseline, unchanged | 0.891 | 20 members × 10 TTA windows |
+| 3 | baseline, `TTA_OVERLAP=False` | 0.888 | 20 members × 4 windows |
+| 4 | baseline, **top 5 members** | **0.891** | 5 members × 10 windows — **2.4× faster, free** |
+| 5 | own model, r336 | pending | trained on `report_labels_dk`, holdout 0.8084 |
+
+**Cutting the 20-member ensemble to 5 costs nothing.** Same score, 2.4× the speed. The members
+are highly correlated — same architecture, recipe and labels, differing only by fold and seed —
+so votes 6–20 add nothing. Dropping TTA windows costs more (−0.003) than dropping 15 members
+(0.000), which inverts the baseline's own stated priority.
+
+### `knee-train-v1` — the first model trained here
+
+| config | holdout (881 studies) | gold subset (n=11) |
+|---|---|---|
+| r224, 0.580 mm/px | 0.8027 | 0.7998 |
+| **r336, 0.387 mm/px** | **0.8084** | **0.8041** |
+
+Total 4,730 s. 336 px beat 224 px by **+0.0057**, matching the +0.0035 another team measured for
+the same comparison — which became +0.017 on their leaderboard.
+
+**The bottleneck is slice ordering, not decoding.** Reading 678,385 slice headers to sort
+20,130 series took **1,784 s**; decoding the pixels took 290 s. Ordering is latency-bound on the
+network mount, and it is 38% of the run before a single gradient step. Caching the slice order
+across runs would give back half an hour each time. Nobody mentions this publicly.
