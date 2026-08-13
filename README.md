@@ -154,18 +154,26 @@ Gold prevalence over the 58 labelled studies:
 
 MCL has 9 positives out of 58. Nothing about that label is measurable.
 
-Report languages, by script and lexical cue (approximate):
+Report languages — nine, detected with `langdetect` (`eda/detect_lang.py`, output `data/lang.csv`):
 
-| | en | tr | es | el | cyr | nl | fr | de |
-|---|---|---|---|---|---|---|---|---|
-| studies | 1,540 | 1,168 | 682 | 321 | 220 | 150 | 124 | 38 |
-| median words | 185 | 102 | 104 | 118 | 146 | 114 | 204 | 69 |
-| under 50 words | 14% | 6% | **44%** | 1% | 1% | 5% | 0% | **32%** |
+| | en | es | tr | hr | el | de | bg | nl | fr |
+|---|---|---|---|---|---|---|---|---|---|
+| studies | 1,736 | 682 | 546 | 406 | 321 | 262 | 220 | 153 | 81 |
+| median words | 181 | 103 | 85 | 144 | 118 | 86 | 146 | 114 | 215 |
+| under 50 words | 13% | **44%** | 10% | 0% | 1% | 10% | 1% | 5% | 0% |
+| gold studies | 28 | 10 | 6 | 4 | 3 | 2 | 3 | 2 | **0** |
 
-Report length tracks language, which tracks site. Spanish and German reports are short, so
-"not mentioned" means much less there — mapping silence to 0 injects a site-correlated bias.
+Report length tracks language, which tracks site. Spanish reports are short — 44% under 50
+words — so "not mentioned" means much less there. Mapping silence to 0 injects a
+site-correlated bias.
 
-Gold studies are unevenly distributed too: en 25, tr 12, es 10, el 3, cyr 3, nl 2, fr 1.
+Do not hand-roll the detector. Rules keyed on anatomy words merge Croatian into Turkish,
+because `menisk` appears in both, and Spanish into Portuguese. A 200-word report gives a
+statistical detector plenty to work with.
+
+Half the gold studies are English, and French has none. So the gold-58 measurement is largely
+an English measurement, and it cannot detect a labeller failing in Greek or Turkish. Coverage —
+did anything match at all, per (report, finding) pair — is the check that works without labels.
 
 **Competitor claim, unverified:** training data is 100% uncompressed, 5.2 ms/slice decode. The
 data description lists four transfer syntaxes, so the hidden test set may contain compressed

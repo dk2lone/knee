@@ -1,0 +1,95 @@
+[{"stream_name":"stderr","time":8.396306406,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":8.396383828,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":8.396391768,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":8.396396603,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":9.122307528,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":9.122360786,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":9.12236778,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":9.122372765,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":260.142342963,"data":"[    0.1s] input root: /kaggle/input/competitions/rsna-knee-abnormality-detection\n"}
+,{"stream_name":"stdout","time":260.28288236,"data":"[    0.2s] memory: 29.8 GB available, 13.4 GB to the cache; sizing for 4407 train + 1322 test studies -\u003e 1 group(s) of 3 = 3 slices per slot\n"}
+,{"stream_name":"stdout","time":260.283835094,"data":"[    0.2s] cache layout: 1 groups x 3 slices = 3 per slot\n"}
+,{"stream_name":"stdout","time":262.284463906,"data":"[    2.2s] weights package: 20 member(s) from /kaggle/input/datasets/pilkwang/rsna-knee-weights\n"}
+,{"stream_name":"stdout","time":262.380833205,"data":"[    2.3s] test header pass: 15 series\n"}
+,{"stream_name":"stdout","time":262.381862302,"data":"[    2.3s] decode group 1/1: 336px x 12 slices, crop 130.0 mm -\u003e 20 member(s)\n"}
+,{"stream_name":"stdout","time":262.414393646,"data":"[    2.4s] test laterality: 1 from the tag, 2 from geometry, 0 unresolved; tag and geometry disagree on 0 (0.0% of the tagged)\n"}
+,{"stream_name":"stdout","time":262.415563976,"data":"[    2.4s] test g1: cache (3, 6, 12, 336, 336) = 0.0 GB\n"}
+,{"stream_name":"stdout","time":262.416997624,"data":"[    2.4s] test g1: ordering 12 slot-series (469 slice headers)\n"}
+,{"stream_name":"stdout","time":264.599051082,"data":"[    4.6s] test g1: ordered 12/12 by geometry (0 kept arbitrary) in 2s\n"}
+,{"stream_name":"stdout","time":264.600311747,"data":"[    4.6s] test g1: decoding 12 slot-series\n"}
+,{"stream_name":"stdout","time":265.531979299,"data":"[    5.5s]   test g1 12/12\n"}
+,{"stream_name":"stdout","time":265.664644483,"data":"[    5.5s] test g1: 12/12 slots filled\n"}
+,{"stream_name":"stdout","time":294.054114104,"data":"[   33.7s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":296.033933036,"data":"[   36.0s] e5427d6c21: fingerprint matches within 2.8e-06\n"}
+,{"stream_name":"stdout","time":296.849727695,"data":"[   36.8s]   e5427d6c21 fold 2: predicted 3 studies over 10 window(s) in 31s\n"}
+,{"stream_name":"stdout","time":299.070992971,"data":"[   38.8s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":299.23985925,"data":"[   39.2s] d47313baef: fingerprint matches within 2.1e-06\n"}
+,{"stream_name":"stdout","time":299.802005853,"data":"[   39.8s]   d47313baef fold 2: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":301.987085925,"data":"[   41.7s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":302.111332313,"data":"[   42.1s] ea3fbf6edf: fingerprint matches within 3.8e-06\n"}
+,{"stream_name":"stdout","time":302.700515214,"data":"[   42.7s]   ea3fbf6edf fold 2: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":304.939191452,"data":"[   44.6s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":305.075328584,"data":"[   45.0s] 5f8ba4c5ea: fingerprint matches within 3.3e-06\n"}
+,{"stream_name":"stdout","time":305.640516447,"data":"[   45.6s]   5f8ba4c5ea fold 2: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":307.868834923,"data":"[   47.6s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":308.032405218,"data":"[   48.0s] 013dc75703: fingerprint matches within 3.3e-06\n"}
+,{"stream_name":"stdout","time":308.626990758,"data":"[   48.6s]   013dc75703 fold 4: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":310.734250662,"data":"[   50.4s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":310.89770238,"data":"[   50.9s] 2f7e785e82: fingerprint matches within 1.1e-06\n"}
+,{"stream_name":"stdout","time":311.472636251,"data":"[   51.4s]   2f7e785e82 fold 4: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":313.543683594,"data":"[   53.2s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":313.691488102,"data":"[   53.7s] 8baecb9d1b: fingerprint matches within 2.4e-06\n"}
+,{"stream_name":"stdout","time":314.279184743,"data":"[   54.2s]   8baecb9d1b fold 4: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":316.63337441,"data":"[   56.3s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":316.768039799,"data":"[   56.7s] 44bc3c6f14: fingerprint matches within 3.8e-06\n"}
+,{"stream_name":"stdout","time":317.341770578,"data":"[   57.3s]   44bc3c6f14 fold 0: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":319.402953154,"data":"[   59.1s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":319.538607091,"data":"[   59.5s] 44128e3ff3: fingerprint matches within 4.3e-06\n"}
+,{"stream_name":"stdout","time":320.122449074,"data":"[   60.1s]   44128e3ff3 fold 0: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":322.310845129,"data":"[   62.0s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":322.430670287,"data":"[   62.4s] 84079fe8cb: fingerprint matches within 1.2e-06\n"}
+,{"stream_name":"stdout","time":323.014303373,"data":"[   63.0s]   84079fe8cb fold 3: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":325.343307764,"data":"[   65.1s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":325.49125604,"data":"[   65.5s] ed427aa10a: fingerprint matches within 4.6e-06\n"}
+,{"stream_name":"stdout","time":326.091429828,"data":"[   66.1s]   ed427aa10a fold 0: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":328.294610881,"data":"[   68.0s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":328.431157933,"data":"[   68.4s] 2dce50ebd9: fingerprint matches within 3.8e-06\n"}
+,{"stream_name":"stdout","time":329.012105334,"data":"[   69.0s]   2dce50ebd9 fold 0: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":331.109448547,"data":"[   70.8s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":331.234781334,"data":"[   71.2s] 3d1f4c48fc: fingerprint matches within 1.3e-06\n"}
+,{"stream_name":"stdout","time":331.81728808,"data":"[   71.8s]   3d1f4c48fc fold 4: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":334.082153513,"data":"[   73.8s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":334.230569343,"data":"[   74.2s] 91f171fe6f: fingerprint matches within 2.6e-06\n"}
+,{"stream_name":"stdout","time":334.820314012,"data":"[   74.8s]   91f171fe6f fold 1: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":337.066245628,"data":"[   76.8s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":337.214313127,"data":"[   77.2s] 8476b29285: fingerprint matches within 4.4e-06\n"}
+,{"stream_name":"stdout","time":337.816193919,"data":"[   77.8s]   8476b29285 fold 1: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":339.962186883,"data":"[   79.7s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":340.105555849,"data":"[   80.1s] 72081758ce: fingerprint matches within 2.9e-06\n"}
+,{"stream_name":"stdout","time":340.687870542,"data":"[   80.6s]   72081758ce fold 3: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":342.869202346,"data":"[   82.6s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":342.967003497,"data":"[   82.9s] 7f8321affc: fingerprint matches within 2.9e-06\n"}
+,{"stream_name":"stdout","time":343.564512152,"data":"[   83.5s]   7f8321affc fold 3: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":346.147871875,"data":"[   85.8s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":346.291485287,"data":"[   86.3s] 1e553ba481: fingerprint matches within 1.7e-06\n"}
+,{"stream_name":"stdout","time":346.887610082,"data":"[   86.8s]   1e553ba481 fold 1: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":349.299528448,"data":"[   89.0s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":349.450749586,"data":"[   89.4s] b7c37cc80e: fingerprint matches within 1.1e-06\n"}
+,{"stream_name":"stdout","time":350.065110312,"data":"[   90.0s]   b7c37cc80e fold 3: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":352.49906607,"data":"[   92.2s] backbone: 12 blocks, last 6 trainable (10.7M params), feature dim 768\n"}
+,{"stream_name":"stdout","time":352.63668864,"data":"[   92.6s] f335c812fe: fingerprint matches within 2.9e-06\n"}
+,{"stream_name":"stdout","time":353.249915928,"data":"[   93.2s]   f335c812fe fold 1: predicted 3 studies over 10 window(s) in 3s\n"}
+,{"stream_name":"stdout","time":353.784477931,"data":"[   93.7s] submission.csv = rank mean of 20 member(s); (3, 13); nulls 0\n"}
+,{"stream_name":"stdout","time":353.785520309,"data":"[   93.7s] done\n"}
+,{"stream_name":"stdout","time":353.786424031,"data":"[   93.7s] done\n"}
+,{"stream_name":"stderr","time":359.650602921,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":359.650664708,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":359.838683603,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":359.83873673,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":360.641885767,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":361.187508217,"data":"[NbConvertApp] Writing 3249408 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":364.187341718,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":365.658638932,"data":"[NbConvertApp] Support files will be in __results___files/\n"}
+,{"stream_name":"stderr","time":365.658707516,"data":"[NbConvertApp] Making directory __results___files\n"}
+,{"stream_name":"stderr","time":365.660653083,"data":"[NbConvertApp] Writing 1009267 bytes to __results__.html\n"}
+]
