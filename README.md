@@ -524,7 +524,7 @@ kaggle competitions submissions -c rsna-knee-abnormality-detection
 | 2 | public baseline, unchanged | 0.891 | 20 members × 10 TTA windows |
 | 3 | baseline, `TTA_OVERLAP=False` | 0.888 | 20 members × 4 windows |
 | 4 | baseline, **top 5 members** | **0.891** | 5 members × 10 windows — **2.4× faster, free** |
-| 5 | own model, r336 | pending | trained on `report_labels_dk`, holdout 0.8084 |
+| 5 | own model, r336 | **0.831** | trained on `report_labels_dk`, holdout 0.8084 |
 
 **Cutting the 20-member ensemble to 5 costs nothing.** Same score, 2.4× the speed. The members
 are highly correlated — same architecture, recipe and labels, differing only by fold and seed —
