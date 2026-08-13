@@ -34,11 +34,30 @@ Multilabel — one study can be positive for several findings at once.
 | Type | Code competition, notebook rerun on a hidden test set |
 | Runtime | 9 hours max, internet off |
 | Deadline | 2026-10-22 |
-| Prize pool | $77,000, including a separate efficiency award |
+| Submissions | 5 per day, 2 selected as final |
+| Max team size | 5 |
 | Winners | Announced November 2026, presented at RSNA 2026 in Chicago |
 
-Submission limits and max team size are on the competition Rules tab. Not recorded here
-because Kaggle blocks scripted reads of that page.
+Prizes, $77,000 total. The main board pays ten places:
+
+| Place | Main | | Place | Efficiency |
+|---|---|---|---|---|
+| 1st | $9,000 | | 1st | $7,000 |
+| 2nd | $7,000 | | 2nd | $6,000 |
+| 3rd | $6,500 | | 3rd | $5,000 |
+| 4th | $6,000 | | | |
+| 5th | $5,500 | | | |
+| 6th–10th | $5,000 each | | | |
+
+Third in the efficiency track pays the same as tenth on the main board, and fewer people
+compete there.
+
+External data and public pretrained models are allowed — they must be free and equally
+available to all entrants. Winning obliges you to publish training code, inference code and
+weights under CC-BY-NC 4.0, with the weights as a public Kaggle dataset.
+
+Merge budget: a merged team's total submissions must be ≤ 5 × days elapsed, so heavy early
+submitting can block a late merge.
 
 ## Data
 
@@ -110,11 +129,25 @@ score and the doubt in a separate weight.
 
 ## Reference points
 
+Best public LB score per backbone, from the competition Models tab:
+
+| Model | Architecture | Users | Best public LB |
+|---|---|---|---|
+| DINOv2-small | ViT-S/14 | 48 | **0.906** |
+| BioMedCLIP | ViT, medical pretraining | 1 | **0.906** |
+| DINOv2-large | ViT-L/14 | 2 | 0.899 |
+| DINOv2-base | ViT-B/14 | 9 | 0.861 |
+| EfficientNet-B3 | CNN | 1 | 0.701 |
+
+Transformers beat CNNs here by ~0.2, and small beats large — which fits 58 gold labels, and
+suits the efficiency track. BioMedCLIP matches DINOv2-small with one user on it.
+
+Other published numbers, all competitor claims:
+
 | Score | Source |
 |---|---|
 | 0.613 | Rule-weak labels + EfficientNet-B0, 3-plane 2.5D — public LB |
 | 0.664 | Same model, recalibrated soft labels — public LB |
-| 0.809 / 0.891 | Public DINOv2 baseline notebook — the two teams cite different numbers |
 | 0.791 | Text-only report extractor, on the 58 gold studies |
 | 0.674 | ResNet-34 at 224 px, 20 min on a T4, on the 58 gold studies |
 
