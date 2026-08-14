@@ -535,7 +535,8 @@ def check_import(variant: str = "small", build: bool = True):
 # $4.54/hr against $1.95 the H200 turns 77 GPU-hours into 33. Pass --gpu to override once
 # the sweep has a cost per epoch that justifies it.
 @app.function(image=image, gpu="L40S", timeout=20 * 3600, volumes={"/vol": vol},
-              cpu=16.0, memory=196608)
+              cpu=16.0, memory=196608, ephemeral_disk=1024 * 1024,
+              secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
 def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
           n_group_max: int = 2, cache_fraction: float = 0.62, batch_studies: int = 8,
           img: int = 336, time_budget_h: float = 18.0,
@@ -552,7 +553,11 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     import sys
     import time
 
-    link_inputs(variant)
+    # The corpus is no longer on the Volume - it cannot fit (issue #32) - so a single-arm
+    # run has to fetch it the same way `sweep` does. This is why `sweep` exists: one
+    # extraction feeding one arm is most of the run's cost, and feeding three is not.
+    corpus = fetch_corpus_local()
+    link_inputs(variant, corpus=corpus)
     out = pathlib.Path(f"/vol/runs/{name}")
     out.mkdir(parents=True, exist_ok=True)
     os.chdir(out)
