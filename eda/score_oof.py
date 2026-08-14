@@ -202,8 +202,13 @@ def compare(a_path, b_path):
     per = pd.Series({c: auc(y[c].values, pa[c].values) - auc(y[c].values, pb[c].values)
                      for c in L}).sort_values()
     print(per.round(4).to_string())
-    print("\nOA and ACL are where the header says the effect lives; a delta concentrated\n"
-          "elsewhere is a sign the bias is fitting something other than epidemiology.")
+    print(f"\nfocal findings, mean delta {per[FOCAL].mean():+.4f}")
+    print(per[FOCAL].round(4).to_string())
+    print("\nWhich labels moved says what the change was. For the sex bias the effect\n"
+          "belongs on OA and ACL, and a delta concentrated elsewhere means it is fitting\n"
+          "something other than epidemiology. For encoder adaptation it belongs on the\n"
+          "focal findings above, and every label moving down together instead means the\n"
+          "backbone learning rate is damaging the pretrained features.")
 
     gold = train[train[L].notna().all(axis=1)][L].astype(int)
     gi = idx.intersection(gold.index)
