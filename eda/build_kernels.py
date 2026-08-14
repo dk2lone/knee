@@ -45,7 +45,8 @@ MODEL_SOURCES = ["metaresearch/dinov2/PyTorch/small/1",
 # carry their licence file. A member trained on one of these cannot be rebuilt at
 # inference without them - it would fail inside the scored run, after the training was
 # paid for. Mounted only when such a member exists.
-MEDICAL_ENCODERS = ["dk2lone/raddino-dinov2-medical"]
+MEDICAL_ENCODERS = ["dk2lone/raddino-dinov2-medical",
+                    "dk2lone/biomedclip-vitb16"]
 
 
 class Notebook:
