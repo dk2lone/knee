@@ -23,7 +23,20 @@ import modal
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 COMP = "rsna-knee-abnormality-detection"
-HF_DINOV2 = {"small": "facebook/dinov2-small", "base": "facebook/dinov2-base"}
+HF_DINOV2 = {
+    "small": "facebook/dinov2-small",
+    "base": "facebook/dinov2-base",
+    # RAD-DINO is dinov2-base further trained on 883k chest X-rays, so it loads through the
+    # same AutoModel path with the same hidden size and needs no code change at all. It is
+    # here because what the encoder was pretrained on looks like the largest lever in this
+    # competition, and because it is **MIT** - the RadImageNet weights the leading public
+    # kernels use are CC-BY-NC-SA, which may not be prize-eligible (see issue #26).
+    #
+    # The modality is wrong: chest radiograph, not knee MRI. That makes this a cheap test
+    # of the hypothesis rather than an expected win, and it costs exactly what a base run
+    # costs.
+    "raddino": "microsoft/rad-dino",
+}
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
