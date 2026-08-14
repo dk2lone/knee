@@ -216,8 +216,76 @@ def compare(a_path, b_path):
               f"({ga - gb:+.4f}) — too few to resolve this, reported for direction only")
 
 
+def rank(paths):
+    """One table over several runs, so a sweep is read in one place.
+
+    `compare` answers "is A better than B" with a paired bootstrap and is the right tool
+    for two. A sweep produces several runs that differ in one constant, and reading them
+    pairwise invites picking the winner of whichever pair was looked at first.
+
+    Sorted by va_sel, because that is the endpoint carved to choose configurations and it
+    resolves to about 0.019 where the gold 58 resolve to 0.043. The focal column is here
+    because the effect being swept was measured on four labels, and a macro over twelve
+    divides it by three.
+    """
+    import json
+    from pathlib import Path
+
+    weak = pd.read_csv("data/labels/llm_labels_v4_blend.csv").set_index("StudyInstanceUID")
+    train = pd.read_csv("data/train.csv").set_index("StudyInstanceUID")
+    gold = train[train[L].notna().all(axis=1)][L].astype(int)
+    try:
+        sp = pd.read_csv("data/eval_split.csv").set_index("StudyInstanceUID")["split"]
+    except Exception:
+        sp = None
+
+    rows = []
+    for p in paths:
+        oof = pd.read_csv(p).set_index("StudyInstanceUID")
+        idx = oof.index.intersection(weak.index)
+        y = (weak.loc[idx, L] > 0.5).astype(int)
+        pr = oof.loc[idx, L]
+        per = pd.Series({c: auc(y[c].values, pr[c].values) for c in L})
+        r = {"run": Path(p).parent.name, "n": len(idx), "oof": macro(y, pr),
+             "focal": per[FOCAL].mean()}
+        if sp is not None:
+            k = idx.intersection(sp[sp == "va_sel"].index)
+            r["va_sel"] = macro((weak.loc[k, L] > 0.5).astype(int),
+                                oof.loc[k, L]) if len(k) > 30 else float("nan")
+        gi = idx.intersection(gold.index)
+        r["gold"] = macro(gold.loc[gi], oof.loc[gi, L]) if len(gi) > 30 else float("nan")
+        # The manifest carries what the run actually was. Three directories of weights
+        # whose difference is invisible in every file they contain is how the wrong one
+        # gets submitted, so it is printed beside the score rather than trusted to memory.
+        mf = Path(p).parent / "manifest.json"
+        if mf.is_file():
+            cfg = json.loads(mf.read_text()).get("run", {})
+            r["what"] = (f"{cfg.get('variant', '?')} lr={cfg.get('lr_backbone', '?')} "
+                         f"unfreeze={cfg.get('unfreeze_last', '?')} "
+                         f"ep={cfg.get('epochs', '?')} sl={cfg.get('slices', '?')}")
+        rows.append(r)
+
+    df = pd.DataFrame(rows)
+    key = "va_sel" if "va_sel" in df and df["va_sel"].notna().any() else "oof"
+    df = df.sort_values(key, ascending=False)
+    print(df.to_string(index=False, float_format=lambda v: f"{v:.4f}"))
+    print(f"\nsorted by {key}. va_sel resolves to about 0.019 and the gold 58 to 0.043,\n"
+          "so a gap smaller than that is not a result. Read `focal` before `oof`: the\n"
+          "effect being swept was measured on four labels and a macro divides it by three.")
+    if len(df) > 1:
+        # By sorted order, not by argument order - the point is the winner against the
+        # runner-up, and printing the first two paths given would confirm whichever pair
+        # happened to be typed first.
+        order = {r: p for r, p in zip((Path(p).parent.name for p in paths), paths)}
+        first, second = df.iloc[0]["run"], df.iloc[1]["run"]
+        print(f"\nconfirm {first} against {second} with a paired bootstrap:")
+        print(f"  .venv/bin/python eda/score_oof.py {order[first]} {order[second]}")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 3:
+        rank(sys.argv[1:])
+    elif len(sys.argv) > 2:
         compare(sys.argv[1], sys.argv[2])
     else:
         main(sys.argv[1] if len(sys.argv) > 1 else "kaggle/train-v1/out/oof.csv")
