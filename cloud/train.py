@@ -13,19 +13,18 @@ are read by main() when it runs, so assigning them is enough; the cache size is 
 the time anything here can assign. Those are set and then re-planned through the module's
 own planner, because an override that silently does nothing is worse than one that fails.
 
+**The corpus lives on the container's own disk, never on a Volume** - a Volume cannot
+hold 570 GB of DICOM (issue #32). Ephemeral disk dies with the container, so a container
+has to be worth its own setup: `sweep` extracts once and runs every arm inside it,
+memoising the pixel cache in RAM between them. Only outputs reach the Volume.
+
   --mode setup    put an encoder on the Volume, once per variant
   --mode import   load the module and build the encoder on CPU, for cents
-  --mode arm      one fold, one sweep arm - the default, and what builds the order cache
-  --mode smoke    one fold, one epoch, if a rehearsal is wanted instead
+  --mode sweep    extract once, run all three adaptation arms in one container
+  --mode arm      one fold, one arm, its own extraction - use only for a one-off
   --mode full     five folds, twelve cached slices
 
-The sweep the arms are for:
-
-  --mode arm --name adapt-8e6 --lr-backbone 8e-6  --unfreeze-last 6
-  --mode arm --name adapt-3e5 --lr-backbone 3e-5  --unfreeze-last 6
-  --mode arm --name adapt-1e4 --lr-backbone 1e-4  --unfreeze-last 12
-
-then read them together with
+Read a finished sweep with
 
   .venv/bin/python eda/score_oof.py cloud/exports/adapt-*/oof.csv
 """
@@ -48,12 +47,21 @@ HF_DINOV2 = {
     # of the hypothesis rather than an expected win, and it costs exactly what a base run
     # costs.
     "raddino": "microsoft/rad-dino",
+    # BioMedCLIP holds 0.906 - the best public score for any single backbone in this
+    # competition - with one user on it against 48 on DINOv2-small, and it is MIT. It is
+    # trained on figures from biomedical literature rather than one modality, which is a
+    # better bet for knee MRI than RAD-DINO's chest radiographs. It costs an adapter
+    # because it loads through open_clip rather than AutoModel: see BiomedCLIPBackbone.
+    "biomedclip": "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224",
 }
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("torch", "transformers", "huggingface_hub", "pydicom",
-                 "pandas", "numpy", "scikit-learn", "pillow")
+                 "pandas", "numpy", "scikit-learn", "pillow",
+                 # only the biomedclip variant needs these; they cost image
+                 # build time once and nothing at run time.
+                 "open_clip_torch", "timm")
     .env({"PYTHONUNBUFFERED": "1", "HF_HUB_DISABLE_PROGRESS_BARS": "1"})
     .add_local_file(REPO / "cloud" / "pipeline.py", "/root/pipeline.py")
     .add_local_file(REPO / "kaggle" / "labels" / "report_labels_dk.csv",
@@ -65,7 +73,204 @@ app = modal.App("knee-train")
 vol = modal.Volume.from_name("knee-data", create_if_missing=True)
 
 
-def link_inputs(variant="small"):
+def _biomedclip_build_model(pipeline, unfreeze_last, source=None, variant=None,
+                            pool="cls_mean", prior=False, sex=False):
+    """Load BioMedCLIP's vision tower behind the four names the pipeline reads.
+
+    `build_model` wants an HF DINOv2: `bb.encoder.layer` to unfreeze the last blocks,
+    `bb.layernorm` to keep trainable, `bb.config.hidden_size` for the head width, and
+    `bb(pixel_values=x).last_hidden_state` returning (N, 1+P, dim) with CLS at index 0.
+    A timm ViT supplies all four under different names, so this is a rename, not a
+    reimplementation - and it lives here rather than in the generated module so the
+    Kaggle kernel and the Modal run stay one file.
+
+    Two things are genuinely different and both are handled rather than assumed:
+
+    * **Patch 16 at a native 224, against our 336.** 336/16 gives 21x21 = 441 patches
+      where the pretrained position embedding holds 196. `dynamic_img_size=True` makes
+      timm interpolate the position embedding instead of erroring, which is the same
+      thing DINOv2 does internally for its own patch 14.
+    * **Normalisation.** `Model` registers ImageNet statistics as buffers and applies them
+      before the backbone sees anything. BioMedCLIP was trained with the OpenAI CLIP
+      statistics. They are close - within 0.03 on every channel - and the encoder is
+      being fine-tuned anyway, so the mismatch is absorbed rather than corrected. It is
+      recorded here because it is the first thing to suspect if this variant underperforms
+      for no other visible reason.
+    """
+    import types
+
+    import open_clip
+    import torch.nn as nn
+
+    ref = str(source) if str(source).startswith("/") else f"hf-hub:{source}"
+    clip, _ = open_clip.create_model_from_pretrained(ref)
+    vit = clip.visual.trunk           # the timm VisionTransformer
+
+    class Wrapped(nn.Module):
+        def __init__(self, trunk):
+            super().__init__()
+            self.trunk = trunk
+            self.encoder = types.SimpleNamespace(layer=trunk.blocks)
+            self.layernorm = trunk.norm
+            self.config = types.SimpleNamespace(hidden_size=trunk.embed_dim)
+
+        def forward(self, pixel_values=None, **_):
+            return types.SimpleNamespace(
+                last_hidden_state=self.trunk.forward_features(pixel_values))
+
+    bb = Wrapped(vit)
+
+    # Same freezing rule as build_model: everything off, the last `unfreeze_last` blocks
+    # and the final norm back on. Written out rather than reused because build_model does
+    # it against an AutoModel it has already loaded.
+    n_layer = len(bb.encoder.layer)
+    for prm in bb.parameters():
+        prm.requires_grad = False
+    for blk in bb.encoder.layer[max(0, n_layer - unfreeze_last):]:
+        for prm in blk.parameters():
+            prm.requires_grad = True
+    for prm in bb.layernorm.parameters():
+        prm.requires_grad = True
+
+    dim = bb.config.hidden_size
+    trainable = sum(p.numel() for p in bb.parameters() if p.requires_grad)
+    pipeline.log(f"backbone: BioMedCLIP, {n_layer} blocks, last {unfreeze_last} "
+                 f"trainable ({trainable / 1e6:.1f}M params), feature dim "
+                 f"{dim * pipeline.POOL_PARTS[pool]}")
+    return pipeline.Model(bb, dim, pool=pool, prior=prior, sex=sex)
+
+
+def fetch_corpus_local(dest=pathlib.Path("/tmp/comp")):
+    """Put the corpus on the container's own disk, never on the Volume.
+
+    A Volume cannot hold 570 GB of DICOM (issue #32): unzip exits 50 partway through, and
+    afterwards even a 90 MB write fails. Ephemeral disk can - Modal allows 512 GB to 3 TB -
+    and it costs nothing to keep because it dies with the container.
+
+    The trade is that it dies with the container, so the container has to be worth its
+    setup. That is what `sweep` is for: extract once, then run every arm inside the same
+    container rather than paying this again per arm.
+    """
+    import subprocess
+
+    if (dest / "train.csv").is_file():
+        print(f"corpus already on local disk at {dest}", flush=True)
+        return dest
+
+    _auth_kaggle()
+    dl = pathlib.Path("/tmp/dl")
+    dl.mkdir(parents=True, exist_ok=True)
+    zips = list(dl.glob("*.zip"))
+    if not zips:
+        print("downloading the archive to local disk", flush=True)
+        t0 = time.time()
+        subprocess.run(["kaggle", "competitions", "download", "-c", COMP,
+                        "-p", str(dl)], text=True, check=True)
+        print(f"downloaded in {(time.time() - t0) / 60:.1f} min", flush=True)
+        zips = list(dl.glob("*.zip"))
+
+    dest.mkdir(parents=True, exist_ok=True)
+    print(f"extracting {zips[0].name} to local disk", flush=True)
+    t0 = time.time()
+    r = subprocess.run(["unzip", "-q", "-n", str(zips[0]), "-d", str(dest)], text=True)
+    print(f"unzip returned {r.returncode} in {(time.time() - t0) / 60:.1f} min", flush=True)
+    if r.returncode not in (0, 1):
+        raise RuntimeError(f"unzip failed with {r.returncode}")
+    zips[0].unlink()                      # reclaim 247 GB of the ephemeral disk
+    n = sum(1 for _ in (dest / "train_series").rglob("*.dcm"))
+    print(f"{n} training dcm files on local disk", flush=True)
+    return dest
+
+
+def _auth_kaggle():
+    import os
+
+    d = pathlib.Path.home() / ".kaggle"
+    d.mkdir(parents=True, exist_ok=True)
+    p = d / "access_token"
+    p.write_text(os.environ["KAGGLE_ACCESS_TOKEN"])
+    p.chmod(0o600)
+
+
+def memoize_build_cache(pipeline):
+    """Decode the corpus once per container, not once per arm.
+
+    Ordering costs 1,784 s and decode 290 s - 38% of a run before a gradient step - and it
+    is the same answer for every arm of an adaptation sweep, which varies only a backbone
+    learning rate. The cache is 4,407 x 6 x 12 x 336 x 336 = 35.8 GB and the container has
+    192 GB, so it simply stays in RAM between arms.
+
+    Keyed on everything that changes what a pixel is. An arm that changes resolution gets
+    its own cache rather than silently reusing one built at another.
+    """
+    orig = pipeline.build_cache
+    held = {}
+
+    def wrapped(slot_map, plane_map, lat_map, tag):
+        key = (tag.strip(), pipeline.IMG, pipeline.CACHE_SLICES,
+               pipeline.CROP_MM, tuple(pipeline.SLICE_BAND))
+        if key in held:
+            s, c, m = held[key]
+            pipeline.log(f"cache: reusing {tag.strip()} {c.shape} from this container "
+                         f"- no DICOM decoded")
+            return s, c, m
+        held[key] = orig(slot_map, plane_map, lat_map, tag)
+        return held[key]
+
+    return wrapped
+
+
+def wrap_build_cache(pipeline, cache_dir):
+    """Make the pixel cache persist, so the corpus is decoded once and never again.
+
+    A Modal Volume cannot hold 570 GB of DICOM - see issue #32 - but it holds the thing
+    the pipeline actually trains on easily: `build_cache` returns a uint8 array that is
+    4,407 x 6 x 12 x 336 x 336 = 35.8 GB, sixteen times smaller than the corpus that
+    produced it. The DICOM exists to be turned into that array once.
+
+    This wraps `build_cache` rather than editing it, so the generated module stays
+    byte-identical to the Kaggle notebook and eda/test_cloud.py keeps passing.
+
+    The filename carries every decision that changes what a pixel is - resolution, slice
+    count, crop, band - because a cache built under one reading and loaded under another
+    is the exact failure `check_fingerprint` exists to catch, arriving through a different
+    door. A cache whose name does not match is rebuilt, not reused.
+    """
+    import numpy as np
+
+    orig = pipeline.build_cache
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def wrapped(slot_map, plane_map, lat_map, tag):
+        key = (f"{tag.strip().replace(' ', '_')}"
+               f"_{pipeline.IMG}px_{pipeline.CACHE_SLICES}sl"
+               f"_{int(pipeline.CROP_MM)}mm"
+               f"_{pipeline.SLICE_BAND[0]:.2f}-{pipeline.SLICE_BAND[1]:.2f}.npy")
+        base = cache_dir / key
+        ids, arr = base.with_suffix(".ids.npy"), base
+        msk = base.with_suffix(".mask.npy")
+        if arr.is_file() and ids.is_file() and msk.is_file():
+            t0 = time.time()
+            c = np.load(arr, mmap_mode="r")
+            s = list(np.load(ids, allow_pickle=True))
+            m = np.load(msk)
+            pipeline.log(f"cache: loaded {key} {c.shape} in {time.time() - t0:.1f}s "
+                         f"- no DICOM decoded")
+            return s, c, m
+
+        s, c, m = orig(slot_map, plane_map, lat_map, tag)
+        t0 = time.time()
+        np.save(ids, np.array(s, dtype=object), allow_pickle=True)
+        np.save(msk, m)
+        np.save(arr, c)
+        pipeline.log(f"cache: saved {key} {c.shape} "
+                     f"({c.nbytes / 1e9:.1f} GB) in {time.time() - t0:.1f}s")
+        return s, c, m
+
+    return wrapped
+
+
+def link_inputs(variant="small", corpus=None):
     """Build the /kaggle/input tree the pipeline expects, out of symlinks.
 
     The directory carrying the label table must have "label" in its name: the pipeline
@@ -84,9 +289,14 @@ def link_inputs(variant="small"):
     # symlink there resolves to nothing being found, and "nothing was attached" is a
     # supported path in this pipeline rather than an error - so the run would fall back
     # to the lexicon labels and to no encoder, and say so in one log line.
-    comp = pathlib.Path("/vol/comp")
+    # Local disk by default now, not the Volume - see fetch_corpus_local and issue #32.
+    comp = pathlib.Path(corpus) if corpus else pathlib.Path("/tmp/comp")
     if not (comp / "train.csv").exists():
-        raise FileNotFoundError(f"{comp} has no train.csv; the corpus has not landed")
+        legacy = pathlib.Path("/vol/comp")
+        if (legacy / "train.csv").exists():
+            comp = legacy
+        else:
+            raise FileNotFoundError(f"{comp} has no train.csv; the corpus is not here")
     link = base / COMP
     if link.is_symlink() or link.exists():
         link.unlink()
@@ -152,7 +362,11 @@ def check_import(variant: str = "small", build: bool = True):
     if build:
         import torch
 
-        model = pipeline.build_model(pipeline.UNFREEZE_LAST, variant=variant)
+        if variant == "biomedclip":
+            model = _biomedclip_build_model(pipeline, pipeline.UNFREEZE_LAST,
+                                            source=pipeline.find_dinov2(variant))
+        else:
+            model = pipeline.build_model(pipeline.UNFREEZE_LAST, variant=variant)
         n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
         n_all = sum(p.numel() for p in model.parameters())
         print(f"built     {variant}: {n_all / 1e6:.1f}M params, "
@@ -279,7 +493,15 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     # the run. Binding it without correcting the manifest would be worse than not trying:
     # the blend would build a small encoder for base weights, which is exactly the case
     # check_fingerprint exists to catch, and the run would be thrown away at inference.
-    if variant != "small":
+    if variant == "biomedclip":
+        # A different loader, not a different pipeline. build_model's own body would call
+        # AutoModel.from_pretrained on an open_clip checkpoint and fail on the config.
+        import functools
+        src = pipeline.find_dinov2(variant)
+        pipeline.build_model = functools.partial(
+            _biomedclip_build_model, pipeline, source=src)
+        print(f"build_model bound to BioMedCLIP at {src}", flush=True)
+    elif variant != "small":
         import functools
         pipeline.build_model = functools.partial(pipeline.build_model, variant=variant)
         print(f"build_model bound to variant={variant}", flush=True)
@@ -339,6 +561,108 @@ def fix_manifest_variant(out, variant, run=None):
     mf.write_text(json.dumps(d, indent=1))
 
 
+@app.function(image=image, gpu="L40S", timeout=23 * 3600, volumes={"/vol": vol},
+              cpu=16.0, memory=196608, ephemeral_disk=1024 * 1024,
+              secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
+def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
+          n_group_max: int = 2, img: int = 336, batch_studies: int = 8,
+          cache_budget_gb: float = 96.0, order_threads: int = 64):
+    """Extract the corpus once, then run every arm inside the same container.
+
+    The corpus cannot live on a Volume (issue #32) and ephemeral disk dies with the
+    container, so the container has to be worth its own setup. One extraction feeding one
+    arm is not worth it; one extraction feeding three is. The pixel cache is memoised in
+    RAM between arms - 35.8 GB in a 192 GB container - so the 1,784 s ordering pass and the
+    290 s decode are paid once for the whole sweep rather than once per arm.
+
+    `arms` is a list of dicts, each naming what makes it different:
+        [{"name": "adapt-8e6", "lr_backbone": 8e-6, "unfreeze_last": 6}, ...]
+
+    Only the outputs go to the Volume: members, oof.csv, manifest.json, slice_order.json.
+    Those are megabytes.
+    """
+    import os
+    import sys
+    import traceback
+
+    corpus = fetch_corpus_local()
+    link_inputs(variant, corpus=corpus)
+
+    cache_dir = pathlib.Path("/vol/cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["RSNA_ORDER_CACHE"] = str(cache_dir / "slice_order.json")
+    print(f"slice order cache: {os.environ['RSNA_ORDER_CACHE']}", flush=True)
+
+    sys.path.insert(0, "/root")
+    import pipeline  # noqa: E402
+    print(f"pipeline imported; root={pipeline.ROOT}", flush=True)
+
+    import pandas as pd
+
+    pipeline.build_cache = memoize_build_cache(pipeline)
+    pipeline.ORDER_THREADS = order_threads
+    pipeline.N_FOLDS = folds
+    pipeline.BATCH_STUDIES = batch_studies
+    pipeline.RUNS = [{"name": f"r{img}", "img": img}]
+    pipeline.N_GROUP_MAX = n_group_max
+    pipeline.CACHE_FRACTION = 0.62
+    pipeline.CACHE_BUDGET_MAX_GB = cache_budget_gb
+    pipeline.TEST_SHARE = 0.0
+    pipeline.CACHE_IMG = pipeline.IMG = img
+    pipeline.N_GROUP = pipeline.plan_cache(
+        len(pd.read_csv(pipeline.ROOT / "train.csv")),
+        len(pd.read_csv(pipeline.ROOT / "test.csv")))
+    pipeline.CACHE_SLICES = pipeline.GROUP * pipeline.N_GROUP
+    print(f"slices={pipeline.CACHE_SLICES} folds={folds} epochs={epochs}", flush=True)
+
+    if variant == "biomedclip":
+        import functools
+        pipeline.build_model = functools.partial(
+            _biomedclip_build_model, pipeline, source=pipeline.find_dinov2(variant))
+    elif variant != "small":
+        import functools
+        pipeline.build_model = functools.partial(pipeline.build_model, variant=variant)
+
+    done = []
+    for arm in arms:
+        name = arm["name"]
+        out = pathlib.Path(f"/vol/runs/{name}")
+        out.mkdir(parents=True, exist_ok=True)
+        os.chdir(out)
+        pipeline.EPOCHS = arm.get("epochs", epochs)
+        pipeline.LR_BACKBONE = arm["lr_backbone"]
+        pipeline.UNFREEZE_LAST = arm["unfreeze_last"]
+        # Each arm gets the time still left, so one slow arm cannot starve the rest
+        # silently - the pipeline breaks out on its own budget instead.
+        pipeline.TIME_BUDGET = 6.0 * 3600
+        print(f"\n=== arm {name}: lr_backbone={arm['lr_backbone']:g} "
+              f"unfreeze_last={arm['unfreeze_last']} ===", flush=True)
+        t0 = time.time()
+        try:
+            pipeline.main()
+            fix_manifest_variant(out, variant, run={
+                "name": name, "variant": variant, "epochs": pipeline.EPOCHS,
+                "folds": folds, "img": img, "slices": pipeline.CACHE_SLICES,
+                "lr_backbone": arm["lr_backbone"],
+                "unfreeze_last": arm["unfreeze_last"],
+                "batch_studies": batch_studies, "seed": pipeline.SEED,
+            })
+            done.append({"name": name, "hours": (time.time() - t0) / 3600,
+                         "files": sorted(p.name for p in out.iterdir())})
+            print(f"=== arm {name} finished in {(time.time() - t0) / 3600:.2f} h ===",
+                  flush=True)
+        except Exception:
+            # One arm failing must not lose the other two, nor the cache they share.
+            traceback.print_exc()
+            done.append({"name": name, "hours": (time.time() - t0) / 3600,
+                         "failed": True})
+        finally:
+            vol.commit()
+
+    print(f"\nsweep done: {done}", flush=True)
+    return done
+
+
 @app.local_entrypoint()
 def main(mode: str = "arm", variant: str = "small", name: str = "",
          gpu: str = "", batch: int = 8, epochs: int = 8,
@@ -349,12 +673,23 @@ def main(mode: str = "arm", variant: str = "small", name: str = "",
     DINOv2-small is 21M parameters and will not saturate an H200, so the cheaper card can
     win on price while losing on time.
     """
-    fn = train.with_options(gpu=gpu) if gpu else train
+    base = sweep if mode == "sweep" else train
+    fn = base.with_options(gpu=gpu) if gpu else base
     if mode == "setup":
         print(setup.remote(variant))
         return
     if mode == "import":
         print(check_import.remote(variant))
+        return
+    if mode == "sweep":
+        # The adaptation question, as three arms in one container. The corpus is extracted
+        # once and the pixel cache is memoised between them, so the 1,784 s ordering pass
+        # is paid once for the sweep rather than once per arm.
+        print(fn.remote([
+            {"name": "adapt-8e6", "lr_backbone": 8e-6, "unfreeze_last": 6},
+            {"name": "adapt-3e5", "lr_backbone": 3e-5, "unfreeze_last": 6},
+            {"name": "adapt-1e4", "lr_backbone": 1e-4, "unfreeze_last": 12},
+        ], variant=variant, epochs=epochs))
         return
     if mode in ("smoke", "arm"):
         # One fold. `smoke` is the wiring rehearsal at a single epoch; `arm` is one arm of
