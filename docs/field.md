@@ -311,3 +311,48 @@ Older competitor numbers, kept for the trajectory:
 
 Gold-58 numbers are not comparable to leaderboard numbers — that set is ~2× enriched with
 positives.
+
+## A second architecture, already trained and published
+
+`prvsiyan/rsna-knee-b3-v47-public-deployment` (updated 13 Aug 2026, 20:48) is a five-fold
+EfficientNet-B3 release from the author of `rsna-knee-read-the-report-then-the-knee`. It ships
+the checkpoints, per-fold manifests, an audit file, and **the training and inference source**.
+
+```
+fold0..fold4/foldN_final.pt        48 MB each
+fold0..fold4/manifest.json
+source/efficientnet_b3_public_repro_v4_t4.py
+source/efficientnet_b3_public_repro_v1_infer.py
+```
+
+Its configuration, read from `fold0/manifest.json`:
+
+| | |
+|---|---|
+| Backbone | `efficientnet_b3`, last **3** blocks unfrozen |
+| Input | **224 px**, square padding before resize |
+| Slices | 6 in training, **20 at validation**, 64 max per series |
+| Schedule | 1 frozen epoch at 8e-4, then **2 unfrozen** at 6e-5 |
+| Folds | 5, of 881/882 studies — the same sizes this repo's folds have |
+| Weights | gold ×2.0, pseudo-label floor 0.2 |
+| Labels | three tables fused: `report_labels_v2`, `llm_labels_v2`, `labels_llm_gpt56sol` |
+| Flip | `no_horizontal_flip: true` |
+
+**Three epochs total.** Against pilkwang's 20–60. Two published solutions on this task disagree
+by an order of magnitude about how long to train, which is worth knowing before spending seven
+GPU hours on the question.
+
+Note 224 px, not the 288 recorded elsewhere in these notes for the 0.903 recipe — V47 is a
+different build from the one that number came from, and `PUBLIC_RELEASE.md` says plainly that
+the package "is not itself evidence of an official competition score".
+
+**It does not load with this repo's member loader.** Different manifest schema entirely — no
+`members` list, no `pixel_group`, no `fingerprint`. Using it means writing an adapter around the
+provided inference script, not attaching a dataset. That is a few hours rather than the seven
+GPU hours training a B3 from scratch would cost, and it buys a genuinely different architecture
+for the rank mean, which is the one ensemble lever that reliably pays.
+
+Also public: `tonylica/rsna2026-models`, four checkpoints at 358 MB each, no manifest and no
+source. `sakhawathossen/rsna-knee-enhanced-ensemble` (76 votes) mounts both that and the B3
+weights alongside pilkwang's — and also mounts `sohaibanwaar1203/kneemridataset`, the Rijeka
+KneeMRI set, so at least one entrant is already using external data.
