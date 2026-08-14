@@ -197,6 +197,17 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
           f"slices={pipeline.CACHE_SLICES} (asked {n_group_max * pipeline.GROUP})",
           flush=True)
 
+    # The training path calls `build_model(UNFREEZE_LAST)` and takes the default
+    # variant="small", and the manifest records "small" as a literal. Neither is a
+    # parameter, so a bigger encoder is bound in here and the manifest is corrected after
+    # the run. Binding it without correcting the manifest would be worse than not trying:
+    # the blend would build a small encoder for base weights, which is exactly the case
+    # check_fingerprint exists to catch, and the run would be thrown away at inference.
+    if variant != "small":
+        import functools
+        pipeline.build_model = functools.partial(pipeline.build_model, variant=variant)
+        print(f"build_model bound to variant={variant}", flush=True)
+
     t0 = time.time()
     try:
         pipeline.main()
@@ -208,9 +219,33 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
         vol.commit()
         print(f"volume committed after {(time.time() - t0) / 3600:.2f} h", flush=True)
 
+    fix_manifest_variant(out, variant)
+    vol.commit()
     made = sorted(p.name for p in out.iterdir())
     print(f"wrote {made}", flush=True)
     return made
+
+
+def fix_manifest_variant(out, variant):
+    """Record the encoder that was actually fitted, not the literal the notebook writes.
+
+    The blend rebuilds each member from `config.variant` before loading its weights. A
+    manifest saying "small" over base weights builds the wrong encoder, and the member is
+    refused by its own fingerprint at inference - after the training has been paid for.
+    """
+    import json
+
+    mf = out / "manifest.json"
+    if variant == "small" or not mf.exists():
+        return
+    d = json.loads(mf.read_text())
+    n = 0
+    for m in d.get("members", []):
+        if m.get("config", {}).get("variant") != variant:
+            m["config"]["variant"] = variant
+            n += 1
+    mf.write_text(json.dumps(d, indent=2))
+    print(f"manifest: corrected variant to {variant} on {n} member(s)", flush=True)
 
 
 @app.local_entrypoint()
