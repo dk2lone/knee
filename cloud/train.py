@@ -83,6 +83,15 @@ image = (
 )
 
 app = modal.App("knee-train")
+
+# OPERATIONAL HAZARD, learned the expensive way. A `modal run` against this app cancels
+# other running inputs on it. A one-minute `--mode encoder` check launched while the
+# six-hour sweep was in flight killed the sweep at 37.9 GB of 247 into its download, with
+# only "Received a cancellation signal" in the log to say so.
+#
+# So while a sweep is running, do not launch anything else against this app. Monitor it
+# with `modal app logs <id>`, which is read-only and safe. Two Apps in one file would fix
+# it properly, but a local entrypoint cannot call a function on an app it is not running.
 vol = modal.Volume.from_name("knee-data", create_if_missing=True)
 
 
