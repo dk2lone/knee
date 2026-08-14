@@ -107,7 +107,12 @@ def check_import():
     return str(pipeline.ROOT)
 
 
-@app.function(image=image, gpu="H200", timeout=20 * 3600, volumes={"/vol": vol},
+# L40S, not H200. DINOv2-small is 21M parameters at 336 px and batch 8 studies x 6 slots
+# is 48 images, so the job wants about 10 GB and never saturates an H200 - its 141 GB of
+# VRAM is headroom nothing here can spend. The credits are roughly $30 a workspace, and at
+# $4.54/hr against $1.95 the H200 turns 77 GPU-hours into 33. Pass --gpu to override once
+# the sweep has a cost per epoch that justifies it.
+@app.function(image=image, gpu="L40S", timeout=20 * 3600, volumes={"/vol": vol},
               cpu=16.0, memory=196608)
 def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
           n_group_max: int = 2, cache_fraction: float = 0.62, batch_studies: int = 8,
