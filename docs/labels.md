@@ -119,42 +119,39 @@ unexploited lever in the repo.
 | KneeMRI (Rijeka) | 917 | ACL: healthy / partial / complete | **already on Kaggle**, `sohaibanwaar1203/kneemridataset`, 3.3 GB |
 | SKM-TEA | 155 | 16 pathologies, boxes + segmentations | registration, free |
 
-**fastMRI+ is the one that matters**, for three reasons.
+**fastMRI+ measured, not assumed.** The annotation file is one `curl` from
+`microsoft/fastmri-plus` — CC-BY, 16,167 boxes over **974 annotated knee exams**. Crossing its
+categories against the twelve targets, with the number of exams carrying each:
 
-*It is graded by severity, which is where the report labels fail.* Its categories are
-`ACL High Grade Sprain` against `ACL Low-Mod Grade Sprain`, and `MCL High Grade Sprain`
-against `MCL Low-Mod Grade Sprain`. The competition defines ACL-positive as "high-grade
-partial or full tear" and MCL-positive as "high-grade partial or complete acute tear". That
-is the same cut, drawn by a subspecialist rather than inferred from a sentence.
+| Target | fastMRI+ category | exams | verdict |
+|---|---|---|---|
+| ACL | `ACL High Grade Sprain` | **101** | clean and severity-matched — but ACL is already 0.987 from text |
+| MCL | `MCL High Grade sprain` | **4** | unusable |
+| Medial / Lateral Meniscus | `Meniscus Tear` | 663 | not sided |
+| Medial / Lateral / PF OA | `Cartilage - Full Thickness loss/defect` | 122 | not sided, no patellofemoral split |
+| Effusion | `Joint Effusion` | 142 | not graded moderate-or-large |
+| **Synovitis** | — | **0** | absent |
+| Baker's | `Periarticular cysts` | 161 | already 0.944 from text |
+| Contusion | `Bone- Subchondral edema` | 196 | usable |
+| Fracture | `Bone-Fracture/Contusion/dislocation` | 119 | **merged with contusion** |
 
-*It covers four of the five labels the reports teach worst.* Cross the categories against the
-weak-label gold AUCs:
+Read the last two rows together. The competition scores Fracture and Contusion separately and
+defines contusion as marrow oedema *without* a discrete fracture line — the exact distinction
+fastMRI+ collapses into one category. So the annotation that looked like it covered both covers
+neither cleanly.
 
-| Target | fastMRI+ category | weak-label gold AUC |
-|---|---|---|
-| Synovitis | **none** | 0.790 |
-| Fracture | Bone-Fracture/Contusion/Dislocation | 0.793 |
-| Lateral OA | Cartilage Full/Partial Thickness Loss | 0.833 |
-| Contusion | Bone-Subchondral Edema | 0.860 |
-| Effusion | Joint Effusion | 0.877 |
-| Lateral Meniscus | Meniscus Tear, Displaced Meniscal Tissue | 0.879 |
-| Baker's | Periarticular Cysts | 0.944 |
+**Sidedness is half-recoverable.** Box centres are clearly bimodal — meniscus tears cluster at
+two ranges of image x with a trough between, which is the two compartments. But which cluster
+is medial depends on whether the knee is a left or a right, and the annotation file carries no
+laterality. Recovering it means going into fastMRI's own headers, which is a second job on top
+of the first.
 
-*The boxes carry position, so sidedness is recoverable.* fastMRI+ does not say medial or
-lateral, but a box on a coronal series does: the compartment follows from where the box sits
-along the left-right axis. That is four of the twelve labels — both menisci, both tibiofemoral
-compartments — recoverable from a label that does not name them.
-
-**What it does not fix.** Synovitis is not a fastMRI+ category, so the hardest label stays
-hard from every direction: not in the reports, not in the external annotations, only in the
-pixels.
-
-**The cost, honestly.** fastMRI+ annotates a single coronal series per exam, proton density or
-T2. This pipeline reads six slots across three planes, so a model trained there transfers to
-one of them. The images are NYU fastMRI, a different scanner population from these 22 sites, so
-domain shift is on top of that. And fastMRI ships as HDF5 k-space rather than DICOM, which is a
-second data pipeline rather than a new mount. Call it one to two weeks of work with an uncertain
-payoff — the highest ceiling on the list and the highest effort.
+**Verdict: not worth one to two weeks.** It is strongest on the label that needs it least (ACL,
+0.987 from text), unusable on MCL at four positives, absent on synovitis, and merged exactly
+where Fracture and Contusion needed separating. What remains is auxiliary supervision — 663
+exams of "a meniscus tear looks like this" would help the encoder adapt, and adaptation was
+worth +0.090 to another team — but this pipeline already fine-tunes on 4,407 studies, so the
+marginal encoder gain is small and indirect.
 
 **KneeMRI (Rijeka) is the cheap one and it is already on Kaggle.** 917 exams graded
 healthy / partially injured / completely ruptured, which is exactly the competition's ACL cut.
