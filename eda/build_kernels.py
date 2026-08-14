@@ -582,7 +582,19 @@ def build_cloud_module():
     assert i > 0, "the trailing driver is not where it was; refusing to generate a " \
                   "module that would train on import"
     body = src[:i].rstrip() + "\n"
-    ast.parse(body)
+
+    # A notebook compiles each cell on its own, so `from __future__ import annotations`
+    # is legal in cell nine. One module compiles as one unit and the same line is a
+    # SyntaxError unless it leads the file. Hoisting is the only edit made to the code,
+    # and it is a move rather than a rewrite.
+    future = [l for l in body.splitlines() if l.startswith("from __future__ import ")]
+    if future:
+        keep = [l for l in body.splitlines() if l not in future]
+        body = "\n".join(dict.fromkeys(future)) + "\n" + "\n".join(keep) + "\n"
+
+    # compile(), not ast.parse(): ast.parse accepts a misplaced __future__ import and the
+    # container is where that would otherwise be discovered.
+    compile(CLOUD_HEADER + body, "cloud/pipeline.py", "exec")
     Path("cloud/pipeline.py").write_text(CLOUD_HEADER + body)
     return body
 

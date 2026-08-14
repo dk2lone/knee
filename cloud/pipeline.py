@@ -704,7 +704,6 @@ def extract(report: str) -> dict:
 
     return out
 
-from __future__ import annotations
 
 import os
 

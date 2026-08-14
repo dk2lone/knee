@@ -37,6 +37,22 @@ def test_committed_file_matches_the_generator():
         "or eda/build_kernels.py was changed without regenerating"
 
 
+def test_it_compiles_as_one_module():
+    """compile(), not ast.parse().
+
+    A notebook compiles each cell separately, so `from __future__ import annotations` is
+    legal in cell nine and a SyntaxError once the cells are one file. ast.parse accepts
+    it either way, which is how the first generated module reached a container before
+    anything noticed.
+    """
+    compile(GEN.read_text(), str(GEN), "exec")
+    body = GEN.read_text()
+    futures = [i for i, l in enumerate(body.splitlines())
+               if l.startswith("from __future__ import ")]
+    for i in futures:
+        assert i < 12, f"a __future__ import sits at line {i + 1}, too deep to be legal"
+
+
 def test_importing_it_would_not_train():
     """No top-level call to main(), so importing defines the pipeline rather than runs it."""
     body = GEN.read_text()

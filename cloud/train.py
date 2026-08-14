@@ -48,20 +48,37 @@ def link_inputs(variant="small"):
     whether such a directory exists, and only the second one is an error worth stopping
     for.
     """
+    import shutil
+
     base = pathlib.Path("/kaggle/input")
     base.mkdir(parents=True, exist_ok=True)
-    links = {
-        base / COMP: pathlib.Path("/vol/comp"),
+
+    # The corpus is symlinked because find_root() tests candidate paths directly. The
+    # other two are COPIED, because find_label_table(), find_dinov2() and find_weights()
+    # all locate their input with os.walk(), and os.walk does not follow symlinks. A
+    # symlink there resolves to nothing being found, and "nothing was attached" is a
+    # supported path in this pipeline rather than an error - so the run would fall back
+    # to the lexicon labels and to no encoder, and say so in one log line.
+    comp = pathlib.Path("/vol/comp")
+    if not (comp / "train.csv").exists():
+        raise FileNotFoundError(f"{comp} has no train.csv; the corpus has not landed")
+    link = base / COMP
+    if link.is_symlink() or link.exists():
+        link.unlink()
+    link.symlink_to(comp)
+    print(f"{link} -> {comp}", flush=True)
+
+    copies = {
         base / "knee-report-labels-dk": pathlib.Path("/root/labels"),
         base / f"dinov2-{variant}": pathlib.Path(f"/vol/models/dinov2-{variant}"),
     }
-    for link, target in links.items():
-        if link.is_symlink():
-            link.unlink()
-        if not target.exists():
-            raise FileNotFoundError(f"{target} is missing; run --mode setup first")
-        link.symlink_to(target)
-        print(f"{link} -> {target}", flush=True)
+    for dest, src in copies.items():
+        if not src.exists():
+            raise FileNotFoundError(f"{src} is missing; run --mode setup first")
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".cache", "*.bin"))
+        print(f"{dest} <- {src} ({sum(1 for _ in dest.rglob('*'))} entries)", flush=True)
     return base
 
 
