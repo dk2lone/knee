@@ -116,24 +116,47 @@ def setup(variant: str = "small"):
 
 
 @app.function(image=image, timeout=1800, volumes={"/vol": vol}, cpu=4.0)
-def check_import():
-    """Import the pipeline on a CPU container, so a missing dependency is found for cents.
+def check_import(variant: str = "small", build: bool = True):
+    """Import the pipeline and build the encoder on a CPU container, for cents.
 
-    An H200 that dies on an import error costs 90 times what this does, and the error is
-    identical. This stops before any model is built - it is asking whether the module
-    loads at all under the image, nothing more.
+    A GPU container that dies on a missing dependency or an unexpected checkpoint layout
+    costs about ninety times what this does and produces the identical traceback. Building
+    the model matters as much as importing: a new encoder variant can be found, loaded,
+    and still be the wrong width, and the width is only discovered when a weight is
+    multiplied by it.
     """
     import sys
 
-    link_inputs("small")
+    link_inputs(variant)
     sys.path.insert(0, "/root")
     import pipeline  # noqa: E402
 
     print(f"root      {pipeline.ROOT}", flush=True)
     print(f"labels    {pipeline.find_label_table()}", flush=True)
-    print(f"dinov2    {pipeline.find_dinov2('small')}", flush=True)
+    print(f"dinov2    {pipeline.find_dinov2(variant)}", flush=True)
     print(f"targets   {len(pipeline.TARGETS)}", flush=True)
     print(f"epochs    {pipeline.EPOCHS}  folds {pipeline.N_FOLDS}", flush=True)
+
+    if build:
+        import torch
+
+        model = pipeline.build_model(pipeline.UNFREEZE_LAST, variant=variant)
+        n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        n_all = sum(p.numel() for p in model.parameters())
+        print(f"built     {variant}: {n_all / 1e6:.1f}M params, "
+              f"{n_train / 1e6:.1f}M trainable", flush=True)
+
+        # One forward pass on a synthetic bag, which is what the fingerprint does. If the
+        # encoder width and the head disagree this raises here rather than after an hour.
+        img = pipeline.IMG
+        x = torch.randint(0, 256, (2, pipeline.N_SLOT, pipeline.GROUP, img, img),
+                          dtype=torch.uint8)
+        mask = torch.ones(2, pipeline.N_SLOT)
+        with torch.no_grad():
+            out = model(x, mask)
+        print(f"forward   {tuple(out.shape)}, expected (2, {len(pipeline.TARGETS)})",
+              flush=True)
+        assert out.shape == (2, len(pipeline.TARGETS)), "the head and the encoder disagree"
     return str(pipeline.ROOT)
 
 
@@ -295,7 +318,7 @@ def main(mode: str = "smoke", variant: str = "small", name: str = "",
         print(setup.remote(variant))
         return
     if mode == "import":
-        print(check_import.remote())
+        print(check_import.remote(variant))
         return
     if mode == "smoke":
         # One fold, one epoch, a small cache: proves the pipeline runs here at all before
