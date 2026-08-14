@@ -4,3 +4,4 @@ nb/
 __pycache__/
 *.pt
 kaggle/*/out/
+cloud/exports/
