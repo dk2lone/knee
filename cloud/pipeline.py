@@ -1838,6 +1838,90 @@ class Model(nn.Module):
         feat = torch.cat(parts, dim=1).reshape(B, S, -1)
         return self.head(feat, mask, sex_idx)
 
+def find_biomedclip():
+    """The mounted BioMedCLIP directory, found by its own config rather than a path.
+
+    find_dinov2 cannot be used: it requires a config.json, and BioMedCLIP ships
+    open_clip_config.json instead, so the walk returns nothing and the caller silently
+    trains with no encoder.
+    """
+    base = Path("/kaggle/input")
+    if not base.is_dir():
+        return None
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
+        if "open_clip_config.json" in files and any(f.endswith(".bin") for f in files):
+            found = Path(root)
+            break
+    else:
+        found = None
+    return found
+
+
+def build_biomedclip(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=False):
+    """BioMedCLIP's vision tower behind the four names the rest of this file reads.
+
+    `Model` wants `bb.encoder.layer`, `bb.layernorm`, `bb.config.hidden_size` and
+    `bb(pixel_values=x).last_hidden_state` with CLS at index 0. A timm ViT has all four
+    under different names, so this is a rename rather than a second implementation.
+
+    The position embedding is resampled from the pretrained 224 px grid (197 tokens) to
+    whatever this run uses - 442 tokens at 336 px - by timm's own checkpoint filter, which
+    is the same interpolation DINOv2 does internally for its patch 14.
+    """
+    import types
+
+    import timm
+    from timm.models.vision_transformer import checkpoint_filter_fn
+
+    p = find_biomedclip()
+    if p is None:
+        raise FileNotFoundError("BioMedCLIP weights not attached")
+    cfg = json.loads((p / "open_clip_config.json").read_text())["model_cfg"]["vision_cfg"]
+    blob = next(f for f in sorted(p.glob("*.bin")))
+    sd = torch.load(blob, map_location="cpu", weights_only=False)
+    sd = sd.get("state_dict", sd)
+    vis = {k[len("visual.trunk."):]: v for k, v in sd.items()
+           if k.startswith("visual.trunk.")}
+    if not vis:
+        raise WeightsError(f"{blob} holds no visual.trunk weights")
+
+    vit = timm.create_model(cfg["timm_model_name"], pretrained=False, num_classes=0,
+                            img_size=img_size)
+    missing, unexpected = vit.load_state_dict(checkpoint_filter_fn(vis, vit), strict=False)
+    hard = [k for k in missing if not k.startswith("head")]
+    if hard:
+        raise WeightsError(f"BioMedCLIP is missing {len(hard)} tensors: {hard[:4]}")
+
+    class _BMC(nn.Module):
+        def __init__(self, trunk):
+            super().__init__()
+            self.trunk = trunk
+            self.encoder = types.SimpleNamespace(layer=trunk.blocks)
+            self.layernorm = trunk.norm
+            self.config = types.SimpleNamespace(hidden_size=trunk.embed_dim)
+
+        def forward(self, pixel_values=None, **_):
+            return types.SimpleNamespace(
+                last_hidden_state=self.trunk.forward_features(pixel_values))
+
+    bb = _BMC(vit)
+    n_layer = len(bb.encoder.layer)
+    for prm in bb.parameters():
+        prm.requires_grad = False
+    for blk in bb.encoder.layer[max(0, n_layer - unfreeze_last):]:
+        for prm in blk.parameters():
+            prm.requires_grad = True
+    for prm in bb.layernorm.parameters():
+        prm.requires_grad = True
+    dim = bb.config.hidden_size
+    trainable = sum(q.numel() for q in bb.parameters() if q.requires_grad)
+    log(f"backbone: BioMedCLIP {cfg['timm_model_name']} at {img_size}px, {n_layer} "
+        f"blocks, last {unfreeze_last} trainable ({trainable / 1e6:.1f}M params), "
+        f"feature dim {dim * POOL_PARTS[pool]}")
+    return Model(bb, dim, pool=pool, prior=prior, sex=sex)
+
+
 def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",
                 prior=False, sex=False):
     """Load the encoder and open the last `unfreeze_last` blocks for training.
@@ -1853,6 +1937,8 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",
     off the platform builds the same object from the same code rather than from a second
     definition that has to be kept in step by hand.
     """
+    if variant == "biomedclip":
+        return build_biomedclip(unfreeze_last, IMG, pool=pool, prior=prior, sex=sex)
     from transformers import AutoModel
     p = source if source is not None else find_dinov2(variant)
     if p is None:
