@@ -1,0 +1,24 @@
+{
+  "id": "dk2lone/knee-duo",
+  "title": "knee duo",
+  "code_file": "knee-duo.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "pilkwang/rsna-knee-weights",
+    "prvsiyan/rsna-knee-b3-v47-public-deployment"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1",
+    "metaresearch/dinov2/PyTorch/base/1"
+  ],
+  "machine_shape": "NvidiaTeslaT4"
+}

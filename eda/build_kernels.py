@@ -565,6 +565,138 @@ def infer_from_package(path, dev):''')
          "knee-blend.ipynb", WEIGHT_PACKAGES, TRAINED)
 
 
+# ---------------------------------------------------------------------- duo --- #
+B3_PACKAGE = "prvsiyan/rsna-knee-b3-v47-public-deployment"
+
+# How much of the vote the second architecture gets. Measured: the DINOv2 blend scores
+# 0.895 and B3 alone scores 0.834, a gap of 0.061. The public 0.909 notebooks run their
+# RadImageNet arm at a uniform 0.35, chosen by nested grouped-fold selection on an OOF we
+# do not have - the B3 package deliberately ships no OOF table. So this starts below their
+# rung rather than borrowing a constant fitted to a different model, and walks up only if
+# the first submission gains.
+B3_WEIGHT = 0.25
+
+
+def build_duo():
+    """The blend, plus the published EfficientNet-B3 voting alongside it.
+
+    Every public notebook at 0.909-0.91 does this same thing - a second architecture votes
+    with the first - and theirs is RadImageNet, which is CC-BY-NC-SA and may not be
+    prize-eligible. B3 is competition-derived and published for public use, so it is the
+    version of the trick that can be delivered.
+
+    Both inferences run here, in one kernel, because a scored kernel is privately re-run on
+    hidden data: mounting `knee-b3`'s output would mount predictions for the three visible
+    studies and score them against a test set they know nothing about.
+    """
+    n = Notebook("kaggle/blend/knee-blend.ipynb")
+
+    n.sub('''def main():''', '''B3_WEIGHT = ''' + repr(B3_WEIGHT) + '''
+
+
+def find_b3():
+    """The B3 release, located by its own layout rather than by a mount path.
+
+    Returns (source_dir, checkpoints) or (None, None) when the package is not attached,
+    because a missing second arm should cost the first arm nothing.
+    """
+    base = Path("/kaggle/input")
+    if not base.is_dir():
+        return None, None
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
+        if "efficientnet_b3_public_repro_v4_t4.py" not in files:
+            continue
+        src = Path(root)
+        # Their module chain resolves siblings with Path(__file__).with_name(), so all
+        # of these have to sit in one directory or the import fails at load.
+        need = ["efficientnet_b3_public_repro_v2_anatomy.py",
+                "efficientnet_b3_public_repro_v1.py",
+                "efficientnet_b3_public_repro_v1_infer.py"]
+        if any(not (src / f).is_file() for f in need):
+            continue
+        cks = [src.parent / f"fold{i}" / f"fold{i}_final.pt" for i in range(5)]
+        if any(not c.is_file() for c in cks):
+            return None, None
+        return src, cks
+    return None, None
+
+
+def add_b3_arm(weight=None):
+    """Run B3 and fold its vote into submission.csv, in rank space.
+
+    Ranks rather than probabilities, for the same reason the members are combined that
+    way: AUC reads order, the two models are calibrated differently, and averaging two
+    differently-calibrated probabilities is an average of two different quantities. Ranking
+    each first makes the weight mean what it says.
+
+    Nothing here is fatal. If the package is missing, or their script fails, or the two
+    files disagree about which studies exist, the DINOv2 submission is left exactly as it
+    was - a second arm that cannot run should cost nothing, not everything.
+    """
+    import subprocess
+    import sys
+
+    weight = B3_WEIGHT if weight is None else weight
+    src, cks = find_b3()
+    if src is None:
+        log("b3: package not attached; leaving the DINOv2 submission unchanged")
+        return
+    out = Path("b3out")
+    out.mkdir(exist_ok=True)
+    cmd = [sys.executable, str(src / "efficientnet_b3_public_repro_v1_infer.py"),
+           "--module", str(src / "efficientnet_b3_public_repro_v4_t4.py"),
+           "--test-csv", str(ROOT / "test.csv"),
+           "--series-csv", str(ROOT / "test_series.csv"),
+           "--image-root", str(ROOT / "test_series"),
+           "--checkpoints", *[str(c) for c in cks],
+           "--output-dir", str(out),
+           "--budget-hours", "3.0"]
+    log(f"b3: {' '.join(cmd[:3])} ... over {len(cks)} folds")
+    t0 = time.time()
+    r = subprocess.run(cmd)
+    log(f"b3: returned {r.returncode} in {(time.time() - t0) / 60:.1f} min")
+    if r.returncode != 0:
+        log("b3: inference failed; leaving the DINOv2 submission unchanged")
+        return
+
+    b3_file = out / "submission.csv"
+    if not b3_file.is_file():
+        log("b3: no submission written; leaving the DINOv2 submission unchanged")
+        return
+    a = pd.read_csv("submission.csv").set_index("StudyInstanceUID")
+    b = pd.read_csv(b3_file).set_index("StudyInstanceUID")
+    missing = a.index.difference(b.index)
+    if len(missing):
+        log(f"b3: covers {len(b)} of {len(a)} studies, {len(missing)} missing; "
+            f"leaving the DINOv2 submission unchanged")
+        return
+
+    ra = a[TARGETS].rank(pct=True)
+    rb = b.loc[a.index, TARGETS].rank(pct=True)
+    mixed = (1.0 - weight) * ra + weight * rb
+    moved = float((mixed - ra).abs().mean().mean())
+    a[TARGETS] = mixed
+    a.reset_index().to_csv("submission.csv", index=False)
+    log(f"b3: blended at weight {weight}; mean rank moved {moved:.4f}; "
+        f"nulls {int(a[TARGETS].isna().sum().sum())}")
+
+
+def main():''')
+
+    n.sub('''        infer_from_package(pkgs, dev)
+        log("done")
+        return''',
+          '''        infer_from_package(pkgs, dev)
+        add_b3_arm()
+        log("done")
+        return''')
+
+    n.write("kaggle/duo/knee-duo.ipynb")
+    meta("kaggle/duo/kernel-metadata.json", "knee-duo", "knee duo", "knee-duo.ipynb",
+         WEIGHT_PACKAGES + [B3_PACKAGE], TRAINED)
+
+
 # The last cell of the notebook runs the pipeline. A module that trains on import is not
 # importable, so the generated module stops here and the caller decides when to run.
 DRIVER = "\ntry:\n    main()\n"
@@ -630,13 +762,15 @@ if __name__ == "__main__":
     import ast
 
     Path("cloud").mkdir(parents=True, exist_ok=True)
-    for d in ("kaggle/train-v2", "kaggle/blend"):
+    for d in ("kaggle/train-v2", "kaggle/blend", "kaggle/duo"):
         Path(d).mkdir(parents=True, exist_ok=True)
     build_train_v2()
     build_blend()
+    build_duo()
     body = build_cloud_module()
     print(f"cloud/pipeline.py: {body.count(chr(10))} lines, parses")
-    for p in ("kaggle/train-v2/knee-train-v2.ipynb", "kaggle/blend/knee-blend.ipynb"):
+    for p in ("kaggle/train-v2/knee-train-v2.ipynb", "kaggle/blend/knee-blend.ipynb",
+              "kaggle/duo/knee-duo.ipynb"):
         nb = json.loads(Path(p).read_text())
         ast.parse("\n".join("".join(c["source"]) for c in nb["cells"]
                             if c["cell_type"] == "code"))
