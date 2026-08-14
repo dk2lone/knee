@@ -1,0 +1,198 @@
+# HANDOFF — RSNA Knee, night of 13 Aug 2026
+
+Written at 21:40 EDT. The previous session ran from ~18:00 to 21:40 and made five
+submissions' worth of decisions, several measurements, and three retractions. Read the
+retractions first — two of them reverse advice that is still lying around in older commit
+messages.
+
+## Goal
+
+Top 10 on the public leaderboard. **Tenth is 0.936. This repo is at 0.891.** Final submission
+22 October 2026.
+
+Macro AUC is the mean of twelve per-label AUCs, so +0.045 macro is **+0.540 summed across the
+labels**. No single-label fix reaches it — synovitis alone would need +0.540 on a scale ending
+at 1.0. Best public score for any one backbone is 0.906, so assembling public parts caps out
+near 0.91.
+
+## In progress right now
+
+| Thing | State | What to do |
+|---|---|---|
+| `dk2lone/knee-train-v1` | **RUNNING** since 18:12, ~6.8 h, lands ~01:00 | `kaggle kernels status dk2lone/knee-train-v1` |
+| Second GPU session | **unknown, possibly wasted** | kaggle.com/code → Your Work → Running. If a second `knee-train-v1` is there it is the abandoned 10-epoch version; cancel it |
+| `dk2lone/knee-site-probe` | complete, `submission.csv` written | **submit it** — largest untested lever |
+| `dk2lone/knee-b3` | committed, push **blocked** by "Maximum batch GPU session count of 2 reached" | push once a slot frees |
+| `kaggle/blend` | built, checked, not pushed | needs train-v1's output mounted |
+| `kaggle/train-v2` | built, checked, not pushed | the next training run |
+| `cloud/smoke.py` | written, **never run** | Daniel approved Modal; see below |
+
+`knee-train-v1` writes `member_f*.pt`, `manifest.json` and `oof.csv` to its kernel output.
+
+## Next steps, in order
+
+1. **Submit the site probe.** One submission, decisive. A model that knows only the scanner
+   scores 0.6505 macro under random folds and exactly 0.5000 under site-grouped folds. Whether
+   any of that reaches the leaderboard depends on whether test studies were scanned on machines
+   the training set contains — not answerable offline. **~0.62 means grouping folds is costing
+   real score and the whole fold strategy changes. ~0.50 means grouped folds are right.** On the
+   three visible test studies, 3 of 3 landed on a known scanner.
+2. **Gate train-v1.** `kaggle kernels output dk2lone/knee-train-v1 -p kaggle/train-v1/out`
+   then `.venv/bin/python eda/score_oof.py kaggle/train-v1/out/oof.csv`. Below run 5's 0.8084
+   means broken, not worse — read the log, do not submit.
+3. **Push `kaggle/blend`, submit once.** It reads every attached weights package, takes 5
+   members from each so neither outvotes the other, and applies focal max pooling.
+4. **Run `knee-b3` alone** for a number before spending runtime on a two-architecture blend.
+5. **Modal.** See below. This is the big one.
+
+## The Modal plan (approved, not started)
+
+Kaggle has shaped every decision: 3 cached slices because 4,407 studies and a test set shared
+30 GB of host RAM; 25 epochs because five folds had to fit a 9 h cap; one run at a time because
+two GPU sessions is the limit; 30 GPU-hours a week.
+
+Modal removes all of it. `~/.modal.toml` has five profiles, active `raahncpe`, SDK installed in
+`.venv`. **All five workspaces bill $0.00** — metered cost fully covered by credits and the free
+storage tier.
+
+Live rates from `modal billing rates`:
+
+```
+B200  $6.25/hr    A100 80GB  $2.50/hr
+H200  $4.54/hr    L40S       $1.95/hr
+H100  $3.95/hr    A10G       $1.10/hr
+CPU   $0.0473/core/hr      Memory $0.008/GiB/hr
+Volumes $0.09/GiB/month, first 1 TiB free
+```
+
+**Do not just reach for the H200.** DINOv2-small is 21M parameters at 336 px, batch 8 studies ×
+6 slots = 48 images. It will not saturate an H200 and its 141 GB of VRAM is irrelevant when the
+job needs ~10. The speedup comes from **raising `BATCH_STUDIES` from 8**, which was chosen for a
+16 GB T4. Benchmark one epoch on L40S / A100 / H200 with a batch sweep — about $1 — and compare
+**cost per epoch**, not seconds per epoch.
+
+`cloud/smoke.py` proves three things for pennies and has not been run: that an H200 is
+schedulable rather than capacity-queued, that the Kaggle credential reaches the container, and
+that the download rate makes 570 GB sane. It reads `~/.kaggle/access_token` locally (a 37-char
+opaque token, **not** the classic `kaggle.json`) and passes it as an ephemeral
+`modal.Secret.from_dict` — never on a command line, never in the repo.
+
+The gate is data: **570 GB** and Modal has none of it. Storage is free under the 1 TiB tier, so
+the cost is download time (~$0.40 of CPU container), not rent. Download once into a Volume, then
+rebuild the cache at any slice count forever.
+
+## Retractions — read these
+
+Three claims made earlier tonight were retracted on measurement. Older commit messages still
+contain the originals.
+
+**1. "The efficiency track is a cheaper prize."** It is not. `kaggle kernels output
+ryanholbrook/rsna-knee-abnormalities-efficiency-lb` fetches the host's own standings. Top three
+all score **≥0.915**; 71 teams scored exactly 0.891 and the best efficiency rank any of them
+reached is **141**. Running a losing score 2.4× faster runs a losing score quickly. Both tracks
+want a better model first.
+
+**2. "fastMRI+ is the biggest lever."** Measured: 974 annotated exams, and the counts land
+wrong. **MCL has 4 positives.** Synovitis is not a category. **Fracture and Contusion are merged**
+into `Bone-Fracture/Contusion/dislocation` — the exact distinction the competition scores. The
+clean severity-matched one is ACL, already 0.987 from text. Box centres are bimodal so the two
+compartments separate geometrically, but which is medial needs a laterality the file lacks.
+Downgraded to auxiliary supervision at best.
+
+**3. "The labels are the gap" (said very early, wrong).** `kaggle/labels/report_labels_dk.csv`
+**is** `data/labels/llm_labels_v4_blend.csv` plus confidence columns — equal to 6 decimals. Run 5
+already trained on the best table available.
+
+## Context and decisions
+
+**The plateau, measured.** The label table carries per-cell confidence. Over the 696
+(study, label) cells of the 58 annotated studies: confident cells score **0.890**, the 27.2%
+unsure ones score **0.580** — near chance, and Fracture scores 0.336 on its 46.6% unsure cells.
+The silence is a property of the **site**, not the study: between-group variance 0.02177 against
+a shuffled median of 0.00027 over 200 permutations, *p* = 0.000. Random label noise averages out
+and a model can beat its teacher; noise correlated with something the model can see does not.
+
+**But a better reader cannot fix all of it.** Confidence tracks report length at Spearman
+**+0.578**. Synovitis is **0.303 even in the longest fifth** of reports — radiologists do not
+write it down, so no reader recovers it at any price and only the image can. Baker's and
+Contusion more than double with length; those are where a second reader pays. The shortest fifth
+is 893 studies at 40 words. **Sort by report length before spending on relabelling.**
+
+**No uncertainty policy helps.** All five CheXpert policies tested on the gold studies: keep the
+soft value (current) 0.8927, U-Prevalence 0.8795, U-Ignore 0.8787, U-Zeros 0.8701, **U-Ones
+0.6368**. Per label it looks tempting (U-Zeros +0.068 on Lateral OA) but choosing per label on
+one half and scoring on the other, 500 times, gives **+0.0018, 95% [−0.0164, +0.0166]**. Crosses
+zero. Rep-GLS (arXiv 2508.02495, 2025) is essentially the current confidence-scaled soft targets,
+so this pipeline is already at 2025 state of the art on that axis.
+
+**What the public baseline actually is.** `pilkwang/rsna-knee-weights` manifest: **20 members =
+5 folds × 4 seeds, 20–60 epochs, 12 cached slices, 10 TTA windows**, trained off-platform. Run 5
+was 1 member, 10 epochs, 3 slices, 1 window. Everything else — slots, rules, crop, band, 336 px,
+DINOv2-small, `cls_mean` — is byte-identical to this pipeline. **The 0.891 is runtime, not a
+better model.**
+
+**The 3-slice limit is memory, not choice.** `plan_cache` sized the training corpus and a test
+set into one budget. `train-v2` sets `TEST_SHARE = 0`, `N_GROUP_MAX = 2`, `CACHE_FRACTION = 0.62`
+→ 6 slices, 4 TTA windows, degrading to 3 by itself on a smaller machine.
+
+**`PatientSex` is the differentiated feature.** In the DICOM headers, absent from `train.csv`,
+and `PatientAge` is stripped — a team that does not read headers cannot have it. Male minus
+female: **ACL +0.069, PF OA −0.105**. Implemented in `train-v2` as a per-(sex, finding) bias of
+48 numbers. **Zeroing it reproduces the base logits exactly**, so the run writes `oof.csv` and
+`oof_nosex.csv` from the same weights and the ablation costs no second run.
+
+**Focal TTA pooling is free score.** `{"Fracture": "max", "Contusion": "max", "Lateral Meniscus":
+"max"}` over TTA windows instead of the mean. Two public notebooks reached the same three labels
+independently; `aadigupta7686/0-899-let-me-cook` is the highest public fork at 0.899 against
+0.891, inference-only. Taken. **Not** taken from that fork: vertical-flip TTA (turns the femur
+into the tibia, and its own text says the score is "expected") and `TTA_POOL = "logit"`.
+
+**Epochs are an open question.** pilkwang's members record 20–60. prvsiyan's published
+EfficientNet-B3 records **3** (1 frozen + 2 unfrozen). Two published solutions disagree by an
+order of magnitude. train-v1 was set to 25 on pilkwang's number alone.
+
+**A second architecture already exists.** `prvsiyan/rsna-knee-b3-v47-public-deployment`, uploaded
+13 Aug 20:48: five EfficientNet-B3 folds, per-fold manifests, and the training and inference
+source. 224 px, square padding, 6 train / 20 valid slices. **Its manifest schema is not the one
+this repo's loader reads** — no `members` list, no `pixel_group`, no `fingerprint` — so `kaggle/b3`
+calls their CLI rather than reimplementing anything.
+
+**The `Manufacturer` tag holds twelve spellings for seven makers.** Canon's scanners report
+TOSHIBA, Fujifilm's report Hitachi. `eda/make_folds.py` normalises them. The site probe's first
+version did not, reported "33% of test studies on unseen scanners", and would have returned ~0.50
+on the leaderboard — indistinguishable from a real finding. `eda/test_siteprobe.py` now rebuilds
+the key and requires it to reproduce `folds.csv`.
+
+**Slice ordering costs 1,784 s a run** against 290 s to decode pixels — 38% of a run before a
+gradient step. `train-v2` reads a mounted `slice_order.json` and always writes one. Nobody
+mentions this publicly.
+
+## Checks — all pass
+
+```
+.venv/bin/python eda/test_folds.py       site-grouped folds, member key
+.venv/bin/python eda/test_blend.py       package merge, focal pooling column-scoping
+.venv/bin/python eda/test_train_v2.py    sex bias ablation identity, order cache paths
+.venv/bin/python eda/test_siteprobe.py   scanner key reproduces folds.csv
+.venv/bin/python eda/test_b3.py          package location, missing-fold refusal
+.venv/bin/python eda/test_fusion.py      label table fusion (null result)
+.venv/bin/python eda/label_silence.py    the plateau measurement
+```
+
+`torch` (CPU) and `pydicom` and `modal` were installed into `.venv` tonight.
+
+## How to resume
+
+```bash
+cd ~/knee
+git log --oneline -12
+cat HANDOFF.md
+kaggle kernels status dk2lone/knee-train-v1
+```
+
+Then work down "Next steps". Docs live in `docs/data.md`, `docs/labels.md`, `docs/field.md` —
+the README was 698 lines and was split tonight. **The README's `## Plan` section predates
+tonight and is stale**; this file supersedes it.
+
+`nb/`, `data/`, `.venv/`, `*.pt` and `kaggle/*/out/` are gitignored, so pulled competitor
+notebooks and kernel outputs are local only.
