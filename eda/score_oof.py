@@ -25,6 +25,11 @@ import pandas as pd
 L = ["ACL", "MCL", "Medial Meniscus", "Lateral Meniscus", "Medial OA", "Lateral OA",
      "PF OA", "Effusion", "Synovitis", "Baker's", "Contusion", "Fracture"]
 
+# The findings a published run moved by fine-tuning the encoder harder at unchanged
+# resolution: Medial Meniscus +0.171, MCL +0.118, ACL +0.113, Contusion +0.099. They are
+# reported as a group because a macro over twelve labels divides that gain by twelve.
+FOCAL = ["Medial Meniscus", "MCL", "ACL", "Contusion"]
+
 # What run 5 scored on its single holdout, and what it became on the leaderboard. A run
 # below the first number is broken, not worse.
 RUN5_HOLDOUT = 0.8084
@@ -125,9 +130,44 @@ def main(path):
         if agree < 0.99:
             print("  the run did not use the site-grouped folds; this OOF reads high")
 
+    # --- the endpoints with enough n to resolve a choice -------------------- #
+    # 58 studies cannot separate 0.02, and the bootstrap above says so out loud. These two
+    # are whole scanner groups carved by eda/make_eval.py: va_sel is where a configuration
+    # is chosen, va_ev is opened once after the weights are frozen. Both score against the
+    # weak labels, so they measure agreement with our own labeller rather than with truth
+    # - a different question from the gold 58, and the one with the n to answer it.
+    try:
+        sp = pd.read_csv("data/eval_split.csv").set_index("StudyInstanceUID")["split"]
+    except Exception:
+        sp = None
+    if sp is not None:
+        print("\npre-registered endpoints (weak labels, whole scanner groups)")
+        for name, what in (("va_sel", "choose the epoch and the configuration"),
+                           ("va_ev", "one look, after the weights are frozen")):
+            k = idx.intersection(sp[sp == name].index)
+            if not len(k):
+                continue
+            ky = (weak.loc[k, L] > 0.5).astype(int)
+            kp = oof.loc[k, L]
+            v = macro(ky, kp)
+            lo, hi = boot(ky.reset_index(drop=True), kp.reset_index(drop=True), reps=1000)
+            print(f"  {name:7s} n={len(k):4d}  {v:.4f}  95% [{lo:.4f}, {hi:.4f}]"
+                  f"  - {what}")
+        print("  do not read va_ev while choosing anything. It is one look and it is spent.")
+
     print("\nper label")
     per = pd.Series({c: auc(y[c].values, p[c].values) for c in L}).sort_values()
     print(per.round(3).to_string())
+
+    # The focal findings, called out because a macro over twelve labels divides by twelve
+    # exactly the gain that adaptation buys. A published run moved Medial Meniscus +0.171,
+    # MCL +0.118 and ACL +0.113 by fine-tuning the encoder harder at unchanged resolution,
+    # and that is +0.042 of macro hiding behind a four-label average.
+    print(f"\nfocal findings (where encoder adaptation showed up): "
+          f"{per[FOCAL].mean():.4f} mean")
+    print(per[FOCAL].round(3).to_string())
+    print("  a backbone learning rate high enough to damage the pretrained features "
+          "moves\n  every label down together, rather than these four up.")
 
     print(f"\nfor reference: run 5 scored {RUN5_LB} on the leaderboard from a "
           f"{RUN5_HOLDOUT:.4f} holdout; the public baseline scores {BASELINE_LB}.")
