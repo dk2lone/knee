@@ -87,7 +87,7 @@ vol = modal.Volume.from_name("knee-data", create_if_missing=True)
 
 
 def _biomedclip_build_model(pipeline, unfreeze_last, source=None, variant=None,
-                            pool="cls_mean", prior=False, sex=False):
+                            pool="cls_mean", prior=False, sex=False, img=None):
     """Load BioMedCLIP's vision tower behind the four names the pipeline reads.
 
     `build_model` wants an HF DINOv2: `bb.encoder.layer` to unfreeze the last blocks,
@@ -115,9 +115,28 @@ def _biomedclip_build_model(pipeline, unfreeze_last, source=None, variant=None,
     import open_clip
     import torch.nn as nn
 
-    ref = str(source) if str(source).startswith("/") else f"hf-hub:{source}"
+    # open_clip resolves a bare path as a *model name*, not a directory, and fails with
+    # "Model config for '-kaggle-input-dinov2-biomedclip' not found in built-ins". Its
+    # local-directory form needs the config registered by name, so on Modal - where there
+    # is internet - the hf-hub reference is used and open_clip reads
+    # open_clip_config.json from the repo itself.
+    #
+    # A scored Kaggle kernel has no internet, so a BioMedCLIP member could not be rebuilt
+    # there as written. That is the same unsolved problem RAD-DINO has (issue #25) and it
+    # is a question for whichever encoder wins, not for the sweep that decides which does.
+    ref = source if str(source).startswith("hf-hub:") else f"hf-hub:{HF_DINOV2['biomedclip']}"
     clip, _ = open_clip.create_model_from_pretrained(ref)
     vit = clip.visual.trunk           # the timm VisionTransformer
+
+    # Patch 16 at a native 224 against our 336: 21x21 = 441 patches where the pretrained
+    # position embedding holds 196. timm asserts on the mismatch rather than adapting -
+    # "Input height (336) doesn't match model (224)" - so it is told the new size, which
+    # interpolates the position embedding the way DINOv2 does internally for patch 14.
+    if img is not None and hasattr(vit, "set_input_size"):
+        vit.set_input_size(img_size=(img, img))
+    elif img is not None:
+        vit.patch_embed.strict_img_size = False
+        vit.patch_embed.dynamic_img_pad = True
 
     class Wrapped(nn.Module):
         def __init__(self, trunk):
@@ -325,7 +344,13 @@ def link_inputs(variant="small", corpus=None):
             raise FileNotFoundError(f"{src} is missing; run --mode setup first")
         if dest.exists():
             shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".cache", "*.bin"))
+        # Drop *.bin only when safetensors carries the same weights, which is the DINOv2
+        # case. BioMedCLIP's ONLY weights file is open_clip_pytorch_model.bin, so an
+        # unconditional exclusion copies a directory with no model in it - and open_clip
+        # then fails on a path that looks perfectly present.
+        has_st = any(src.rglob("*.safetensors"))
+        skip = [".cache"] + (["*.bin"] if has_st else [])
+        shutil.copytree(src, dest, ignore=shutil.ignore_patterns(*skip))
         print(f"{dest} <- {src} ({sum(1 for _ in dest.rglob('*'))} entries)", flush=True)
     return base
 
@@ -348,6 +373,100 @@ def setup(variant: str = "small"):
     ok = (comp / "train.csv").exists()
     print(f"corpus landed: {ok}", flush=True)
     return ok
+
+
+@app.function(image=image, timeout=1800, volumes={"/vol": vol}, cpu=4.0, memory=16384)
+def check_encoder(variant: str = "biomedclip", img: int = 336):
+    """Build one encoder and push a synthetic bag through it, with no corpus present.
+
+    `check_import` needs train.csv because the pipeline computes its cache plan at import.
+    The corpus now lives on ephemeral disk and is gone the moment a container ends, so
+    validating an encoder would otherwise mean paying a 247 GB download to answer a
+    question about 400 MB of weights.
+
+    This imports nothing from the pipeline except the two classes the head needs, so it
+    runs on a CPU container in about a minute. It is what should have caught BioMedCLIP
+    shipping `open_clip_config.json` rather than `config.json`, and `link_inputs`
+    excluding the one `.bin` file that held its weights.
+    """
+    import shutil
+    import sys
+
+    import torch
+
+    base = pathlib.Path("/kaggle/input")
+    base.mkdir(parents=True, exist_ok=True)
+    dest = base / f"dinov2-{variant}"
+    src = pathlib.Path(f"/vol/models/dinov2-{variant}")
+    if not src.exists():
+        raise FileNotFoundError(f"{src} is missing; run --mode setup --variant {variant}")
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+    has_st = any(src.rglob("*.safetensors"))
+    shutil.copytree(src, dest,
+                    ignore=shutil.ignore_patterns(*([".cache"] +
+                                                    (["*.bin"] if has_st else []))))
+    print(f"{dest}: {sorted(p.name for p in dest.iterdir())[:6]}", flush=True)
+
+    sys.path.insert(0, "/root")
+    import types
+    stub = types.ModuleType("_stub")
+    exec(compile(_head_source(), "<head>", "exec"), stub.__dict__)
+
+    if variant == "biomedclip":
+        model = _biomedclip_build_model(stub, 6, source=dest, img=img)
+    else:
+        from transformers import AutoModel
+        bb = AutoModel.from_pretrained(str(dest))
+        # Same freezing build_model applies, so the trainable count here means what it
+        # means in a real run rather than reporting every parameter.
+        n_layer = len(bb.encoder.layer)
+        for prm in bb.parameters():
+            prm.requires_grad = False
+        for blk in bb.encoder.layer[max(0, n_layer - 6):]:
+            for prm in blk.parameters():
+                prm.requires_grad = True
+        for prm in bb.layernorm.parameters():
+            prm.requires_grad = True
+        model = stub.Model(bb, bb.config.hidden_size)
+
+    n_all = sum(p.numel() for p in model.parameters())
+    n_tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    x = torch.randint(0, 256, (2, stub.N_SLOT, stub.GROUP, img, img), dtype=torch.uint8)
+    with torch.no_grad():
+        out = model(x, torch.ones(2, stub.N_SLOT))
+    print(f"{variant}: {n_all / 1e6:.1f}M params, {n_tr / 1e6:.1f}M trainable, "
+          f"forward {tuple(out.shape)} at {img}px", flush=True)
+    assert out.shape == (2, len(stub.TARGETS)), "the head and the encoder disagree"
+    return f"{variant} ok at {img}px"
+
+
+def _head_source():
+    """The pieces of the generated module the head needs, without its import-time work.
+
+    Taken from cloud/pipeline.py by name rather than retyped, so this cannot drift from
+    what actually trains.
+    """
+    import ast
+
+    # /root/pipeline.py in the container, where the image mounts it; the repo path when
+    # this is called locally. REPO is derived from __file__ and does not survive the move.
+    here = pathlib.Path("/root/pipeline.py")
+    src = (here if here.is_file() else REPO / "cloud" / "pipeline.py").read_text()
+    tree = ast.parse(src)
+    want = {"SlotHead", "Model"}
+    consts = {"TARGETS", "SLOTS", "SLOTS_PUBLIC", "SLOTS_RECOVERED", "SLOT_SCHEME",
+              "N_SLOT", "GROUP", "POOL_PARTS"}
+    out = ["import os", "import torch", "import torch.nn as nn",
+           "import torch.nn.functional as F", "def log(*a, **k): print(*a)"]
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name in want:
+            out.append(ast.get_source_segment(src, node))
+        elif isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id in consts:
+                    out.append(ast.get_source_segment(src, node))
+    return "\n\n".join(out)
 
 
 @app.function(image=image, timeout=1800, volumes={"/vol": vol}, cpu=4.0)
@@ -376,8 +495,10 @@ def check_import(variant: str = "small", build: bool = True):
         import torch
 
         if variant == "biomedclip":
-            model = _biomedclip_build_model(pipeline, pipeline.UNFREEZE_LAST,
-                                            source=pipeline.find_dinov2(variant))
+            model = _biomedclip_build_model(
+                pipeline, pipeline.UNFREEZE_LAST,
+                source=pathlib.Path("/kaggle/input") / f"dinov2-{variant}",
+                img=pipeline.IMG)
         else:
             model = pipeline.build_model(pipeline.UNFREEZE_LAST, variant=variant)
         n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -510,7 +631,10 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
         # A different loader, not a different pipeline. build_model's own body would call
         # AutoModel.from_pretrained on an open_clip checkpoint and fail on the config.
         import functools
-        src = pipeline.find_dinov2(variant)
+        # Not find_dinov2: it requires a config.json in the directory, and BioMedCLIP
+        # ships open_clip_config.json instead, so the walk finds nothing. The path is
+        # known - link_inputs just copied it there.
+        src = pathlib.Path("/kaggle/input") / f"dinov2-{variant}"
         pipeline.build_model = functools.partial(
             _biomedclip_build_model, pipeline, source=src)
         print(f"build_model bound to BioMedCLIP at {src}", flush=True)
@@ -631,7 +755,9 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
     if variant == "biomedclip":
         import functools
         pipeline.build_model = functools.partial(
-            _biomedclip_build_model, pipeline, source=pipeline.find_dinov2(variant))
+            _biomedclip_build_model, pipeline,
+            source=pathlib.Path("/kaggle/input") / f"dinov2-{variant}",
+            img=pipeline.IMG)
     elif variant != "small":
         import functools
         pipeline.build_model = functools.partial(pipeline.build_model, variant=variant)
@@ -693,6 +819,11 @@ def main(mode: str = "arm", variant: str = "small", name: str = "",
         return
     if mode == "import":
         print(check_import.remote(variant))
+        return
+    if mode == "encoder":
+        # Build one encoder with no corpus present. A question about 400 MB of weights
+        # should not cost a 247 GB download to answer.
+        print(check_encoder.remote(variant))
         return
     if mode == "sweep":
         # The adaptation question, as three arms in one container. The corpus is extracted
