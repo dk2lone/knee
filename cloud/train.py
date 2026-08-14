@@ -13,9 +13,21 @@ are read by main() when it runs, so assigning them is enough; the cache size is 
 the time anything here can assign. Those are set and then re-planned through the module's
 own planner, because an override that silently does nothing is worse than one that fails.
 
-  .venv/bin/python -m modal run cloud/train.py --mode setup   # DINOv2 into the Volume
-  .venv/bin/python -m modal run cloud/train.py --mode smoke   # 1 fold, 1 epoch, cheap
-  .venv/bin/python -m modal run cloud/train.py --mode full    # the real run
+  --mode setup    put an encoder on the Volume, once per variant
+  --mode import   load the module and build the encoder on CPU, for cents
+  --mode arm      one fold, one sweep arm - the default, and what builds the order cache
+  --mode smoke    one fold, one epoch, if a rehearsal is wanted instead
+  --mode full     five folds, twelve cached slices
+
+The sweep the arms are for:
+
+  --mode arm --name adapt-8e6 --lr-backbone 8e-6  --unfreeze-last 6
+  --mode arm --name adapt-3e5 --lr-backbone 3e-5  --unfreeze-last 6
+  --mode arm --name adapt-1e4 --lr-backbone 1e-4  --unfreeze-last 12
+
+then read them together with
+
+  .venv/bin/python eda/score_oof.py cloud/exports/adapt-*/oof.csv
 """
 import pathlib
 
@@ -328,8 +340,8 @@ def fix_manifest_variant(out, variant, run=None):
 
 
 @app.local_entrypoint()
-def main(mode: str = "smoke", variant: str = "small", name: str = "",
-         gpu: str = "", batch: int = 8,
+def main(mode: str = "arm", variant: str = "small", name: str = "",
+         gpu: str = "", batch: int = 8, epochs: int = 8,
          lr_backbone: float = 8e-6, unfreeze_last: int = 6):
     """`gpu` and `batch` override the decorated defaults, so comparing accelerators is
     this same function called three times rather than a benchmark script that would
@@ -344,17 +356,26 @@ def main(mode: str = "smoke", variant: str = "small", name: str = "",
     if mode == "import":
         print(check_import.remote(variant))
         return
-    if mode == "smoke":
-        # One fold, one epoch, a small cache: proves the pipeline runs here at all before
-        # any real money goes into it. Not a model, a wiring test.
-        print(fn.remote(name or "smoke", variant=variant, epochs=1, folds=1,
-                        n_group_max=1, cache_fraction=0.25, batch_studies=batch,
-                        # 6 h so the ordering pass gets its full ORDER_BUDGET_S: the
-                        # pipeline caps ordering at 35% of the remaining budget, so a 2 h
-                        # run would cut it off at 42 minutes and cache the shortfall.
-                        # It is a ceiling, not a target - one epoch ends long before it.
-                        time_budget_h=6.0, lr_backbone=lr_backbone,
-                        unfreeze_last=unfreeze_last))
+    if mode in ("smoke", "arm"):
+        # One fold. `smoke` is the wiring rehearsal at a single epoch; `arm` is one arm of
+        # the adaptation sweep and is the same run with enough epochs to mean something.
+        #
+        # The default is `arm`, because the wiring is already proven off the GPU:
+        # check_import loads the module, builds the encoder and does a correct forward
+        # pass for cents. What a real run still tests is the training loop, and eight
+        # epochs tests that as well as one does - so the first run produces a usable
+        # result instead of a discarded rehearsal. Either way it builds the slice-order
+        # cache on the Volume, which is the expensive artefact every later run inherits.
+        #
+        # 6 h so the ordering pass gets its full ORDER_BUDGET_S: the pipeline caps
+        # ordering at 35% of the remaining budget, so a 2 h run would cut it off at 42
+        # minutes and cache the shortfall. It is a ceiling, not a target.
+        print(fn.remote(name or mode, variant=variant,
+                        epochs=1 if mode == "smoke" else epochs, folds=1,
+                        n_group_max=1 if mode == "smoke" else 2,
+                        cache_fraction=0.25 if mode == "smoke" else 0.62,
+                        batch_studies=batch, time_budget_h=6.0,
+                        lr_backbone=lr_backbone, unfreeze_last=unfreeze_last))
         return
     # Twelve slices, which is what the public members hold and four times what a scored
     # Kaggle kernel can. At 4,407 studies x 6 slots x 336px a slice costs 2.99 GB, so the
