@@ -134,7 +134,8 @@ def check_import():
 def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
           n_group_max: int = 2, cache_fraction: float = 0.62, batch_studies: int = 8,
           img: int = 336, time_budget_h: float = 18.0,
-          cache_budget_gb: float = 96.0):
+          cache_budget_gb: float = 96.0,
+          lr_backbone: float = 8e-6, unfreeze_last: int = 6):
     """Import the generated pipeline, raise the caps, and run it.
 
     The overrides are assignments onto the module rather than edits to it. main() reads
@@ -175,6 +176,24 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     pipeline.BATCH_STUDIES = batch_studies
     pipeline.TIME_BUDGET = time_budget_h * 3600
     pipeline.RUNS = [{"name": f"r{img}", "img": img}]
+
+    # How hard the encoder is adapted. The pipeline ships 8e-6 over 6 of 12 blocks, which
+    # is 125x below the head's 1e-3 - "adapted, not retrained". A published solution
+    # measured that decision the other way round: fine-tuning at an unchanged 224 px moved
+    # Medial Meniscus +0.171, MCL +0.118 and ACL +0.113, while resolution was worth +0.017.
+    # A backbone trained on natural images does not know what to look for in an MRI, and
+    # once it does, 224 px is enough to find a meniscal tear. Both are read inside the fold
+    # loop, so assigning them here is enough.
+    #
+    # Gate this on the 58 gold studies, NOT on the OOF. OOF is measured against
+    # report-derived targets with a ceiling near 0.88-0.90, so a model that gets better at
+    # seeing the knee departs from the labels exactly where the report was wrong, and the
+    # gain is booked as disagreement. The same source measured a +0.0035 OOF move that was
+    # +0.017 on the leaderboard.
+    pipeline.LR_BACKBONE = lr_backbone
+    pipeline.UNFREEZE_LAST = unfreeze_last
+    print(f"adaptation: lr_backbone={lr_backbone:g} over the last {unfreeze_last} blocks",
+          flush=True)
 
     # Read at IMPORT time: the module runs `N_GROUP = plan_cache(...)` at its own top
     # level, so these four were already consumed before this line and assigning them
@@ -250,7 +269,8 @@ def fix_manifest_variant(out, variant):
 
 @app.local_entrypoint()
 def main(mode: str = "smoke", variant: str = "small", name: str = "",
-         gpu: str = "", batch: int = 8):
+         gpu: str = "", batch: int = 8,
+         lr_backbone: float = 8e-6, unfreeze_last: int = 6):
     """`gpu` and `batch` override the decorated defaults, so comparing accelerators is
     this same function called three times rather than a benchmark script that would
     duplicate the setup and then drift from it. Compare cost per epoch, not seconds:
@@ -269,11 +289,13 @@ def main(mode: str = "smoke", variant: str = "small", name: str = "",
         # any real money goes into it. Not a model, a wiring test.
         print(fn.remote(name or "smoke", variant=variant, epochs=1, folds=1,
                         n_group_max=1, cache_fraction=0.25, batch_studies=batch,
-                        time_budget_h=2.0))
+                        time_budget_h=2.0, lr_backbone=lr_backbone,
+                        unfreeze_last=unfreeze_last))
         return
     # Twelve slices, which is what the public members hold and four times what a scored
     # Kaggle kernel can. At 4,407 studies x 6 slots x 336px a slice costs 2.99 GB, so the
     # cache is 35.8 GB - fine in a 192 GB container and impossible in the 30 GB a kernel
     # shares with the test set. This is the single knob that made their 0.891.
     print(fn.remote(name or "full", variant=variant, epochs=22, folds=5,
-                    n_group_max=4, cache_fraction=0.62, batch_studies=batch))
+                    n_group_max=4, cache_fraction=0.62, batch_studies=batch,
+                    lr_backbone=lr_backbone, unfreeze_last=unfreeze_last))
