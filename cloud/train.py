@@ -274,33 +274,48 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
         vol.commit()
         print(f"volume committed after {(time.time() - t0) / 3600:.2f} h", flush=True)
 
-    fix_manifest_variant(out, variant)
+    fix_manifest_variant(out, variant, run={
+        "name": name, "variant": variant, "epochs": epochs, "folds": folds,
+        "img": img, "slices": pipeline.CACHE_SLICES, "batch_studies": batch_studies,
+        "lr_backbone": lr_backbone, "unfreeze_last": unfreeze_last,
+        "lr_head": pipeline.LR_HEAD, "seed": pipeline.SEED,
+    })
     vol.commit()
     made = sorted(p.name for p in out.iterdir())
     print(f"wrote {made}", flush=True)
     return made
 
 
-def fix_manifest_variant(out, variant):
-    """Record the encoder that was actually fitted, not the literal the notebook writes.
+def fix_manifest_variant(out, variant, run=None):
+    """Record the encoder that was actually fitted, and what the run was.
 
-    The blend rebuilds each member from `config.variant` before loading its weights. A
-    manifest saying "small" over base weights builds the wrong encoder, and the member is
-    refused by its own fingerprint at inference - after the training has been paid for.
+    Two separate jobs. The blend rebuilds each member from `config.variant` before loading
+    its weights, so a manifest saying "small" over base weights builds the wrong encoder
+    and the member is refused by its own fingerprint at inference - after the training has
+    been paid for. That correction is not optional.
+
+    The `run` block is bookkeeping, and it exists because the sweep this feeds produces
+    packages that differ only in a backbone learning rate. Three directories of weights
+    whose difference is invisible in every file they contain is how the wrong one gets
+    submitted.
     """
     import json
 
     mf = out / "manifest.json"
-    if variant == "small" or not mf.exists():
+    if not mf.exists():
+        print("no manifest.json - the run did not reach the end", flush=True)
         return
     d = json.loads(mf.read_text())
     n = 0
-    for m in d.get("members", []):
-        if m.get("config", {}).get("variant") != variant:
-            m["config"]["variant"] = variant
-            n += 1
-    mf.write_text(json.dumps(d, indent=2))
-    print(f"manifest: corrected variant to {variant} on {n} member(s)", flush=True)
+    if variant != "small":
+        for m in d.get("members", []):
+            if m.get("config", {}).get("variant") != variant:
+                m["config"]["variant"] = variant
+                n += 1
+        print(f"manifest: corrected variant to {variant} on {n} member(s)", flush=True)
+    if run:
+        d["run"] = run
+    mf.write_text(json.dumps(d, indent=1))
 
 
 @app.local_entrypoint()
