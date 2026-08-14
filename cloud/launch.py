@@ -51,6 +51,23 @@ ENCODERS = [
 
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS}
 
+# The sweeps above RANK configurations. They cannot produce a member worth blending: one
+# fold, eight epochs and six slices holds out near 0.79, and `eda/build_kernels.py` keeps
+# a training kernel out of the blend until its members reach about 0.84 - below that they
+# take half the vote from the public members and drag the rank mean, which is measured,
+# not feared (issue #29: B3 at 0.834 dropped 0.895 to 0.891).
+#
+# So a winning configuration is re-run properly before it can score:
+#
+#   .venv/bin/python cloud/launch.py full <variant> <epochs> 4
+#
+# `full` means five folds and twelve cached slices - what the public members hold, and
+# four times what a scored Kaggle kernel can afford. Fill in the winner's lr_backbone and
+# unfreeze_last from the sweep before firing it; the defaults here are the pipeline's
+# shipped values, which the sweep exists to challenge.
+FULL = [{"name": "full", "lr_backbone": 8e-6, "unfreeze_last": 6, "epochs": 22}]
+SETS["full"] = FULL
+
 
 def status(call_id):
     """Alive, queued, or finished - without a connection that could cancel it."""
@@ -63,7 +80,7 @@ def status(call_id):
         return f"{type(exc).__name__}: {str(exc)[:200]}"
 
 
-def main(what="sweep", variant="small", epochs=8, n_group_max=2):
+def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
     """`n_group_max` is the slice count knob: 2 gives 6 cached slices, 4 gives 12.
 
     Twelve is what the public members hold and three is what a scored Kaggle kernel can
@@ -73,8 +90,12 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2):
     """
     fn = modal.Function.from_name(APP, "sweep" if what in SETS else "train")
     if what in SETS:
+        # Five folds for a real run, one for a sweep arm: a sweep is comparing
+        # configurations and five folds of each would cost five times as much to answer
+        # the same question.
         call = fn.spawn(SETS[what], variant=variant, epochs=epochs,
-                        n_group_max=n_group_max)
+                        n_group_max=n_group_max,
+                        folds=5 if what == "full" else folds)
     else:
         call = fn.spawn(what, variant=variant, epochs=epochs)
     print(f"spawned {what} on {variant}: {call.object_id}")
