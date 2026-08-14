@@ -1,0 +1,20 @@
+{
+  "id": "dk2lone/knee-b3",
+  "title": "knee b3",
+  "code_file": "run_b3.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "prvsiyan/rsna-knee-b3-v47-public-deployment"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "machine_shape": "NvidiaTeslaT4"
+}
