@@ -173,10 +173,6 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     return made
 
 
-# $/hr from `modal billing rates`, for turning a measured epoch into a cost per epoch.
-RATES = {"H200": 4.54, "H100": 3.95, "A100-80GB": 2.50, "L40S": 1.95, "A10G": 1.10}
-
-
 @app.local_entrypoint()
 def main(mode: str = "smoke", variant: str = "small", name: str = "",
          gpu: str = "", batch: int = 8):
