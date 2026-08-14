@@ -95,6 +95,29 @@ and must beat the benchmark on the private leaderboard. A submission can win bot
 32,400 s is the 9-hour cap, so runtime enters as a fraction of the budget. There is a live
 efficiency leaderboard notebook, updated daily, showing rank only during the competition.
 
+**The efficiency track is not the cheap prize.** The host's own leaderboard notebook writes its
+standings to `full_leaderboard.csv`, which `kaggle kernels output` will fetch. Pulled 13 Aug
+2026, 1,295 teams, snapshot ending 12 Aug:
+
+| Efficiency rank | lowest public score in it |
+|---|---|
+| top 3 | **0.915** |
+| top 10 | 0.915 |
+| top 25 | 0.901 |
+| top 50 | 0.884 |
+
+**71 teams scored exactly 0.891** — the public baseline, submitted unchanged by a lot of
+people. The best efficiency rank any of them reached is **141**. The best rank reached by
+*anyone* at or below 0.891 is 39, and that team must be extremely fast.
+
+So the accuracy floor for an efficiency prize is around 0.915, against 0.936 for tenth on the
+main board. Running the baseline at 2.4× speed does not place; it just runs a losing score
+quickly. Both tracks want the same thing first, which is a better model.
+
+Also note the formula as transcribed above divides by a negative number, so it is probably not
+what the evaluation page actually says. The empirical shape is clear regardless: rank 1 scored
+0.936 and rank 2 scored 0.943, so a higher score can rank lower, and runtime is doing real work.
+
 ### Rules that bite
 
 - **External data and pretrained models are allowed** — must be free and equally available
