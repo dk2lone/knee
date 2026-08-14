@@ -422,6 +422,56 @@ def find_weights(name="manifest.json"):
     return None''', '''            out.append(Path(root))
     return out''')
 
+    # --- focal findings are diluted by averaging over TTA windows -------------- #
+    #
+    # A window is three consecutive slices out of the cached stack, and the members are
+    # read over several of them. Averaging is right for a finding that is present
+    # throughout the joint - osteoarthritis, effusion - and wrong for one that occupies a
+    # few slices: most windows do not contain the fracture, so their confident negatives
+    # drown the one window that saw it.
+    #
+    # Two public notebooks arrived at the same three labels independently
+    # (renta0426/rsna-knee-baseline-v1-fracture-tta-pool-probe, and aadigupta7686's fork
+    # of it which is the highest-scoring public fork at 0.899 against the baseline's
+    # 0.891). Both are inference-only, so this costs no training and can be switched off
+    # by emptying the tuple.
+    n.sub('''TTA_OVERLAP = True
+TTA_POOL = "prob"''',
+          '''TTA_OVERLAP = True
+TTA_POOL = "prob"
+
+# Findings taken as the maximum over TTA windows rather than the mean. Focal: they occupy
+# a few slices, so a mean over windows is mostly windows that could not have seen them.
+FOCAL_MAX = ("Fracture", "Contusion", "Lateral Meniscus")''')
+
+    n.sub('''        acc = None
+        for st in starts:''',
+          '''        acc = mx = None
+        for st in starts:''')
+
+    n.sub('''            with torch.autocast("cuda", enabled=dev.type == "cuda"):
+                z = model(rows, m, img_size, sx).float()
+            v = z if pool == "logit" else torch.sigmoid(z)
+            acc = v if acc is None else acc + v
+        v = acc / len(starts)
+        out.append((torch.sigmoid(v) if pool == "logit" else v).cpu().numpy())''',
+          '''            with torch.autocast("cuda", enabled=dev.type == "cuda"):
+                z = model(rows, m, img_size, sx).float()
+            p = torch.sigmoid(z)
+            v = z if pool == "logit" else p
+            acc = v if acc is None else acc + v
+            mx = p if mx is None else torch.maximum(mx, p)
+        v = acc / len(starts)
+        if pool == "logit":
+            v = torch.sigmoid(v)
+        # The focal columns take the max; every other column is bit-for-bit the mean it
+        # would have been, so this cannot move a label it was not asked to move.
+        idxs = [TARGETS.index(t) for t in FOCAL_MAX if t in TARGETS]
+        if idxs and len(starts) > 1:
+            v = v.clone()
+            v[:, idxs] = mx[:, idxs]
+        out.append(v.cpu().numpy())''')
+
     n.sub('''def infer_from_package(path, dev):''',
           '''def collect_members(paths):
     """The members every attached package offers, capped and tagged with their package.

@@ -13,8 +13,13 @@ import json
 import tempfile
 from pathlib import Path
 
+import numpy as np
+import torch
+
 NB = "kaggle/blend/knee-blend.ipynb"
 PILKWANG_MANIFEST = "data/weights/pilkwang_manifest.json"
+TARGETS = ["ACL", "MCL", "Medial Meniscus", "Lateral Meniscus", "Medial OA", "Lateral OA",
+           "PF OA", "Effusion", "Synovitis", "Baker's", "Contusion", "Fracture"]
 
 
 def load(*names):
@@ -57,8 +62,74 @@ def write_package(root, manifest):
     return root
 
 
+def test_focal_pooling_touches_only_the_focal_columns():
+    """Max over TTA windows for focal findings, and the mean everywhere else.
+
+    The claim in the code is that the other nine columns come out bit-for-bit as they
+    would have without the change. That is what makes this safe to ship untested against
+    a leaderboard: it can only move the three labels it names. A broadcasting slip would
+    move all twelve and be invisible in any shape.
+    """
+    nb = json.load(open(NB))
+    src = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
+    tree = ast.parse(src)
+    want = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+            and n.name in ("predict_member", "window_starts")]
+    consts = [n for n in tree.body if isinstance(n, ast.Assign)
+              and getattr(n.targets[0], "id", "") in ("FOCAL_MAX", "TTA_POOL",
+                                                      "TTA_OVERLAP", "GROUP", "EVAL_BATCH")]
+    ns = {"torch": torch, "np": np, "TARGETS": TARGETS}
+    exec(compile(ast.Module(body=consts + want, type_ignores=[]), NB, "exec"), ns)
+    predict_member, FOCAL_MAX = ns["predict_member"], ns["FOCAL_MAX"]
+    assert set(FOCAL_MAX) <= set(TARGETS), FOCAL_MAX
+
+    torch.manual_seed(0)
+    n_study, n_slot, n_slice, img = 6, 6, 9, 8
+
+    class Stub(torch.nn.Module):
+        """Returns a different logit per window, so mean and max cannot coincide."""
+        def eval(self):
+            return self
+
+        def __call__(self, rows, m, img_size, sx=None):
+            seed = float(rows.float().mean())
+            g = torch.Generator().manual_seed(int(abs(seed) * 1e6) % 100000)
+            return torch.randn(rows.shape[0], len(TARGETS), generator=g)
+
+    cache = np.random.randint(0, 255, (n_study, n_slot, n_slice, img, img), np.uint8)
+    mask = np.ones((n_study, n_slot), np.float32)
+    dev = torch.device("cpu")
+    idx = np.arange(n_study)
+
+    got = predict_member(Stub(), cache, mask, idx, dev, img)
+
+    # Recompute the plain mean by emptying the focal set, which is the documented switch.
+    ns["FOCAL_MAX"] = ()
+    exec(compile(ast.Module(body=want, type_ignores=[]), NB, "exec"), ns)
+    plain = ns["predict_member"](Stub(), cache, mask, idx, dev, img)
+
+    focal = [TARGETS.index(t) for t in FOCAL_MAX]
+    other = [j for j in range(len(TARGETS)) if j not in focal]
+    assert np.array_equal(got[:, other], plain[:, other]), \
+        "a non-focal column moved; the assignment is not column-scoped"
+    moved = ~np.isclose(got[:, focal], plain[:, focal])
+    assert moved.any(), "the focal columns did not move, so max is not being applied"
+    assert (got[:, focal] >= plain[:, focal] - 1e-6).all(), "max came out below the mean"
+    print(f"  {len(other)} non-focal columns bit-for-bit identical; "
+          f"{list(FOCAL_MAX)} moved up on {moved.mean():.0%} of cells")
+
+    # One window means there is nothing to pool over, and the guard must notice.
+    one = predict_member(Stub(), cache, mask, idx, dev, img, starts=[0])
+    ns["FOCAL_MAX"] = FOCAL_MAX
+    assert one.shape == (n_study, len(TARGETS))
+    print("  a single window returns the plain shape without pooling")
+
+
 def main():
     collect_members, cap, WeightsError = load("collect_members")
+    print("focal pooling:")
+    test_focal_pooling_touches_only_the_focal_columns()
+    print("packages:")
 
     public = json.load(open(PILKWANG_MANIFEST))
     with tempfile.TemporaryDirectory() as d:

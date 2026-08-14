@@ -516,6 +516,32 @@ trials on 10% of studies — architecture chosen from disjoint offline checks, n
 leaderboard feedback. And the label fusion is **per target**, because one global reader weight
 throws away the fact that readers differ by finding.
 
+**Focal findings are diluted by averaging over TTA windows.** A window is three consecutive
+slices out of the cached stack, and a member is read over several. Averaging suits a finding
+present throughout the joint — osteoarthritis, effusion — and is wrong for one occupying a few
+slices: most windows could not have seen the fracture, and their confident negatives drown the
+one window that did.
+
+Two public notebooks reached the same three labels independently, and both are inference-only:
+
+```
+TTA_TARGET_POOL = {"Fracture": "max", "Contusion": "max", "Lateral Meniscus": "max"}
+```
+
+`renta0426/rsna-knee-baseline-v1-fracture-tta-pool-probe` (59 votes) is the probe.
+`aadigupta7686/0-899-let-me-cook` (79 votes) is a fork of it that adds `TTA_POOL = "logit"`
+and a vertical-flip TTA, and is the highest-scoring public fork at **0.899** against the
+baseline's 0.891.
+
+Take the pooling and leave the rest. The max is anatomically motivated and costs no training.
+The vertical flip is not — flipping a knee superior-to-inferior turns the femur into the tibia,
+and the notebook's own text says the score is "expected", not measured. `TTA_POOL = "logit"`
+also reverses the baseline's stated measurement, with nothing published either way.
+
+Also note that fork's lexicon is mojibake — `"ı"` has become `"Ä±"` throughout — so its Turkish
+and Croatian folding matches nothing. It scores 0.899 anyway, which is one more piece of
+evidence that the lexicon stops mattering once an LLM label table is attached.
+
 Public notebooks by votes (pulled to `nb/`):
 
 | Notebook | Author | Votes |
