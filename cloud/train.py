@@ -271,5 +271,9 @@ def main(mode: str = "smoke", variant: str = "small", name: str = "",
                         n_group_max=1, cache_fraction=0.25, batch_studies=batch,
                         time_budget_h=2.0))
         return
+    # Twelve slices, which is what the public members hold and four times what a scored
+    # Kaggle kernel can. At 4,407 studies x 6 slots x 336px a slice costs 2.99 GB, so the
+    # cache is 35.8 GB - fine in a 192 GB container and impossible in the 30 GB a kernel
+    # shares with the test set. This is the single knob that made their 0.891.
     print(fn.remote(name or "full", variant=variant, epochs=22, folds=5,
-                    n_group_max=2, cache_fraction=0.62, batch_studies=batch))
+                    n_group_max=4, cache_fraction=0.62, batch_studies=batch))
