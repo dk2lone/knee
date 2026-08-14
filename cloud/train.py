@@ -766,19 +766,30 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
     pipeline.CACHE_SLICES = pipeline.GROUP * pipeline.N_GROUP
     print(f"slices={pipeline.CACHE_SLICES} folds={folds} epochs={epochs}", flush=True)
 
-    if variant == "biomedclip":
-        import functools
-        pipeline.build_model = functools.partial(
-            _biomedclip_build_model, pipeline,
-            source=pathlib.Path("/kaggle/input") / f"dinov2-{variant}",
-            img=pipeline.IMG)
-    elif variant != "small":
-        import functools
-        pipeline.build_model = functools.partial(pipeline.build_model, variant=variant)
+    # The pixel cache does not depend on which encoder reads it, so one extraction can
+    # serve every encoder as well as every learning rate. An arm may therefore name its
+    # own variant, and the encoder comparison becomes the same container as the
+    # adaptation sweep rather than a second 247 GB download.
+    import functools
+
+    base_build = pipeline.build_model
+
+    def bind(v):
+        if v == "biomedclip":
+            # The generated pipeline rebuilds this one itself, with timm, so that the
+            # scored kernel can too. Nothing to bind.
+            return base_build
+        if v == "small":
+            return base_build
+        return functools.partial(base_build, variant=v)
 
     done = []
     for arm in arms:
         name = arm["name"]
+        arm_variant = arm.get("variant", variant)
+        if arm_variant != variant or "variant" in arm:
+            link_inputs(arm_variant, corpus=corpus)
+        pipeline.build_model = bind(arm_variant)
         out = pathlib.Path(f"/vol/runs/{name}")
         out.mkdir(parents=True, exist_ok=True)
         os.chdir(out)
@@ -788,13 +799,13 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600
-        print(f"\n=== arm {name}: lr_backbone={arm['lr_backbone']:g} "
+        print(f"\n=== arm {name}: {arm_variant} lr_backbone={arm['lr_backbone']:g} "
               f"unfreeze_last={arm['unfreeze_last']} ===", flush=True)
         t0 = time.time()
         try:
             pipeline.main()
-            fix_manifest_variant(out, variant, run={
-                "name": name, "variant": variant, "epochs": pipeline.EPOCHS,
+            fix_manifest_variant(out, arm_variant, run={
+                "name": name, "variant": arm_variant, "epochs": pipeline.EPOCHS,
                 "folds": folds, "img": img, "slices": pipeline.CACHE_SLICES,
                 "lr_backbone": arm["lr_backbone"],
                 "unfreeze_last": arm["unfreeze_last"],
