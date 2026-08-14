@@ -29,6 +29,7 @@ Read a finished sweep with
   .venv/bin/python eda/score_oof.py cloud/exports/adapt-*/oof.csv
 """
 import pathlib
+import time
 
 import modal
 
