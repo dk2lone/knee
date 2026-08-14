@@ -225,7 +225,7 @@ def land():
 
 
 @app.function(image=image, timeout=12 * 3600, cpu=4.0, volumes={"/vol": vol},
-              ephemeral_disk=400 * 1024,
+              ephemeral_disk=524288,   # MiB; Modal floor is 512 GB, ample for a 247 GB archive
               secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
 def finish():
     """Resume an extraction that ran the Volume out of room, without re-downloading.
