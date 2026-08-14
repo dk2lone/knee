@@ -7,8 +7,19 @@ messages.
 
 ## Goal
 
-Top 10 on the public leaderboard. **Tenth is 0.936. This repo is at 0.891.** Final submission
+Top 10 on the public leaderboard. **Tenth is 0.936. This repo is at 0.895.** Final submission
 22 October 2026.
+
+Measured 14 Aug, both by submission:
+
+| what | score | meaning |
+|---|---:|---|
+| 5 public members + focal max pooling | **0.895** | the new baseline, up from 0.891 (#30) |
+| site probe — scanner prior, no pixels | **0.519** | site-grouped folds are right and nearly free (#15, closed) |
+
+The public notebook ceiling is 0.909-0.91, and both notebooks at that level carry
+RadImageNet, which is CC-BY-NC-SA — see #26 for whether that can be in a prize-eligible
+solution. Tenth is 0.936, so **about +0.026 is not published by anyone**.
 
 Macro AUC is the mean of twelve per-label AUCs, so +0.045 macro is **+0.540 summed across the
 labels**. No single-label fix reaches it — synovitis alone would need +0.540 on a scale ending
