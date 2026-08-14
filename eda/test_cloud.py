@@ -17,13 +17,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_kernels import BASE, CLOUD_HEADER, DRIVER, build_cloud_module  # noqa: E402
+from build_kernels import CLOUD_BASE, CLOUD_HEADER, DRIVER, build_cloud_module  # noqa: E402
 
 GEN = Path("cloud/pipeline.py")
 
 
 def cells():
-    nb = json.loads(BASE.read_text())
+    nb = json.loads(CLOUD_BASE.read_text())
     return ["".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"]
 
 
@@ -90,6 +90,19 @@ def test_every_definition_survives():
            if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
     assert want == got, f"missing from the module: {sorted(want - got)}"
     assert len(want) > 30, f"only {len(want)} definitions found - the notebook shape changed"
+
+
+def test_the_sex_bias_came_along():
+    """The module is generated from train-v2, so the differentiated feature is in it.
+
+    PatientSex is in the DICOM headers, absent from train.csv, and PatientAge is stripped,
+    so a team that does not read headers cannot have it. Generating from train-v1 instead
+    would drop it, cost nothing visible, and the run would look identical in every log
+    line - which is why this is asserted rather than trusted.
+    """
+    body = GEN.read_text()
+    for token in ("SEX_CODES", "def sex_of", "oof_nosex"):
+        assert token in body, f"{token} is missing - the module was generated from v1"
 
 
 def test_paths_are_all_under_kaggle_input():

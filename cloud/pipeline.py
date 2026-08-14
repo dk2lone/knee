@@ -752,12 +752,16 @@ CROP_MM = 130.0
 # most demanding configuration rather than by the default one.
 CACHE_IMG = 336
 GROUP = 3                  # slices per encoder input, stacked as the three channels
-N_GROUP_MAX = 1
-CACHE_FRACTION = 0.45      # share of free memory the pixel cache may take
+N_GROUP_MAX = 2
+CACHE_FRACTION = 0.62      # share of free memory the pixel cache may take
 CACHE_BUDGET_MAX_GB = 24.0 # hard ceiling regardless of what the machine reports
 CACHE_BUDGET_GB = 12.0     # only the fallback, for a machine with no /proc/meminfo
-TEST_SHARE = 0.30          # floor on the test corpus relative to the training one, since
-                           # the visible test split is a stub and the scored one is not
+# No floor under the test corpus, because this kernel is never submitted: it trains,
+# writes its members, and the visible test split really is the three studies it can see.
+# The reservation is what held the cache to 3 slices per slot for 4,407 studies, and 3
+# slices leave `window_starts` one TTA window at inference where the public members get
+# ten. Releasing it affords 6, which is 4 windows and two groups to train from.
+TEST_SHARE = 0.0
 HDR_THREADS = 16
 PIX_THREADS = 12
 ORDER_THREADS = 32         # slice-ordering is latency-bound on the mount, not CPU-bound
@@ -790,7 +794,7 @@ N_FOLDS = 5
 # What fits: an epoch costs 176 s and the corpus decode costs 2,186 s, so five folds at 25
 # epochs is 24,600 s against the 32,400 s cap, and the run breaks out on TIME_BUDGET with
 # the best state kept if the mount is slower than it was.
-EPOCHS = 25
+EPOCHS = 22
 BATCH_STUDIES = 8          # a study is a bag of up to N_SLOT slot images
 AUG_ROT_DEG = 8.0          # rigid jitter; see augment() for why neither flip is used
 AUG_SCALE = 0.08
@@ -830,6 +834,9 @@ UNFREEZE_LAST = 6          # trainable transformer blocks, from the output end
 WEIGHT_DECAY = 0.02
 EVAL_BATCH = 8
 TIME_BUDGET = 8.0 * 3600
+
+SEX_CODES = {"M": 0, "F": 1, "O": 2}
+N_SEX = 4                  # M, F, O, and not recorded
 
 # Six slots: three planes crossed with the acquisition axes. The fat-suppressed
 # fluid-sensitive series exist for nearly every study; the T1 and the non-suppressed
@@ -1084,6 +1091,10 @@ log(f"cache layout: {N_GROUP} groups x {GROUP} slices = {CACHE_SLICES} per slot"
 
 HDR_TAGS = ["SeriesDescription", "SequenceName", "ScanOptions", "ScanningSequence",
             "RepetitionTime", "EchoTime", "Laterality", "PixelSpacing", "Rows",
+            # Read from the header probe() already opens, so it costs nothing. It is not
+            # in train.csv and PatientAge is stripped from every series, so a team that
+            # does not read headers cannot have it.
+            "PatientSex",
             "Columns", "RescaleSlope", "RescaleIntercept",
             # Position and orientation are read from the same header probe() already
             # opens, so they cost nothing, and they are what recovers the side when the
@@ -1253,6 +1264,27 @@ def walk(split):
     with ThreadPoolExecutor(max_workers=HDR_THREADS) as pool:
         rows = list(pool.map(probe, items))
     return pd.DataFrame(rows)
+
+
+def sex_of(hdr, studies, tag=""):
+    """Recorded sex per study, as an index into the bias table.
+
+    A series carries the tag and a study is what is scored, so a study takes the value
+    most of its series carry. Absent is its own row rather than a guess: 238 studies have
+    no tag at all, and folding them into either sex would assert something the header
+    does not say.
+    """
+    if "PatientSex" not in hdr.columns or hdr.empty:
+        return np.full(len(studies), N_SEX - 1, np.int64)
+    s = hdr.dropna(subset=["PatientSex"])
+    mode = (s.groupby("StudyInstanceUID")["PatientSex"]
+             .agg(lambda v: v.value_counts().idxmax())) if len(s) else {}
+    out = np.array([SEX_CODES.get(str(mode.get(st, "")).strip().upper(), N_SEX - 1)
+                    for st in studies], np.int64)
+    names = ["M", "F", "O", "unknown"]
+    log(f"{tag}sex: " + ", ".join(f"{names[i]} {int((out == i).sum())}"
+                                  for i in range(N_SEX)))
+    return out
 
 
 def annotate(df):
@@ -1560,12 +1592,35 @@ def normalise_laterality(img, plane, lat):
         return torch.flip(img, dims=[-1])
     return torch.flip(img, dims=[0])
 
-# Where the geometric slice order may be remembered between runs. Unset on the platform,
-# because each run gets a fresh machine and there is nothing to remember; set off it,
-# where the same corpus is cached again at every resolution and slice count and the order
-# is a function of neither. It is opt-in so that the scored run's behaviour is decided by
-# the code rather than by whether a file happens to be lying about.
-ORDER_CACHE = os.environ.get("RSNA_ORDER_CACHE") or None
+# Where the geometric slice order is written, and where an earlier run's may be read.
+#
+# Ordering 20,130 slot-series reads 678,385 slice headers and took 1,784 s, against 290 s
+# to decode the pixels: it is latency on the mount, not work, and it is 38% of a run
+# before a gradient step. The projection depends on the DICOM geometry alone, so it is
+# the same at every resolution and every slice count, and nothing about it is worth
+# paying for twice. Each run gets a fresh machine, so the file has to travel as a mounted
+# dataset rather than sit on disk - which is why the read path and the write path are
+# different, /kaggle/input being read-only.
+#
+# A remembered entry is validated against the number of files present before it is used,
+# so a tree that has changed under it is recomputed rather than trusted.
+ORDER_CACHE = os.environ.get("RSNA_ORDER_CACHE") or "slice_order.json"
+
+
+def find_order_seed(name="slice_order.json"):
+    """A slice order left by an earlier run, if one is mounted."""
+    base = Path("/kaggle/input")
+    if base.is_dir():
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
+            if name in files:
+                return Path(root) / name
+    p = Path(ORDER_CACHE)
+    return p if p.is_file() else None
+
+
+ORDER_SEED = find_order_seed()
+log(f"slice order: {ORDER_SEED or 'none mounted, this run writes one'}")
 
 
 def build_cache(slot_map, plane_map, lat_map, tag):
@@ -1607,10 +1662,10 @@ def build_cache(slot_map, plane_map, lat_map, tag):
     # recomputed rather than trusted: order is derived data, and a stale entry would be
     # invisible in the way that matters most.
     seen = {}
-    if ORDER_CACHE and Path(ORDER_CACHE).is_file():
+    if ORDER_SEED is not None:
         try:
             import json as _json
-            seen = _json.loads(Path(ORDER_CACHE).read_text())
+            seen = _json.loads(ORDER_SEED.read_text())
         except (OSError, ValueError):
             seen = {}
         hit = 0
@@ -1621,7 +1676,8 @@ def build_cache(slot_map, plane_map, lat_map, tag):
                 ok += int(e["good"])
                 hit += 1
         jobs = [j for j in jobs if "ordered" not in j[3]]
-        log(f"{tag}: {hit} slot-series ordered from {ORDER_CACHE}, {len(jobs)} to read")
+        log(f"{tag}: {hit} slot-series ordered from {ORDER_SEED.name}, "
+            f"{len(jobs)} to read")
 
     with ThreadPoolExecutor(max_workers=ORDER_THREADS) as pool:
         for c0 in range(0, len(jobs), CHUNK_O):
@@ -1694,7 +1750,8 @@ class SlotHead(nn.Module):
     their capacity fitting noise.
     """
 
-    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False):
+    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False,
+                 sex=False):
         super().__init__()
         self.proj = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, hidden), nn.GELU())
         self.slot_emb = nn.Parameter(torch.randn(n_slot, hidden) * 0.02)
@@ -1715,15 +1772,31 @@ class SlotHead(nn.Module):
         self.prior = prior
         if prior:
             self.register_buffer("slot_prior", p_)
+        # One bias per (recorded sex, finding). Measured over the weak labels, male minus
+        # female runs +0.069 on ACL and -0.105 on PF OA - men tear cruciates, women get
+        # patellofemoral and tibiofemoral osteoarthritis - and three osteoarthritis
+        # compartments are four of the twelve labels.
+        #
+        # A bias and not a pathway, for two reasons. AUC reads order within a label, so
+        # what a sex term can contribute is exactly a reordering of men against women,
+        # and 48 numbers express that completely; and with a study-level label there is
+        # nothing to teach a larger one. It also means zeroing this parameter reproduces
+        # the model without it exactly, so the ablation costs no second run.
+        self.sex = sex
+        if sex:
+            self.sex_bias = nn.Parameter(torch.zeros(N_SEX, n_out))
 
-    def forward(self, x, mask):
+    def forward(self, x, mask, sex_idx=None):
         h = self.proj(x) + self.slot_emb
         att = torch.einsum("bsh,oh->bos", h, self.query) / self.hidden ** 0.5
         if self.prior:
             att = att + self.slot_prior.unsqueeze(0)
         att = att.masked_fill(mask.unsqueeze(1) < 0.5, -1e4).softmax(-1)
         ctx = self.drop(torch.einsum("bos,bsh->boh", att, h))
-        return (ctx * self.out.weight.unsqueeze(0)).sum(-1) + self.out.bias
+        z = (ctx * self.out.weight.unsqueeze(0)).sum(-1) + self.out.bias
+        if self.sex and sex_idx is not None:
+            z = z + self.sex_bias[sex_idx]
+        return z
 
 class Model(nn.Module):
     """Encoder plus head, trained end to end.
@@ -1733,15 +1806,16 @@ class Model(nn.Module):
     head never sees pixels.
     """
 
-    def __init__(self, backbone, dim, pool="cls_mean", prior=False):
+    def __init__(self, backbone, dim, pool="cls_mean", prior=False, sex=False):
         super().__init__()
         self.backbone = backbone
         self.pool = pool
-        self.head = SlotHead(dim * POOL_PARTS[pool], N_SLOT, len(TARGETS), prior=prior)
+        self.head = SlotHead(dim * POOL_PARTS[pool], N_SLOT, len(TARGETS), prior=prior,
+                             sex=sex)
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
         self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
-    def forward(self, imgs, mask, img_size=None):
+    def forward(self, imgs, mask, img_size=None, sex_idx=None):
         B, S = imgs.shape[:2]
         x = imgs.reshape(B * S, *imgs.shape[2:]).float().div_(255.0)
         if img_size is not None and img_size != x.shape[-1]:
@@ -1762,10 +1836,10 @@ class Model(nn.Module):
             k = max(1, patch.shape[1] // 8)
             parts.append(patch.topk(k, dim=1).values.mean(1))
         feat = torch.cat(parts, dim=1).reshape(B, S, -1)
-        return self.head(feat, mask)
+        return self.head(feat, mask, sex_idx)
 
 def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",
-                prior=False):
+                prior=False, sex=False):
     """Load the encoder and open the last `unfreeze_last` blocks for training.
 
     The early blocks of a self-supervised transformer are generic edge and texture
@@ -1796,7 +1870,7 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",
     trainable = sum(p.numel() for p in bb.parameters() if p.requires_grad)
     log(f"backbone: {n_layer} blocks, last {unfreeze_last} trainable "
         f"({trainable / 1e6:.1f}M params), feature dim {dim * POOL_PARTS[pool]}")
-    return Model(bb, dim, pool=pool, prior=prior)
+    return Model(bb, dim, pool=pool, prior=prior, sex=sex)
 
 FINGERPRINT_TOL = 2e-3
 
@@ -1833,7 +1907,11 @@ def fingerprint(model, dev, img_size, n_slot=None, group=None, seed=None):
     with torch.no_grad():
         # float32 throughout: autocast would make the value depend on which device
         # happened to run it, and the point of the number is that it does not.
-        out = model(imgs, mask, img_size).float().cpu().numpy()
+        # A fixed sex index goes in too, so a member fitted with the bias and read
+        # without it - or against a different table - moves the number rather than
+        # matching by accident.
+        sx = torch.arange(2, device=dev) % N_SEX
+        out = model(imgs, mask, img_size, sx).float().cpu().numpy()
     if was_training:
         model.train()
     return out
@@ -1917,7 +1995,7 @@ def window_starts(n_slice, group, overlap=None):
 
 @torch.no_grad()
 def predict_member(model, cache, mask, idx, dev, img_size, group=None, pool=None,
-                   starts=None):
+                   starts=None, sex=None):
     """One member's predictions, averaged over its TTA windows.
 
     `starts` is a parameter rather than always derived here so that a caller which has
@@ -1934,12 +2012,13 @@ def predict_member(model, cache, mask, idx, dev, img_size, group=None, pool=None
     for b in range(0, len(idx), EVAL_BATCH):
         sel = idx[b:b + EVAL_BATCH]
         m = torch.from_numpy(mask[sel]).to(dev)
+        sx = None if sex is None else torch.from_numpy(sex[sel]).to(dev)
         acc = None
         for st in starts:
             rows = torch.from_numpy(
                 np.ascontiguousarray(cache[sel, :, st:st + group])).to(dev)
             with torch.autocast("cuda", enabled=dev.type == "cuda"):
-                z = model(rows, m, img_size).float()
+                z = model(rows, m, img_size, sx).float()
             v = z if pool == "logit" else torch.sigmoid(z)
             acc = v if acc is None else acc + v
         v = acc / len(starts)
@@ -1987,6 +2066,7 @@ def infer_from_package(path, dev):
         st_te, Cte, Mte = build_cache(pick_slots(hte, plane_map), plane_map,
                                       lat_of(hte, "test "), f"test g{gi}")
         idx = np.arange(len(st_te))
+        sex_te = sex_of(hte, st_te, "test ")
 
         # What the remaining time affords. A member costs a fixed part - loading the
         # checkpoint, building the encoder, checking the fingerprint - plus a part that
@@ -2034,11 +2114,13 @@ def infer_from_package(path, dev):
             model = build_model(int(m["config"]["unfreeze_last"]),
                                 variant=m["config"]["variant"],
                                 pool=m["config"].get("pool", "cls_mean"),
-                                prior=bool(m["config"].get("prior", False))).to(dev)
+                                prior=bool(m["config"].get("prior", False)),
+                                sex=bool(m["config"].get("sex", False))).to(dev)
             model.load_state_dict(ck["model"])
             check_fingerprint(model, dev, IMG, ck["fingerprint"], tag=f"{m['id']}: ")
             t_ready = time.time()
-            p = predict_member(model, Cte, Mte, idx, dev, IMG, starts=starts)
+            p = predict_member(model, Cte, Mte, idx, dev, IMG, starts=starts,
+                               sex=sex_te)
             per_member.append({"id": m["id"], "ids": st_te, "pred": p,
                                "holdout": m.get("holdout")})
             fixed_s = t_ready - t0
@@ -2147,7 +2229,7 @@ def augment(imgs):
 
 
 @torch.no_grad()
-def predict(model, cache, mask, idx, dev, img_size=None):
+def predict(model, cache, mask, idx, dev, img_size=None, sex=None):
     """Average the logits over the groups of each slot.
 
     Training sees one group at a time, which acts as augmentation along the stack;
@@ -2160,6 +2242,7 @@ def predict(model, cache, mask, idx, dev, img_size=None):
     for b in range(0, len(idx), EVAL_BATCH):
         sel = idx[b:b + EVAL_BATCH]
         m = torch.from_numpy(mask[sel]).to(dev)
+        sx = None if sex is None else torch.from_numpy(sex[sel]).to(dev)
         acc = None
         for g in range(N_GROUP):
             # Gathered a group at a time rather than whole and then sliced. The two are
@@ -2171,7 +2254,7 @@ def predict(model, cache, mask, idx, dev, img_size=None):
             rows = torch.from_numpy(np.ascontiguousarray(
                 cache[sel, :, g * GROUP:(g + 1) * GROUP])).to(dev)
             with torch.autocast("cuda", enabled=dev.type == "cuda"):
-                z = model(rows, m, img_size).float()
+                z = model(rows, m, img_size, sx).float()
             acc = z if acc is None else acc + z
         out.append(torch.sigmoid(acc / N_GROUP).cpu().numpy())
     return np.concatenate(out) if out else np.zeros((0, len(TARGETS)), np.float32)
@@ -2305,7 +2388,9 @@ def main():
         f"max {cov['max']:.0f}")
 
     st_tr, Ctr, Mtr = build_cache(slots_tr, plane_map, lat_of(htr, "train "), "train")
+    sex_tr = sex_of(htr, st_tr, "train ")
     st_te, Cte, Mte = build_cache(slots_te, plane_map, lat_of(hte, "test "), "test")
+    sex_te = sex_of(hte, st_te, "test ")
 
     # ---- targets ---------------------------------------------------------- #
     t_lab = time.time()
@@ -2339,6 +2424,7 @@ def main():
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gpos = {s: i for i, s in enumerate(st_tr)}
     oof = np.full((len(st_tr), len(TARGETS)), np.nan, np.float32)
+    oof_nosex = np.full_like(oof, np.nan)
     members, test_preds, fold_scores = [], [], {}
 
     cfg = RUNS[0]
@@ -2367,7 +2453,7 @@ def main():
         # held out share an initialisation, and an ensemble of correlated members is a
         # slower way to be one member.
         torch.manual_seed(SEED + fold)
-        model = build_model(UNFREEZE_LAST).to(dev)
+        model = build_model(UNFREEZE_LAST, sex=True).to(dev)
         opt = torch.optim.AdamW([
             {"params": [p for p in model.backbone.parameters() if p.requires_grad],
              "lr": LR_BACKBONE},
@@ -2391,9 +2477,10 @@ def main():
                 m = torch.from_numpy(Mtr[sel]).to(dev)
                 y = torch.from_numpy(Y[sel]).to(dev)
                 w = torch.from_numpy(W[sel]).to(dev)
+                sx = torch.from_numpy(sex_tr[sel]).to(dev)
                 with torch.autocast("cuda", enabled=dev.type == "cuda"):
                     loss = (F.binary_cross_entropy_with_logits(
-                        model(imgs, m, cfg["img"]), y, reduction="none") * w).mean()
+                        model(imgs, m, cfg["img"], sx), y, reduction="none") * w).mean()
                 opt.zero_grad(set_to_none=True)
                 scaler.scale(loss).backward()
                 scaler.step(opt)
@@ -2402,11 +2489,12 @@ def main():
                 tot += loss.item()
                 nstep += 1
 
-            pv = predict(model, Ctr, Mtr, va, dev, cfg["img"])
+            pv = predict(model, Ctr, Mtr, va, dev, cfg["img"], sex_tr)
             d = macro_auc(yv, pv)
             g_auc = float("nan")
             if gold_y is not None and len(gi):
-                g_auc = macro_auc(gold_y, predict(model, Ctr, Mtr, gi, dev, cfg["img"]))
+                g_auc = macro_auc(gold_y, predict(model, Ctr, Mtr, gi, dev,
+                                                  cfg["img"], sex_tr))
             log(f"  epoch {ep + 1}/{EPOCHS}  loss {tot / max(nstep, 1):.4f}"
                 f"  holdout {d:.4f}  annot(n={len(gi)}) {g_auc:.4f}")
 
@@ -2426,6 +2514,7 @@ def main():
         if best_state is not None:
             model.load_state_dict(best_state)
         oof[va] = best_pv
+        oof_nosex[va] = predict(model, Ctr, Mtr, va, dev, cfg["img"], None)
         fold_scores[fold] = (best, best_annot)
 
         # A member is the weights plus what is needed to show it the same pixels again.
@@ -2441,9 +2530,10 @@ def main():
                         "pixel_group": json.dumps(pixel_config(cfg["img"]),
                                                   sort_keys=True),
                         "config": {"unfreeze_last": UNFREEZE_LAST, "variant": "small",
-                                   "pool": "cls_mean", "prior": False}})
+                                   "pool": "cls_mean", "prior": False,
+                                   "sex": True}})
         test_preds.append(predict(model, Cte, Mte, np.arange(len(st_te)), dev,
-                                  cfg["img"]))
+                                  cfg["img"], sex_te))
         log(f"  fold {fold}: best holdout {best:.4f} (annot {best_annot:.4f}), "
             f"wrote member_{mid}.pt")
 
@@ -2464,10 +2554,12 @@ def main():
     # it out. This is the low-variance reading that says whether the run broke, and it is
     # scored off the platform where the annotated studies and the site groups both live.
     ok = ~np.isnan(oof[:, 0])
-    pd.DataFrame(oof[ok], columns=TARGETS).assign(
-        StudyInstanceUID=[st_tr[i] for i in np.where(ok)[0]],
-        fold=fold_of[ok]).to_csv("oof.csv", index=False)
-    log(f"oof.csv: {int(ok.sum())} studies")
+    ids = [st_tr[i] for i in np.where(ok)[0]]
+    for arr, name in ((oof, "oof.csv"), (oof_nosex, "oof_nosex.csv")):
+        pd.DataFrame(arr[ok], columns=TARGETS).assign(
+            StudyInstanceUID=ids, fold=fold_of[ok],
+            sex=sex_tr[ok]).to_csv(name, index=False)
+    log(f"oof.csv and oof_nosex.csv: {int(ok.sum())} studies each")
     if ok.any():
         log(f"OOF macro {macro_auc((Y[ok] > 0.5).astype(int), oof[ok]):.4f}")
 

@@ -563,7 +563,15 @@ builds that tree - see cloud/train.py - rather than editing the lookups.
 '''
 
 
-def build_cloud_module():
+# The cloud module is generated from train-v2, not from the frozen train-v1. v2 is v1 plus
+# the PatientSex bias, and that bias is a per-(sex, finding) offset of 48 numbers whose
+# zeroing reproduces the base logits exactly - so one run writes oof.csv and oof_nosex.csv
+# and the ablation costs no second run. Generating from v1 would mean paying for the run
+# twice to learn the same thing.
+CLOUD_BASE = Path("kaggle/train-v2/knee-train-v2.ipynb")
+
+
+def build_cloud_module(src=None):
     """Write the pipeline out as a module a Modal container can import.
 
     A hand-written second copy is exactly the failure this file exists to prevent. A
@@ -572,7 +580,7 @@ def build_cloud_module():
     """
     import ast
 
-    nb = json.loads(BASE.read_text())
+    nb = json.loads((src or CLOUD_BASE).read_text())
     cells = ["".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"]
     keep = [c for c in cells if "IPython" not in c]
     assert len(cells) - len(keep) == 1, \
