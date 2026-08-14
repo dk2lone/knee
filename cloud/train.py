@@ -171,7 +171,8 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
           n_group_max: int = 2, cache_fraction: float = 0.62, batch_studies: int = 8,
           img: int = 336, time_budget_h: float = 18.0,
           cache_budget_gb: float = 96.0,
-          lr_backbone: float = 8e-6, unfreeze_last: int = 6):
+          lr_backbone: float = 8e-6, unfreeze_last: int = 6,
+          order_threads: int = 64):
     """Import the generated pipeline, raise the caps, and run it.
 
     The overrides are assignments onto the module rather than edits to it. main() reads
@@ -228,6 +229,14 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     # +0.017 on the leaderboard.
     pipeline.LR_BACKBONE = lr_backbone
     pipeline.UNFREEZE_LAST = unfreeze_last
+
+    # Ordering reads 819,640 DICOM headers and is latency-bound on the mount rather than
+    # CPU-bound, and this mount is a network Volume rather than Kaggle's local disk. 32
+    # threads took 1,784 s there; here the round trip is longer, so more requests are kept
+    # in flight. It matters because the pipeline does not fail when ordering runs out of
+    # time - it keeps the remaining slot-series in arbitrary order and says so in one line,
+    # which would bank a partial slice_order.json that every later run then inherits.
+    pipeline.ORDER_THREADS = order_threads
     print(f"adaptation: lr_backbone={lr_backbone:g} over the last {unfreeze_last} blocks",
           flush=True)
 
@@ -340,7 +349,11 @@ def main(mode: str = "smoke", variant: str = "small", name: str = "",
         # any real money goes into it. Not a model, a wiring test.
         print(fn.remote(name or "smoke", variant=variant, epochs=1, folds=1,
                         n_group_max=1, cache_fraction=0.25, batch_studies=batch,
-                        time_budget_h=2.0, lr_backbone=lr_backbone,
+                        # 6 h so the ordering pass gets its full ORDER_BUDGET_S: the
+                        # pipeline caps ordering at 35% of the remaining budget, so a 2 h
+                        # run would cut it off at 42 minutes and cache the shortfall.
+                        # It is a ceiling, not a target - one epoch ends long before it.
+                        time_budget_h=6.0, lr_backbone=lr_backbone,
                         unfreeze_last=unfreeze_last))
         return
     # Twelve slices, which is what the public members hold and four times what a scored
