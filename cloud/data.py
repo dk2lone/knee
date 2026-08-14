@@ -169,10 +169,16 @@ vol = modal.Volume.from_name("knee-data", create_if_missing=True)
 def land():
     """Pull the competition once into a Volume, unzip it, and drop the archive.
 
-    Measured by `bulk`: the zip is 247 GB and Kaggle serves it at 33-38 MB/s, so about two
-    hours. Unzipped it is the 570 GB the docs quote, which means the Volume holds 817 GB at
-    the moment the archive still exists and 570 GB after. The free tier is 1 TiB, so the
-    peak fits and no cleverness is needed to avoid it.
+    Measured by `bulk`: the zip is 247 GB and Kaggle serves it at 200+ MB/s, so about 22
+    minutes.
+
+    **This function ran the Volume out of room and `finish` exists because of it.** The
+    reasoning here was that the archive plus its expansion is 817 GB against a 1 TiB free
+    tier, so the peak fits. It did not: `unzip` exited 50 partway through and the next job
+    hit `No space left on device: '/vol/runs'`. Whatever the real ceiling is, it is below
+    817 GB, and the fix is not to measure it - it is to never hold both at once. `finish`
+    drops the archive from the Volume first and re-fetches it to the container's own disk,
+    which needs no Volume space at all while it happens.
 
     Idempotent: if the extract directory already holds the training CSV, this returns.
     """
@@ -218,11 +224,76 @@ def land():
     return f"landed {n} dcm files"
 
 
+@app.function(image=image, timeout=12 * 3600, cpu=4.0, volumes={"/vol": vol},
+              ephemeral_disk=400 * 1024,
+              secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
+def finish():
+    """Resume an extraction that ran the Volume out of room, without re-downloading.
+
+    `land` put the 247 GB archive and its 570 GB expansion on the same Volume, so the peak
+    is 817 GB and unzip exits 50 - disk full - partway through. The download is the
+    expensive half and it is already paid for, so this moves the archive onto the
+    container's own disk, drops it from the Volume to reclaim the 247 GB, and resumes with
+    `unzip -n` so the files already written are skipped rather than rewritten.
+
+    It commits as it goes. A twelve-hour job that only persists its work at the end is a
+    twelve-hour job that can lose all of it.
+    """
+    import subprocess
+
+    _auth()
+    raw = pathlib.Path("/vol/raw")
+    out = pathlib.Path("/vol/comp")
+    local = pathlib.Path("/tmp/dl")
+    local.mkdir(parents=True, exist_ok=True)
+
+    # Drop the archive from the Volume FIRST. It is what is filling it, and every byte it
+    # holds is a byte the extraction cannot use. Re-fetching costs 22 minutes at the 200
+    # MB/s this connection was measured at, which is cheaper than copying 247 GB off a
+    # network Volume and needs no space on it at all while it happens.
+    for z in raw.glob("*.zip"):
+        print(f"dropping {z.name} ({z.stat().st_size / 1e9:.1f} GB) from the Volume",
+              flush=True)
+        z.unlink()
+    for z in raw.glob("*.kaggle-partial"):
+        z.unlink()
+    vol.commit()
+    print("Volume reclaimed", flush=True)
+
+    zips = list(local.glob("*.zip"))
+    if not zips:
+        print("re-downloading the archive to container-local disk", flush=True)
+        t0 = time.time()
+        subprocess.run(["kaggle", "competitions", "download", "-c", COMP,
+                        "-p", str(local)], text=True)
+        print(f"downloaded in {(time.time() - t0) / 60:.1f} min", flush=True)
+        zips = list(local.glob("*.zip"))
+    if not zips:
+        raise RuntimeError("no archive on local disk after the download")
+    local = zips[0]
+
+    have = sum(1 for _ in out.rglob("*.dcm"))
+    print(f"{have} dcm files already extracted; resuming", flush=True)
+
+    t0 = time.time()
+    r = subprocess.run(["unzip", "-q", "-n", str(local), "-d", str(out)], text=True)
+    print(f"unzip returned {r.returncode} in {(time.time() - t0) / 3600:.2f} h", flush=True)
+    vol.commit()
+
+    n = sum(1 for _ in out.rglob("*.dcm"))
+    print(f"{n} dcm files extracted ({n - have} new)", flush=True)
+    if r.returncode not in (0, 1):        # 1 is a warning, not a failure
+        raise RuntimeError(f"unzip failed with {r.returncode}")
+    return n
+
+
 @app.local_entrypoint()
 def main(mode: str = "probe"):
     if mode == "bulk":
         bulk.remote()
     elif mode == "land":
         print(land.remote())
+    elif mode == "finish":
+        print(finish.remote())
     else:
         probe.remote()
