@@ -17,9 +17,16 @@ from pathlib import Path
 
 BASE = Path("kaggle/train-v1/knee-train-v1.ipynb")
 
-# Training kernels whose output exists and can therefore be mounted by the blend. Add
-# "dk2lone/knee-train-v2" here once that kernel has completed a run.
-TRAINED = ["dk2lone/knee-train-v1"]
+# Training kernels the blend mounts. Empty on purpose.
+#
+# Measured on the first blend run: the public package holds out 0.8438 to 0.8600 over 12
+# slices and 10 TTA windows, and knee-train-v1's members hold out 0.7535 to 0.8043 over 3
+# slices and 1 window. MEMBERS_PER_PACKAGE gives each package an equal say in the rank
+# mean, so mounting both hands half the vote to members a full 0.04 to 0.10 weaker. That
+# is not diversity, it is dilution, and score_oof.py warns about this exact case.
+#
+# A training kernel joins this list when its members hold out near 0.84, not when it runs.
+TRAINED = []
 
 # Weights packages the blend mounts. Members trained on Modal reach Kaggle as a dataset
 # through cloud/export.py, and join this list once one has been pushed.

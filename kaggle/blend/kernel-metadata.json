@@ -11,9 +11,7 @@
   "dataset_sources": [
     "pilkwang/rsna-knee-weights"
   ],
-  "kernel_sources": [
-    "dk2lone/knee-train-v1"
-  ],
+  "kernel_sources": [],
   "competition_sources": [
     "rsna-knee-abnormality-detection"
   ],
