@@ -65,7 +65,12 @@ HF_DINOV2 = {
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("torch", "transformers", "huggingface_hub", "pydicom",
+    # The training image fetches and extracts its own corpus now, because a Volume cannot
+    # hold it (issue #32). That needs the Kaggle CLI and unzip, which a training image had
+    # no reason to carry before.
+    .apt_install("unzip")
+    .pip_install("kaggle==2.2.4",
+                 "torch", "transformers", "huggingface_hub", "pydicom",
                  "pandas", "numpy", "scikit-learn", "pillow",
                  # only the biomedclip variant needs these; they cost image
                  # build time once and nothing at run time.
