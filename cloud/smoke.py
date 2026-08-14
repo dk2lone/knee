@@ -25,12 +25,19 @@ import time
 
 import modal
 
-TOKEN = (pathlib.Path.home() / ".kaggle" / "access_token").read_text().strip()
+# Modal imports this module inside the container as well as here, and there $HOME is /root
+# with no credential in it. Reading at module scope crashes every container on import, and
+# the app retries the crash rather than reporting it. Read it only on the side that has it.
+TOKEN = ((pathlib.Path.home() / ".kaggle" / "access_token").read_text().strip()
+         if modal.is_local() else "")
 COMP = "rsna-knee-abnormality-detection"
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("kaggle==1.7.4.5", "pydicom", "numpy")
+    # Match the local CLI exactly. The token here is the newer `KGAT_` access token, and
+    # kaggle 1.x only knows the classic kaggle.json, so it asks for a file that will never
+    # exist and reports it as a missing credential rather than as a version mismatch.
+    .pip_install("kaggle==2.2.4", "pydicom", "numpy")
     .env({"PYTHONUNBUFFERED": "1"})
 )
 app = modal.App("knee-smoke")
