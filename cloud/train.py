@@ -34,6 +34,13 @@ import modal
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 COMP = "rsna-knee-abnormality-detection"
+
+# Modal imports this module inside the container too, where $HOME is /root and holds no
+# credential. Reading at module scope without this guard crashes every container on import
+# and the app retries the crash rather than reporting it - see the same guard in
+# cloud/data.py and cloud/smoke.py, which is where that lesson was paid for.
+TOKEN = ((pathlib.Path.home() / ".kaggle" / "access_token").read_text().strip()
+         if modal.is_local() else "")
 HF_DINOV2 = {
     "small": "facebook/dinov2-small",
     "base": "facebook/dinov2-base",
