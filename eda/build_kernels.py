@@ -40,6 +40,13 @@ WEIGHT_PACKAGES = ["pilkwang/rsna-knee-weights"]
 MODEL_SOURCES = ["metaresearch/dinov2/PyTorch/small/1",
                  "metaresearch/dinov2/PyTorch/base/1"]
 
+# The medically pretrained encoders, republished because a scored kernel has no internet
+# and neither is on Kaggle otherwise. Both are MIT, which permits redistribution, and both
+# carry their licence file. A member trained on one of these cannot be rebuilt at
+# inference without them - it would fail inside the scored run, after the training was
+# paid for. Mounted only when such a member exists.
+MEDICAL_ENCODERS = ["dk2lone/raddino-dinov2-medical"]
+
 
 class Notebook:
     def __init__(self, path):
