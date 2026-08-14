@@ -45,10 +45,18 @@ ENCODERS = [
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS}
 
 
-def main(what="sweep", variant="small", epochs=8):
+def main(what="sweep", variant="small", epochs=8, n_group_max=2):
+    """`n_group_max` is the slice count knob: 2 gives 6 cached slices, 4 gives 12.
+
+    Twelve is what the public members hold and three is what a scored Kaggle kernel can
+    afford, and issue #31 argues the whole gap between them is that number - 25 epochs did
+    not beat 10, so it is not epochs. Running the same arms at 6 and at 12 on two
+    workspaces isolates it at every learning rate for the price of one extra extraction.
+    """
     fn = modal.Function.from_name(APP, "sweep" if what in SETS else "train")
     if what in SETS:
-        call = fn.spawn(SETS[what], variant=variant, epochs=epochs)
+        call = fn.spawn(SETS[what], variant=variant, epochs=epochs,
+                        n_group_max=n_group_max)
     else:
         call = fn.spawn(what, variant=variant, epochs=epochs)
     print(f"spawned {what} on {variant}: {call.object_id}")
@@ -60,4 +68,5 @@ if __name__ == "__main__":
     a = sys.argv[1:]
     main(a[0] if a else "sweep",
          a[1] if len(a) > 1 else "small",
-         int(a[2]) if len(a) > 2 else 8)
+         int(a[2]) if len(a) > 2 else 8,
+         int(a[3]) if len(a) > 3 else 2)
