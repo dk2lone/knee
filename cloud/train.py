@@ -150,6 +150,18 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     out.mkdir(parents=True, exist_ok=True)
     os.chdir(out)
 
+    # Slice ordering costs 1,784 s a run against 290 s to decode the pixels - 38% of a run
+    # before a gradient step, and it is the same answer every time. The pipeline caches it
+    # when RSNA_ORDER_CACHE names a file, and the variable is read when the module is
+    # imported, so it has to be set before the import below rather than after. On the
+    # Volume it outlives the container, so only the first run of the whole project pays.
+    cache_dir = pathlib.Path("/vol/cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    order = cache_dir / "slice_order.json"
+    os.environ["RSNA_ORDER_CACHE"] = str(order)
+    print(f"slice order cache: {order} "
+          f"({'present' if order.is_file() else 'will be built'})", flush=True)
+
     sys.path.insert(0, "/root")
     t0 = time.time()
     import pipeline  # noqa: E402  - after link_inputs, which its import reads
@@ -186,10 +198,16 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
           flush=True)
 
     t0 = time.time()
-    pipeline.main()
-    print(f"main() returned in {(time.time() - t0) / 3600:.2f} h", flush=True)
+    try:
+        pipeline.main()
+        print(f"main() returned in {(time.time() - t0) / 3600:.2f} h", flush=True)
+    finally:
+        # The slice order cache is half an hour of work and it is valid whether or not the
+        # training that followed it succeeded. Committing only on success would throw it
+        # away exactly when the run is about to be tried again.
+        vol.commit()
+        print(f"volume committed after {(time.time() - t0) / 3600:.2f} h", flush=True)
 
-    vol.commit()
     made = sorted(p.name for p in out.iterdir())
     print(f"wrote {made}", flush=True)
     return made
