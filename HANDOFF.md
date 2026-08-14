@@ -31,6 +31,14 @@ near 0.91.
 
 ## Next steps, in order
 
+0. **The CLI cannot submit to this competition.** `kaggle competitions submit -f` returns a
+   bare 400. This is a code competition: `sample_submission.csv` covers only the 3 visible
+   studies, every kernel carries `competition_sources`, and the real test set exists only at
+   kernel runtime. Submitting is a button on the notebook page — "Submit to Competition" —
+   and no API call replaces it. A failed upload costs no submission slot. The daily count
+   resets at **00:00 UTC**, which is 20:00 EDT, so an evening here is already the next
+   submission day.
+
 1. **Submit the site probe.** One submission, decisive. A model that knows only the scanner
    scores 0.6505 macro under random folds and exactly 0.5000 under site-grouped folds. Whether
    any of that reaches the leaderboard depends on whether test studies were scanned on machines

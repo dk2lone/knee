@@ -128,16 +128,29 @@ def train(name: str, variant: str = "small", epochs: int = 22, folds: int = 5,
     return made
 
 
+# $/hr from `modal billing rates`, for turning a measured epoch into a cost per epoch.
+RATES = {"H200": 4.54, "H100": 3.95, "A100-80GB": 2.50, "L40S": 1.95, "A10G": 1.10}
+
+
 @app.local_entrypoint()
-def main(mode: str = "smoke", variant: str = "small", name: str = ""):
+def main(mode: str = "smoke", variant: str = "small", name: str = "",
+         gpu: str = "", batch: int = 8):
+    """`gpu` and `batch` override the decorated defaults, so comparing accelerators is
+    this same function called three times rather than a benchmark script that would
+    duplicate the setup and then drift from it. Compare cost per epoch, not seconds:
+    DINOv2-small is 21M parameters and will not saturate an H200, so the cheaper card can
+    win on price while losing on time.
+    """
+    fn = train.with_options(gpu=gpu) if gpu else train
     if mode == "setup":
         print(setup.remote(variant))
         return
     if mode == "smoke":
         # One fold, one epoch, a small cache: proves the pipeline runs here at all before
         # any real money goes into it. Not a model, a wiring test.
-        print(train.remote(name or "smoke", variant=variant, epochs=1, folds=1,
-                           n_group_max=1, cache_fraction=0.25, time_budget_h=2.0))
+        print(fn.remote(name or "smoke", variant=variant, epochs=1, folds=1,
+                        n_group_max=1, cache_fraction=0.25, batch_studies=batch,
+                        time_budget_h=2.0))
         return
-    print(train.remote(name or "full", variant=variant, epochs=22, folds=5,
-                       n_group_max=2, cache_fraction=0.62))
+    print(fn.remote(name or "full", variant=variant, epochs=22, folds=5,
+                    n_group_max=2, cache_fraction=0.62, batch_studies=batch))
