@@ -12,6 +12,13 @@ in a second and the container runs for hours regardless of what happens to any s
     .venv/bin/python cloud/launch.py sweep              # returns immediately
 
 Poll it with `modal app logs knee-train`, which is read-only and cannot cancel anything.
+A spawned call outlives every shell, so its state is asked for by id rather than by
+holding a connection:
+
+    .venv/bin/python cloud/launch.py status fc-01KZZMVHP678T1CXDSQWSEN6Z2
+
+"still running" there and zero tasks in `modal app list` together mean the call is queued
+for an accelerator, not lost.
 """
 import sys
 
@@ -45,6 +52,17 @@ ENCODERS = [
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS}
 
 
+def status(call_id):
+    """Alive, queued, or finished - without a connection that could cancel it."""
+    call = modal.FunctionCall.from_id(call_id)
+    try:
+        return f"finished: {call.get(timeout=5)}"
+    except TimeoutError:
+        return "still running or queued for an accelerator"
+    except Exception as exc:                      # expired output, cancelled, failed
+        return f"{type(exc).__name__}: {str(exc)[:200]}"
+
+
 def main(what="sweep", variant="small", epochs=8, n_group_max=2):
     """`n_group_max` is the slice count knob: 2 gives 6 cached slices, 4 gives 12.
 
@@ -66,6 +84,9 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2):
 
 if __name__ == "__main__":
     a = sys.argv[1:]
+    if a and a[0] == "status":
+        print(status(a[1]))
+        raise SystemExit
     main(a[0] if a else "sweep",
          a[1] if len(a) > 1 else "small",
          int(a[2]) if len(a) > 2 else 8,
