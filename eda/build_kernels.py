@@ -21,6 +21,18 @@ BASE = Path("kaggle/train-v1/knee-train-v1.ipynb")
 # "dk2lone/knee-train-v2" here once that kernel has completed a run.
 TRAINED = ["dk2lone/knee-train-v1"]
 
+# Weights packages the blend mounts. Members trained on Modal reach Kaggle as a dataset
+# through cloud/export.py, and join this list once one has been pushed.
+WEIGHT_PACKAGES = ["pilkwang/rsna-knee-weights"]
+
+# Both encoders, because the blend rebuilds each member from its manifest's
+# `config.variant` before loading the weights. A base member with only the small encoder
+# attached does not fail at mount time - find_dinov2 returns the small directory, the
+# encoder builds at the wrong width, and the member is refused by its own fingerprint
+# after the run has already spent its time.
+MODEL_SOURCES = ["metaresearch/dinov2/PyTorch/small/1",
+                 "metaresearch/dinov2/PyTorch/base/1"]
+
 
 class Notebook:
     def __init__(self, path):
@@ -47,14 +59,14 @@ class Notebook:
         Path(path).write_text(json.dumps(self.nb))
 
 
-def meta(path, kid, title, code_file, datasets, kernels):
+def meta(path, kid, title, code_file, datasets, kernels, models=None):
     Path(path).write_text(json.dumps({
         "id": f"dk2lone/{kid}", "title": title, "code_file": code_file,
         "language": "python", "kernel_type": "notebook", "is_private": True,
         "enable_gpu": True, "enable_tpu": False, "enable_internet": False,
         "dataset_sources": datasets, "kernel_sources": kernels,
         "competition_sources": ["rsna-knee-abnormality-detection"],
-        "model_sources": ["metaresearch/dinov2/PyTorch/small/1"],
+        "model_sources": models or MODEL_SOURCES,
         "machine_shape": "NvidiaTeslaT4",
     }, indent=2) + "\n")
 
@@ -543,7 +555,7 @@ def infer_from_package(path, dev):''')
     # Only kernels that have produced an output can be mounted, so a training kernel
     # joins this list after its first successful run, not when its code is written.
     meta("kaggle/blend/kernel-metadata.json", "knee-blend", "knee blend",
-         "knee-blend.ipynb", ["pilkwang/rsna-knee-weights"], TRAINED)
+         "knee-blend.ipynb", WEIGHT_PACKAGES, TRAINED)
 
 
 # The last cell of the notebook runs the pipeline. A module that trains on import is not
