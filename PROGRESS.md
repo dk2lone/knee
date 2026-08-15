@@ -839,6 +839,25 @@ Three reasons it wins the lane over the alternatives:
 - `sunnypathca` has the ordering pass cached on its Volume from this run, so the next
   container there skips 1,784 s that a fresh workspace would pay.
 
+**The order cache clobbers itself on a workspace's first run.** `daniel21cn2016` reported
+`0 slot-series ordered from slice_order.json, 20130 to read` and paid the full pass, with
+the file sitting right there on the Volume. It holds **12 entries** — the test series, and
+nothing else.
+
+`ORDER_SEED = find_order_seed()` runs at module import, once. On a fresh workspace the file
+does not exist yet, so it is `None` for the whole process. `build_cache` then runs for train,
+writes about 20,130 entries, and runs again for test, which still sees `ORDER_SEED is None`,
+loads nothing, and writes its own 12 over the top. Everything the train pass learned is gone
+before the first epoch of the next run.
+
+It self-heals from the second run on, which is why this one is unaffected: the file existed
+at import, so the train pass will write 20,142 and the test pass will re-read them. **Left
+unpatched on purpose.** The fix is to merge on write rather than replace, three lines, but
+they would land in `cloud/pipeline.py`, which is generated and already carries the unported
+cross-slice head. One unported change is a chore; two is how the wrong one gets ported. Fix
+it in `build_train_v2()` at the same time as the head, or not at all — the cost is 30 minutes
+once per workspace, and only if the file is ever deleted.
+
 The corpus itself is on ephemeral disk and is not cached, so the new container pays the
 download again. On the half box that was 34 minutes.
 
