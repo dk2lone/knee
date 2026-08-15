@@ -284,10 +284,27 @@ tests it, which is the only way a prediction is worth anything.
 | the same, with the shipping-table rule | 0.8837 | 0.919 | Synovitis and PF OA at 0.7 |
 | `knee-blend-nolegacy` v3 | 0.8837 | 0.919 | five members reaching a 25-member score |
 
-The third is the interesting one. Its base is **five** members against the fork's
-twenty-five, and runs 2 and 4 already showed twenty and five scoring the same 0.891 — so if
-the corrected weights carry it to the same place as the fork, we match the public frontier
-at a fifth of the inference cost. That matters twice: the competition has an efficiency
+The third is the interesting one, and its premise is now measured rather than assumed:
+
+```
+all 20             20 members  58 studies  gold macro 0.8564
+one per fold (5)    5 members  58 studies  gold macro 0.8509
+top 5 by holdout    5 members  26 studies  gold macro 0.8218
+```
+
+**Five members spread over folds sit 0.0055 behind twenty**, on the same 58 studies. The
+old selection could not even be compared — it covers 26 studies, because four of its five
+members share a fold.
+
+And 0.8509 *understates* what ships. Out of fold, a study can only be scored by members
+that held it out: with twenty members that is about four voters per study, with five spread
+it is exactly one. So that row is close to a **single member's** score, and it lands within
+0.006 of four voting together. Ensembling inside a fold family is worth almost nothing,
+which is the same thing runs 2 and 4 said from the leaderboard. At inference all five vote
+on every test study, so the deployed five should be at least the equal of the twenty.
+
+So if the corrected weights carry it to the same place as the fork, we match the public
+frontier at a fifth of the inference cost. That matters twice: the competition has an efficiency
 prize, and a cheaper base leaves budget inside the 9 h cap for arms that are still to come.
 
 If `frontier-alpha` lands near 0.917 the whole chain of measurement on this page is sound —
