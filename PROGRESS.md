@@ -1592,14 +1592,68 @@ signal** — it mounts the same report tables we do.
 The whole remaining gap therefore sits in the four model-limited findings, and two of them
 are the menisci. That is the same place the zoom sweep is aimed.
 
-This diagnostic is for train-v1, not for the frontier. When the probe lands, the frontier's
-own version is one command, and it decides everything after it:
+### Run 15 Aug 19:20 — and the command this page recorded is a trap
+
+The probe has landed, so the frontier's own version was run. **Do not run it the way this
+page wrote it.**
 
 ```
-.venv/bin/python eda/headroom.py kaggle/frontier-probe/out/submission.csv
+.venv/bin/python eda/headroom.py kaggle/frontier-probe/out/submission.csv   # WRONG
+```
+
+That reads **0.962 gold macro**, which under the recorded conversion is 0.997 on the board
+against a measured 0.912. `submission.csv` is the *pooled* output: every member votes on
+every study, including the ones it trained on. Same 20 members, same 58 studies, same rank
+mean — the fold join is the only difference:
+
+```
+honest, fold-joined   0.8564    4.0 voters/study
+every member votes    0.9957   20.0 voters/study
+the leak              +0.1393
+```
+
+Sixteen of every twenty members recite each gold study. This is the same mechanism already
+written down for the RadImageNet heads, and it reaches the members too. Its verdict —
+**"model-limited: none"** — would have retired the model axis entirely and sent everything
+that is left at labels.
+
+`eda/frontier_oof.py` writes the honest frame instead, and `headroom.py` needs no change to
+read it. It reproduces 0.8564, which is what says the join is right:
+
+```
+.venv/bin/python eda/frontier_oof.py
+.venv/bin/python eda/headroom.py kaggle/frontier-probe/out/oof_honest.csv
+```
+
+| | model-limited |
+|---|---|
+| train-v1 (the table above) | Lateral Meniscus, Medial Meniscus, PF OA, ACL |
+| **the frontier, honest** | **Lateral Meniscus, ACL** |
+| the frontier, leaked | none |
+
+**Medial Meniscus and PF OA have moved.** On train-v1 a better model takes them; on the base
+we actually ship, the frontier has already caught the teacher there and only better labels
+move them. Two of the five findings the target arithmetic was resting on are gone.
+
+**Which changes what tenth costs.** The plan above asked for half the teacher gap on five
+findings. Only two of the five are still model-limited, and closing *both of those
+completely* is (0.218 + 0.096) / 12 = **+0.026 gold, about 0.917 on the board.** Perfect
+work on every finding a better model can reach still lands short of 0.938.
+
+So the model axis alone does not get there from this base, and the xslice sweep — aimed at
+the menisci — is bounded by that number however it lands. The rest has to come from the
+seven teacher-limited findings or from more voters. **`score_labels` against the frontier's
+own truth table is now the load-bearing measurement, not the model sweep:**
+
+```
 .venv/bin/python eda/score_labels.py kaggle/frontier-probe/out \
     kaggle/frontier-probe/out/probe_truth.csv
 ```
+
+One caution against over-reading this. The honest join gives 4 voters a study against 20 at
+inference, so 0.856 is a pessimistic reading of a pool that scores 0.891 on the board. What
+the table is trusted for is the **classification** — which findings a better model can still
+reach — not the level.
 
 ## Per label, on the 58 gold studies
 
