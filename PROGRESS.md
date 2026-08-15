@@ -1536,6 +1536,51 @@ loading. **It is not being rushed into a lane to catch tonight's reset**: a one-
 arm produces no submittable model, and the three candidates already queued do not depend on
 it.
 
+### Correction, 15 Aug 19:25: the path does not run through the head change
+
+Written above: "the path to 0.938 runs through the grouping sweep and the head change".
+The honest frontier headroom, run tonight, bounds that path at **0.917**. A better model
+reaches two findings on this base, and closing both of them completely is +0.026 gold. The
+head change is still the right experiment and it is still worth running — it just cannot be
+the route to tenth, because there is no route to tenth on the model axis at all.
+
+**And `score_labels` on the frontier probe cannot take over as the load-bearing measurement
+either, which is what I said one tick earlier and was wrong about.** It reads
+`submission_prerad` 0.959 against `submission` 0.962 and appears to price the RadImageNet
+stage at +0.003. The two pool the same members, so the comparison looks controlled. It is
+not: the arm's five heads are themselves four-fifths leaked, exactly as recorded in "The
+probe cannot measure the RadImageNet stage". Adding a leaked stage to a diluted pool raises
+a leaked score whatever its true skill, so the +0.003 and its per-label breakdown are not
+evidence of anything and are not recorded here.
+
+The rule this keeps proving: on these 58 studies, a comparison is readable only when **both
+sides carry identical leakage**. Same members is not enough.
+
+### So the binding constraint has moved, and it is the teacher
+
+Four axes, each measured rather than assumed:
+
+| axis | where it stands | ceiling from here |
+|---|---|---|
+| a better model | 2 of 12 findings still model-limited | **+0.005**, to about 0.917 |
+| better labels | 7 of 12 findings teacher-limited | unmeasured |
+| more voters | our members 0.81 against the public 0.8325–0.8600 | negative so far |
+| pooling rules | three variants queued tonight | +0.001 to +0.003 |
+
+Nothing identified reaches 0.026. But the label axis is the only one whose ceiling is
+**unmeasured**, and it is the largest by count of findings — seven against two.
+
+The label question was closed on 14 Aug, and it is worth being precise about what was
+closed: `score_labels` ranked `llm_labels_v4_blend` best of the **five public tables**, and
+rank-averaging every combination of them gained 0.0001. That is a closed search over what
+other people have published. It is not evidence that no better teacher exists — only that
+none of the five is better than the best of the five, which is nearly a tautology.
+
+Seven findings sit at their teacher's ceiling. Raising that ceiling is a text problem, needs
+no GPU, and is the one thing on this page with real headroom and no measurement against it.
+**That is the next axis**, and unlike the head change it is not competing for a Modal
+workspace at its spend limit.
+
 ## What 0.938 costs, per label
 
 The public twenty score **0.856** gold macro under their own fold map and **0.891** on the
