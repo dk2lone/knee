@@ -273,6 +273,27 @@ noise, and our own 0.907 was 0.004 behind it with five members and no DINOv3 at 
 `knee-frontier-alpha` should now land near **0.917**: 0.911 plus the +0.006 the weight
 correction is worth. That is the last submission of the day.
 
+## Predictions on record, for tomorrow's slots
+
+The conversion is gold + 0.035. Every number below was written before the submission that
+tests it, which is the only way a prediction is worth anything.
+
+| candidate | gold | predicted board | what it tests |
+|---|---:|---:|---|
+| `knee-frontier-alpha` **(submitted)** | 0.8817 | **0.917** | the refit rule on the fork |
+| the same, with the shipping-table rule | 0.8837 | 0.919 | Synovitis and PF OA at 0.7 |
+| `knee-blend-nolegacy` v3 | 0.8837 | 0.919 | five members reaching a 25-member score |
+
+The third is the interesting one. Its base is **five** members against the fork's
+twenty-five, and runs 2 and 4 already showed twenty and five scoring the same 0.891 — so if
+the corrected weights carry it to the same place as the fork, we match the public frontier
+at a fifth of the inference cost. That matters twice: the competition has an efficiency
+prize, and a cheaper base leaves budget inside the 9 h cap for arms that are still to come.
+
+If `frontier-alpha` lands near 0.917 the whole chain of measurement on this page is sound —
+the fold join, the gold-to-board conversion, and the rule. If it lands at 0.911 the rule
+does not survive a 24-member base and the conversion is the suspect.
+
 ## Two candidates are built, dry-run and waiting on one submission
 
 | kernel | what it changes | verified |
