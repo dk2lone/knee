@@ -811,17 +811,21 @@ difference is whether the head sees one sampled window per step or all four.
 |---|---:|---:|---:|---:|
 | 1 | 0.7211 | 0.7353 | **+0.0142** | 143.2 |
 | 2 | 0.7463 | 0.7621 | **+0.0158** | 146.7 |
-| 3 | 0.7760 | | | |
+| 3 | 0.7760 | 0.7842 | **+0.0082** | 143.1 |
 | 4 | 0.7890 | | | |
 | 5 | 0.7937 | | | |
 | 6 | 0.8030 | | | |
 | 7 | 0.8073 | | | |
 | 8 | **0.8071** | | | |
 
-`xs-cross` is ahead at both epochs so far, by about the same margin. Two points prove
-nothing — the flat arm gained 0.025 between epochs 1 and 2 on its own, so a 0.015 gap is
-inside one epoch of progress — but the sign is worth watching because the hypothesis
-predicts it.
+`xs-cross` leads at every epoch so far, but **the lead is narrowing**: +0.0142, +0.0158,
+then +0.0082 at epoch 3. That is the shape of an arm that converges faster rather than one
+that converges higher, and only the last epochs distinguish the two. The flat arm gained
+0.025 between its own epochs 1 and 2, so a 0.008 gap is well inside one epoch of progress.
+
+The annotated subset moves the other way at epoch 3 — 0.7229 against 0.6926, **+0.0303** —
+but n is 19 there and single-epoch swings on it have already been larger than that in this
+same run, so it is not evidence yet.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
