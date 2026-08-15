@@ -101,10 +101,17 @@ def main(probe, ours=None):
             vals.append(auc(y.loc[sel, c], v))
         return np.nanmean(vals)
 
-    def choose(sel):
-        """The per-target weight of each arm, greedily, on the studies given."""
+    def choose(sel, rounds=3):
+        """The per-target weight of each arm on the studies given.
+
+        Coordinate ascent, not one pass. With one arm the two are the same; with three
+        they are not, because the first arm's weight is chosen against a baseline that
+        does not yet contain the others, and it is usually too high. Revisiting each arm
+        with the rest in place is what takes that back.
+        """
         w = {k: {c: 0.0 for c in L} for k in others}
-        for k in others:
+        for _ in range(rounds):
+          for k in others:
             for c in L:
                 best, best_a = 0.0, None
                 for a in GRID:
@@ -121,12 +128,31 @@ def main(probe, ours=None):
                 w[k][c] = best
         return w
 
+
+    def without(arm, sel, w):
+        """What the blend scores with one arm's vote zeroed - its marginal worth."""
+        vals = []
+        for c in L:
+            v = base.loc[sel, c].to_numpy() * (
+                1 - sum(w[k][c] for k in others if k != arm))
+            for k in others:
+                if k != arm:
+                    v = v + R[k].loc[sel, c].to_numpy() * w[k][c]
+            vals.append(auc(y.loc[sel, c], v))
+        return np.nanmean(vals)
+
     flat = choose(idx)
     print("weights chosen on all 58 studies (descriptive, and optimistic):")
     for k in others:
         print(f"  {k:6s} " + "  ".join(f"{c.split()[0][:4]} {flat[k][c]:.2f}" for c in L))
-    print(f"  macro {score(idx, flat):.4f}  against public alone "
+    full = score(idx, flat)
+    print(f"  macro {full:.4f}  against public alone "
           f"{np.nanmean([auc(y[c], base[c]) for c in L]):.4f}")
+    if len(others) > 1:
+        print("  each arm's marginal worth, its vote zeroed and the rest left alone:")
+        for k in others:
+            print(f"    without {k:6s} {without(k, idx, flat):.4f}  "
+                  f"({full - without(k, idx, flat):+.4f})")
 
     # Each fold's studies get the weights chosen without them, and the AUC is then taken
     # over all 58 pooled - the same statistic as the descriptive number above. Scoring
