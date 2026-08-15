@@ -53,6 +53,11 @@ MEDICAL_ENCODERS = ["dk2lone/raddino-dinov2-medical",
 RAD_ARM = ["marwanmath/resnet-50-radimagenet-marwan",
            "antoinegg1/rsna-knee-e9-radimagenet-heads-v15"]
 
+# The four-fold bundle the public 0.916 notebooks vote with on four findings. Weaker than
+# the members everywhere and better than them on the two lateral labels, which is the only
+# reason it is here - see kaggle/blend/legacy_arm.py.
+LEGACY_ARM = ["tonylica/rsna2026-models"]
+
 
 class Notebook:
     def __init__(self, path):
@@ -687,16 +692,19 @@ def infer_from_package(path, dev):''')
     # kernel past the 9 h cap and lose everything, including the submission it had
     # already written. The members surrender TTA windows instead, which is measured to
     # cost 0.003, against an arm worth about 0.025.
-    n.sub("TIME_BUDGET = 8.0 * 3600", "TIME_BUDGET = 6.5 * 3600")
+    n.sub("TIME_BUDGET = 8.0 * 3600", "TIME_BUDGET = 5.5 * 3600")
 
-    # The second reader, in its own cell after the driver, so it reads the submission the
-    # members just wrote and can only improve it or leave it alone (issue #35).
+    # The other two readers, each in its own cell after the driver, so each reads the
+    # submission written before it and can only improve it or leave it alone (#35). The
+    # legacy bundle goes first: the RadImageNet arm's per-target weights were fitted
+    # against a baseline that already had it.
+    n.cell("kaggle/blend/legacy_arm.py")
     n.cell("kaggle/blend/rad_arm.py")
     n.write("kaggle/blend/knee-blend.ipynb")
     # Only kernels that have produced an output can be mounted, so a training kernel
     # joins this list after its first successful run, not when its code is written.
     meta("kaggle/blend/kernel-metadata.json", "knee-blend", "knee blend",
-         "knee-blend.ipynb", WEIGHT_PACKAGES + RAD_ARM, TRAINED)
+         "knee-blend.ipynb", WEIGHT_PACKAGES + RAD_ARM + LEGACY_ARM, TRAINED)
 
 
 # ---------------------------------------------------------------------- duo --- #
