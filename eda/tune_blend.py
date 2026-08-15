@@ -16,6 +16,7 @@ publisher of the arm did the same thing, and here it costs 0.005 - the descripti
 
 Run: .venv/bin/python eda/tune_blend.py kaggle/probe/out/probe.csv <our-oof.csv>
 """
+import pathlib
 import sys
 
 import numpy as np
@@ -63,15 +64,18 @@ def public_oof(path):
     return r[keep].groupby("StudyInstanceUID")[L].mean()
 
 
-def main(probe, ours=None):
+def main(probe, *extra):
     train = pd.read_csv("data/train.csv").set_index("StudyInstanceUID")
     folds = pd.read_csv("data/folds.csv").set_index("StudyInstanceUID")["fold_grouped"]
     gold = train[train[L].notna().all(axis=1)][L].astype(int)
 
     arms = {"public": public_oof(probe),
             "rad": pd.read_csv(RAD_OOF).set_index("StudyInstanceUID")}
-    if ours:
-        arms["ours"] = pd.read_csv(ours).set_index("StudyInstanceUID")
+    # Any further CSV is another arm, named after the directory it came out of, so a new
+    # run joins the comparison without this file learning about it.
+    for path in extra:
+        name = pathlib.Path(path).parent.parent.name or pathlib.Path(path).stem
+        arms[name[:8]] = pd.read_csv(path).set_index("StudyInstanceUID")
 
     idx = gold.index
     for name, d in arms.items():
@@ -181,5 +185,5 @@ def main(probe, ours=None):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3] if len(sys.argv) > 2 else [sys.argv[1] if len(sys.argv) > 1
-                                                   else "kaggle/probe/out/probe.csv"])
+    a = sys.argv[1:] or ["kaggle/probe/out/probe.csv"]
+    main(*a)
