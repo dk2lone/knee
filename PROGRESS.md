@@ -36,7 +36,7 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 
 | What | Where | State |
 |---|---|---|
-| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **decoding**, `train 12288/20130` |
+| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **training**, fold 0 epoch 3/22 |
 | DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | extracting |
 | Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | extracting, 2.5 h |
 | `dk2lone/knee-frontier` — the fork, unchanged | Kaggle | submitted, **pending 4 h** |
@@ -231,6 +231,31 @@ and the deployed v15 arm wins on the same three findings our refit does — Late
 0.722 to 0.660, Lateral OA 0.812 to 0.706, Contusion 0.901 to 0.870.
 
 Worth +0.0125 gold over shipped, so about **+0.006 on the board** after halving.
+
+## The diversity run will land before the submission count resets
+
+It started training at 1,927 s: five site-grouped folds of 882, 22 epochs each, 12 slices.
+An epoch takes about 41 s, so a fold is roughly 15 minutes and the run is **about 1.5 hours
+of training** on top of the 2 hours it spent on the corpus.
+
+```
+fold 0: train 3525 / holdout 882, 19 of 58 annotated studies held out
+  epoch 1/22  loss 0.4686  holdout 0.6960  annot(n=19) 0.6256
+  epoch 2/22  loss 0.4472  holdout 0.7298  annot(n=19) 0.7066
+  epoch 3/22  loss 0.4356  holdout 0.7608  annot(n=19) 0.7014
+```
+
+Each fold holds out 19 of the 58 annotated studies, which is why a one-fold sweep arm could
+not price our members — but **five folds cover all 58**, so the out-of-fold table this
+produces is the one `eda/fit_rad_alpha.py` needs to fit `MEMBERS_ALPHA` honestly.
+
+It finishes well before 20:00 EDT. So the first submission of tomorrow can carry a properly
+trained model of ours, which no submission ever has: run 5's 0.831 was one fold at three
+slices.
+
+**Pull a kernel's output before pushing its next version.** Pushing `knee-blend-nolegacy`
+v3 cleared v2's log before it was fetched. Nothing of substance was lost - v3 is a superset
+- but the confirmation had to be re-run rather than read.
 
 ## Our own members cannot be priced yet
 
