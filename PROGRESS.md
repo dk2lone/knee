@@ -10,8 +10,9 @@ Where the score is, what is running, what happens next. Updated 15 Aug 2026, 03:
 | Final submission | 22 Oct 2026 |
 | Submissions | 5 per day, the count resets 20:00 EDT |
 
-The calibration that makes local numbers usable: **gold-58 macro + 0.044 ≈ leaderboard**.
-So 0.936 needs a gold-58 of about 0.892, against 0.856 for the public members today.
+The calibration that makes local numbers usable: **gold-58 macro + 0.035 ≈ leaderboard**,
+measured on the public members, who score 0.856 out of fold and 0.891 on the board. So
+0.938 needs a gold-58 of about 0.903.
 
 **But a gold-58 delta is not a leaderboard delta.** The RadImageNet arm was priced at
 +0.022 by nested selection on the 58 studies and delivered +0.012. Halve what the harness
@@ -63,12 +64,6 @@ L40S capacity, not compute, is what the queue is short of. A sweep arm caches si
 where a full run caches twelve, so this is the same memory per slice. A `full` run keeps
 the large box; below 64 GiB the planner gives slices away silently instead of failing.
 
-**The half-size box downloaded the corpus in 34.3 minutes.** The three large boxes took
-108.7, 125.3 and 136.6. That is a factor of three to four on the same 247 GB from the same
-source, so the wait was never bandwidth — it was which worker the scheduler could spare.
-The large box is the reason every run has started slowly, and the small box should be the
-default for anything that is not a five-fold run.
-
 **Modal budget.** `raahncpe` and `hz-danielzhang` have now hit their billing-cycle spend
 limits, joining `danielz51666`, which still runs what it already started. `daniel21cn2016`
 had never had the app deployed, so it was the one lane with budget left; the zoom sweep
@@ -81,15 +76,6 @@ call returns `PermissionDeniedError`, which means the wrong profile, not a dead 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
 its other inputs**, so never launch one while a sweep is alive.
-
-**Two things bite on Modal and both cost hours.** The big box does not schedule - a run sat
-queued behind "waiting to be scheduled on a GPU_L40S worker ... relaxing requirements
-(cpu=16, memory=192.8GiB) may lead to faster scheduling", and every worker it wins and
-then loses restarts the 247 GB download from zero. The ask is now 8 CPUs and 128 GiB,
-which still sizes the cache to twelve slices. And **`hz-danielzhang` has now hit its
-billing-cycle spend limit too**, joining `daniel21cn2016` and `danielz51666`; the run moved
-to `raahncpe`, which has budget and starts from an empty Volume, so it pays the 1,784 s
-ordering pass again.
 
 ## Runs
 
