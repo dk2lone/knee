@@ -961,6 +961,23 @@ claim this page has asserted three times and never measured. It is one dict lite
 `eda/build_frontier_alpha.py` and about an hour of Kaggle GPU. It is not recommended, it is
 priced.
 
+### Tomorrow's queue, in the order the answers unlock each other
+
+Tonight's five are all one-change variants, so tomorrow's first job is reading them, not
+guessing. What follows depends on which axis moved:
+
+1. **`knee-blend-clean`** — carried over. The October licence obligation, unaffected by any
+   result tonight, and the one submission that must exist regardless.
+2. **Whichever pooling axis won**, applied to the other base. If TTA-logit moves the board,
+   it goes on the fork; if member-logit moves it, the two stack and that combination has
+   never been run.
+3. **Five members against twenty, at the fold spread.** Runs 2 and 4 both scored 0.891 and
+   this page read that as "votes 6-20 carry nothing" — but those five were four seeds of
+   fold 2, so what was really shown is that *seeds* do not matter. With the spread, member
+   count has never been tested. The voter-count table above says it should matter, and it
+   is the only untested lever left that is worth more than 0.001.
+4. **The head change**, if the cross-slice sweep earns it.
+
 ### The efficiency track cannot be priced from what is on disk
 
 `blend-clean` finishes its dry run in 41.1 s and `frontier-alpha` v2 in 77.1 s. That ratio
