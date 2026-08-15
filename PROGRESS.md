@@ -126,6 +126,30 @@ DINOv3 members already exist, trained on this competition, in a package anyone c
 The Modal DINOv3 sweep is therefore answering a question about *our* contract, not about
 whether to have DINOv3 at all.
 
+## Why our members go into the fork, and not the other way round
+
+Both directions were open until the checkpoints were read. `m_f0.pt` from
+`mattiaangeli/knee-mri-fold-weights` settles it:
+
+```
+cfg = {'backbone': 'vit_small_patch16_dinov3.lvd1689m', 'cond': 'token', 'img': 336,
+       'pool': 'xcodex', 'n_slice': 16, 'stem': 'native', 'pe_init': 'tiled', ...}
+state_dict = 180 tensors: enc.vit.* (163), enc.tok.*, readout.pool.{q,dw,db,gate,...}
+```
+
+This is not our architecture. `enc.tok` is a conditioning token, and `readout.pool` is a
+gated cross-attention pooler the fork calls `CodexResidualPool`. Loading these members
+into our notebook means porting about 355 lines of somebody else's classes — `DepthCompress`,
+`SlotDepthMixer`, `_GatedDelta`, `CodexResidualPool`, `Readout`, `Net` — and decoding at a
+contract we do not hold (336 px, **16** slices). It also needs a timm wheel, which the
+package ships for exactly that reason.
+
+Our members are our own code, so moving them is a copy rather than a port. **So the fork
+is the host and our members are the guest.** The fork's own DINOv3 stage already proves
+the pattern works: it is appended last, it shadows the names defined before it, and it
+reads `submission.csv` off disk rather than from a variable. Our stage becomes the next
+one in that chain.
+
 ## Which base to build on
 
 This repo's blend runs 5 members. The fork runs 25 plus everything our blend has. Nothing
