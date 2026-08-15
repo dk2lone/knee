@@ -209,6 +209,41 @@ Cutting the ensemble from 20 members to 5 costs nothing — the members differ o
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
 fifteen members, which inverts the baseline's own stated priority.
 
+## What 0.938 costs, per label
+
+The public twenty score **0.856** gold macro under their own fold map and **0.891** on the
+leaderboard, so gold + 0.035 is the conversion on this base. Tenth is 0.938, which is about
+**0.903 gold** — so +0.047 macro, which is +0.56 spread over twelve labels.
+
+Where it can come from, from the same table. Seven labels sit below the teacher and five
+are already past it:
+
+| label | public | teacher | gap | |
+|---|---:|---:|---:|---|
+| Lateral Meniscus | 0.660 | 0.879 | **+0.219** | |
+| Lateral OA | 0.706 | 0.833 | **+0.127** | |
+| ACL | 0.892 | 0.987 | +0.096 | |
+| PF OA | 0.826 | 0.902 | +0.075 | |
+| Medial Meniscus | 0.876 | 0.948 | +0.072 | |
+| MCL | 0.899 | 0.968 | +0.069 | 9 positives, too few |
+| Synovitis | 0.757 | 0.790 | +0.033 | |
+| Baker's, Contusion, Medial OA, Effusion, Fracture | | | −0.006 to −0.128 | already past the teacher |
+
+The five that beat their teacher cannot be a source of anything: no better model reaches a
+label whose ceiling is already behind it.
+
+Three readings of the same arithmetic:
+
+- **All seven gaps closed** is +0.058 macro, or leaderboard 0.949 — above first place. So
+  the teacher is not the binding constraint anywhere that matters.
+- **The two lateral labels alone**, closed completely, is +0.029, or 0.920. Not enough.
+- **Half of each of the top five**, which is the realistic version, is about +0.023, or
+  0.914 — and the full five is 0.940, which is tenth.
+
+So the target is not a mystery and it is not one label. It is **half the teacher gap on
+Lateral Meniscus, Lateral OA, ACL, PF OA and Medial Meniscus.** Those are the model-limited
+findings below, and the two lateral ones are where the token-per-slice arm is aimed.
+
 ## Where the work pays, and where it cannot
 
 `eda/headroom.py` splits the twelve findings by what limits them. On train-v1: our model
