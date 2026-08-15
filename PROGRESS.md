@@ -315,8 +315,22 @@ does not survive a 24-member base and the conversion is the suspect.
 
 | kernel | what it changes | verified |
 |---|---|---|
-| `knee-blend-nolegacy` v3 | our base: fold spread, second head family, measured weights | dry run in flight |
+| `knee-blend-nolegacy` v4 | our base: fold spread, second head family, shipping-table weights | v3 dry run clean, v4 pushed |
 | `knee-frontier-alpha` | the fork's flat 0.35 replaced by the measured per-target rule | **dry run clean** |
+
+`knee-blend-nolegacy` v3's dry run confirms the fold spread survives into the kernel, which
+until now was only checked in `eda/test_blend.py`:
+
+```
+package rsna-knee-weights: 5 of 20 member(s), folds ['0','1','2','3','4'], holdout 0.8325 to 0.8600
+legacy bundle: not attached; the members' submission stands
+RadImageNet arm: 5 head(s), fitted at 224 px x 8 slices, gold OOF 0.8543
+RadImageNet arm: second head family, 5 folds at 0.50 of the arm's vote
+RadImageNet arm: 10 target(s) blended, ["Baker's", 'Fracture'] left on the members alone
+```
+
+v3 carries the refit rule because it was pushed before that was corrected; **v4 carries the
+shipping-table rule** and is what gets tomorrow's first slot.
 
 `knee-frontier-alpha` was checked against the plain fork's dry run on the three visible
 studies, and the differences land exactly where the rule says they should:
