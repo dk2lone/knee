@@ -9,7 +9,7 @@ This applies the measured rule to the fork rather than to our own blend, and tha
 right direction: the rule was fitted with the **public twenty** as the base, which is the
 fork's base and not ours. Our five-member blend approximates it; the fork is it.
 
-    none 0.8564   flat 0.35 0.8662   this rule 0.8753
+    none 0.8564   flat 0.35 0.8729   this rule 0.8837   argmax 0.8871
 
 Baker's and Fracture keep their zero, so the stage's own assertion that it preserved them
 untouched still holds.
@@ -25,9 +25,15 @@ OUT = Path("kaggle/frontier-alpha")
 
 # From `eda/fit_rad_alpha.py`: 0.7 where the arm wins out of fold, 0.3 where it loses,
 # 0 where the fork already gives it no vote.
+#
+# PF OA and Synovitis read 0.3 until 15 Aug, because the rule was fitted against
+# `kaggle/radheads/out/oof.csv` - our refit of the head class - rather than against
+# `nb/rad/v52_oof.csv`, the shipping checkpoint's own table. The two agree on ten labels
+# and disagree on these two, and the shipping arm wins both: Synovitis 0.810 to 0.757 and
+# PF OA 0.831 to 0.826. The version that scored 0.912 carried the wrong value on both.
 ALPHA = {"ACL": 0.3, "MCL": 0.3, "Medial Meniscus": 0.3, "Lateral Meniscus": 0.7,
-         "Medial OA": 0.3, "Lateral OA": 0.7, "PF OA": 0.3, "Effusion": 0.3,
-         "Synovitis": 0.3, "Baker's": 0.0, "Contusion": 0.7, "Fracture": 0.0}
+         "Medial OA": 0.3, "Lateral OA": 0.7, "PF OA": 0.7, "Effusion": 0.3,
+         "Synovitis": 0.7, "Baker's": 0.0, "Contusion": 0.7, "Fracture": 0.0}
 
 DEF_OLD = "_RAD_ALPHA = 0.35"
 DEF_NEW = f"_RAD_ALPHA = 0.35\n_RAD_ALPHA_MAP = {ALPHA!r}"

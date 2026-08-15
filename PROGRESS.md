@@ -1,10 +1,10 @@
 # Progress
 
-Where the score is, what is running, what happens next. Updated 15 Aug 2026, 03:20 EDT.
+Where the score is, what is running, what happens next. Updated 15 Aug 2026, 09:40 EDT.
 
 | | |
 |---|---|
-| Public leaderboard | **0.911** |
+| Public leaderboard | **0.912** |
 | Tenth place | 0.938 (was 0.936; the bar moved on 14 Aug) |
 | Best public notebook | 0.911 measured, not the 0.916 its title claims |
 | Final submission | 22 Oct 2026 |
@@ -32,20 +32,74 @@ mount is an ingredient we do not have, and the free score hides in how they comb
 we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pooling.
 **Titles lie**: the notebook called "V40 DINOv3 E10 Hybrid" mounts `metaresearch/dinov2`.
 
+### Checked 15 Aug: the notebook that now sorts above the frontier *is* the frontier
+
+`nikitagajbhiye30/rsna-knee-00` took the top of `--sort-by scoreDescending`, above
+`mattiaangeli/bend-the-knee-to-dinov3-ensembled`. It mounts one package set with the fork
+and adds nothing: same ten `dataset_sources`, same three DINOv2 model sources.
+
+Diffed against the fork, every constant that decides a score is identical — `TTA_TARGET_POOL`,
+`LEGACY_MEMBER_WEIGHT_BY_TARGET`, `LEGACY_WEIGHT` 0.5, `RT_SYN_WEIGHT` 0.75, the four
+`HYB_*` family weight tuples, `A5_W` 0.45, `N_SLICE` 16, `_RAD_ALPHA` 0.35. The only visible
+change is a **rename**: the arm's `_RAD_*` constants are called `_OUR_*`, carrying
+byte-identical values down to the fold and config hashes.
+
+```
+frontier  _RAD_FOLD_SHA256 = '1301603a060226c47c96be54d4c3618fee41f2e97f8f82d8f77a752819ffb7e3'
+knee-00   _OUR_FOLD_SHA256 = '1301603a060226c47c96be54d4c3618fee41f2e97f8f82d8f77a752819ffb7e3'
+```
+
+So the leaderboard's top public notebook is the fork with its EDA cells stripped and one
+prefix renamed, and we have already scored that exact thing at 0.911. **There is no
+unmounted ingredient at the top of the public field**, which is the same conclusion the
+decomposition reached from the other direction. `salemali7/rsna-knee-90-reports-llm-30-epochs`
+mounts the identical set and was already pulled in an earlier session.
+
+A `scoreDescending` sort rank is not a score. Two notebooks can trade places on it while
+being the same code, and this pair does.
+
 ## Running now
 
 | What | Where | State |
 |---|---|---|
-| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **training**, fold 0 epoch 3/22 |
-| DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | extracting |
-| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | extracting, 2.5 h |
-| `dk2lone/knee-frontier` — the fork, unchanged | Kaggle | submitted, **pending 4 h** |
-| `dk2lone/knee-blend-nolegacy` — fold spread + second head family | Kaggle | dry run, 1 h |
-| `dk2lone/knee-frontier-probe-v15` — v15 family alone | Kaggle | dry run, 1 h |
+| **Grouping sweep** — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **launched** `fc-01M02T8S56J0Z1FE8B65K252JZ` |
+| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
+| DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | **dead**, crashed; not relaunching |
+| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | **dead**, crashed; not relaunching |
+| every Kaggle kernel | Kaggle | all COMPLETE, both GPU sessions free |
 
-**Kaggle allows two GPU sessions at once.** Both are held, so `knee-blend-nolegacy` cannot
-be re-pushed with the measured weights and `kaggle/frontier-alpha/` cannot start at all.
-That is the current bottleneck, not compute and not ideas.
+**Kaggle is no longer the bottleneck. Submissions are.** Both GPU sessions are free and all
+five kernels finished, but the day's five submissions are spent and the count resets at
+**20:00 EDT**. Nothing measured before then can be scored, so the next ten hours are for
+training and for building candidates, not for testing them.
+
+### Both sweeps died on the same line, and neither is worth restarting
+
+They were not extracting. Both crashed inside `link_inputs`:
+
+```
+FileNotFoundError: /vol/models/dinov2-small is missing; run --mode setup first
+```
+
+The encoder weights live on a **per-workspace** Volume, and neither workspace had ever run
+`setup`. This is the same class of mistake as the export prefix: a Modal Volume belongs to
+one workspace, so a new lane starts empty no matter how many times the app has been
+deployed elsewhere. `daniel21cn2016` paid a 34-minute, 247 GB corpus download before
+reaching the line that failed, and the corpus is on ephemeral disk, so it is gone.
+
+**Neither gets relaunched, and the reason is not the budget.** Each is asking a question
+this file has already closed:
+
+- the **zoom sweep** tests 448 px and a 90 mm crop, which is the field-of-view question that
+  #36 ruled out offline — no gradient in either the band or the crop, which is why step 3
+  is struck through. It was queued before that measurement landed and nobody withdrew it.
+- the **DINOv3 sweep** asks whether DINOv3 helps, and the fork's own decomposition already
+  answered it from the leaderboard: five DINOv3 members, the legacy four and the pooling map
+  are worth **0.001 between them**.
+
+So the crash cost one download and saved two and a half hours of the last funded lane. The
+lesson is the cheaper one: **a queued run is not a decided run.** Both of these outlived the
+measurements that killed their premise, and only a crash surfaced it.
 
 **The half box trades download for extraction.** It pulled the corpus in 34.3 minutes
 against 108 to 136 for the large box, then spent two and a half hours unzipping on four
@@ -64,10 +118,31 @@ L40S capacity, not compute, is what the queue is short of. A sweep arm caches si
 where a full run caches twelve, so this is the same memory per slice. A `full` run keeps
 the large box; below 64 GiB the planner gives slices away silently instead of failing.
 
-**Modal budget.** `raahncpe` and `hz-danielzhang` have now hit their billing-cycle spend
-limits, joining `danielz51666`, which still runs what it already started. `daniel21cn2016`
-had never had the app deployed, so it was the one lane with budget left; the zoom sweep
-runs there. **There are no spare lanes after this one.**
+**Modal budget: `sunnypathca` is now spent too, and `daniel21cn2016` is the last lane.**
+`raahncpe`, `hz-danielzhang` and `danielz51666` were already at their billing-cycle spend
+limits. Launching the grouping sweep on `sunnypathca` returned
+
+```
+modal.exception.ResourceExhaustedError: workspace billing cycle spend limit reached
+```
+
+so the diversity run was the last thing that workspace will ever do. **One lane remains and
+it holds the grouping sweep.** Nothing else gets launched until the cycle rolls over, which
+makes the next Modal decision a choice about what not to run rather than what to run.
+
+**The last lane needed `setup` before it could work, and that is what killed both sweeps.**
+Staging the encoder is one call and it is not part of a launch:
+
+```
+MODAL_PROFILE=daniel21cn2016 .venv/bin/python -m modal deploy cloud/train.py
+MODAL_PROFILE=daniel21cn2016 .venv/bin/python -c \
+  "import modal; print(modal.Function.from_name('knee-train','setup').remote(variant='small'))"
+```
+
+**`setup` returns `False` on success here, and that is not a failure.** Its return value is
+`(/vol/comp/train.csv).exists()` — whether the *corpus* is on the Volume — and the corpus
+lives on ephemeral disk by #32, so `False` is the permanent correct answer. What matters is
+the side effect, and `modal volume ls knee-data models/dinov2-small` is what confirms it.
 
 A Modal call only answers to the workspace that spawned it, so prefix the status call:
 `MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py status <fc-id>`. Without it the
@@ -91,7 +166,7 @@ its other inputs**, so never launch one while a sweep is alive.
 | 8 | + legacy 4-fold bundle on its four findings | 0.904 | **a regression of 0.003** |
 | 9 | three arms + the frontier's TTA pooling map | 0.905 | the map bought back 0.001 of the 0.003 |
 | 10 | `dk2lone/knee-frontier`, the public frontier unchanged | **0.911** | +0.004 over ours, not the +0.009 advertised |
-| 11 | `knee-frontier-alpha` — per-target RadImageNet vote | pending | predicted 0.917; the day's last slot |
+| 11 | `knee-frontier-alpha` — per-target RadImageNet vote | **0.912** | predicted 0.917, delivered +0.001 over the fork |
 
 Runs 8 and 9 are two measurements of the same law: **a constant fitted on the frontier's
 base does not transfer to ours.** The legacy fractions cost 0.003, and the pooling map that
@@ -273,6 +348,33 @@ noise, and our own 0.907 was 0.004 behind it with five members and no DINOv3 at 
 `knee-frontier-alpha` should now land near **0.917**: 0.911 plus the +0.006 the weight
 correction is worth. That is the last submission of the day.
 
+### It scored 0.912. The rule is real and it is worth a sixth of its gold price
+
+Predicted 0.917, measured **0.912**, against the same fork at 0.911. The correction moved
+the board by **+0.001** where gold-58 priced it at +0.0125, or +0.006 after halving.
+
+The sign is right and the size is not, and that is the third time in a row:
+
+| change | gold said | board paid | ratio |
+|---|---:|---:|---:|
+| RadImageNet arm (run 7) | +0.022 | +0.012 | 0.55 |
+| the measured weight rule (run 11) | +0.006 | +0.001 | 0.17 |
+
+**So "halve what the harness promises" is itself too generous, and the reason is dilution.**
+The arm holds 0.35 of the vote inside a 25-member pool, so re-weighting it moves a third of
+a twenty-sixth of the ensemble. On gold-58 the arm is one of two readers and the same
+re-weighting moves half of everything. The harness is not lying about the rule; it is
+measuring it on a base where the arm matters far more than it does in the fork.
+
+That makes a prediction rather than an excuse: **the thinner the base, the more of the gold
+delta should survive.** `knee-blend-nolegacy` v4 is five members with the arm already in, so
+the rule carries more of its vote there than anywhere else tested. It predicts 0.8796 gold
+and about 0.915 on the board, and it is the first submission after the reset.
+
+If v4 also pays a sixth, the conversion is broken and not the base, and gold-58 stops being
+the tool that chooses submissions. If it pays closer to a half, dilution is confirmed and
+every future change gets priced against the pool it will actually vote in.
+
 ## The head change, scoped
 
 The grouping sweep tests packing, not token count, so the token-count hypothesis still has
@@ -298,6 +400,47 @@ Cost: the encoder pass is unchanged, so training time barely moves; the head gro
 embedding. Risk: every existing member checkpoint has a `SlotHead` without the position
 embedding, so this must be a new `pool` value rather than a change to `cls_mean_focal`, or
 the whole blend stops loading.
+
+## The diversity run died in fold 4, and its four finished folds settle the question anyway
+
+It lost its worker after fold 4 epoch 17 of 22. `modal app list` reports the app `deployed`
+with **0 tasks**, which is how a dead run is told from a slow one — the log simply stops,
+and a frozen last line looks identical to a container that is still thinking.
+
+What survived on the Volume, and what did not:
+
+```
+runs/full-band/member_f0s2026.pt  member_f1s2026.pt  member_f2s2026.pt  member_f3s2026.pt
+runs/full-band/submission.csv
+no manifest.json     no oof.csv
+```
+
+Both missing files are written by `pipeline.main()` after the last fold, so a run killed in
+fold 4 has neither. `cloud/export.py` refuses a package without a manifest, by design, so
+these four members cannot be exported as they stand.
+
+**It is not being re-run, and the four folds are the reason.** They came in at
+
+```
+fold 0  0.8276      fold 2  0.8202      fold 3  0.7875      fold 1  (log buffer expired)
+```
+
+against the 0.8304 that four sweeps predicted and against the public members' 0.8325 to
+0.8600. **Three of the four land below the 0.84 gate this file set**, and fold 3 is below
+train-v1's own 0.8084. So the properly trained model — five folds, twelve slices, twenty-two
+epochs, the configuration every sweep agreed on — averages roughly 0.81 and is *weaker than
+the public members it was meant to vote beside*.
+
+That closes the question the run existed to ask. `eda/tune_blend.py` already priced
+train-v1's five-fold OOF as a third arm: it earned a vote on two labels of twelve and pulled
+the nested gold number from 0.8788 down to 0.8734. This model is about +0.005 holdout over
+train-v1, and +0.005 does not reverse a −0.005. **Re-running it would cost two and a half
+hours of the only remaining lane to produce members that the harness has already said will
+not earn their vote.**
+
+The four checkpoints stay on the `sunnypathca` Volume. They are worth something later and
+nothing now: the licence-clean submission owed before October is CC0 members plus our own,
+and that is the one place members which lose score on the public board are still wanted.
 
 ## Fold 0 is done, and our best model still projects short of an ordinary competitor's
 
@@ -372,11 +515,15 @@ download again. On the half box that was 34 minutes.
 The conversion is gold + 0.035. Every number below was written before the submission that
 tests it, which is the only way a prediction is worth anything.
 
-| candidate | gold | predicted board | what it tests |
-|---|---:|---:|---|
-| `knee-frontier-alpha` **(submitted)** | 0.8817 | **0.917** | the refit rule on the fork |
-| the same, with the shipping-table rule | 0.8837 | 0.919 | Synovitis and PF OA at 0.7 |
-| `knee-blend-nolegacy` v3 | 0.8837 | 0.919 | five members reaching a 25-member score |
+| candidate | gold | predicted board | measured | what it tests |
+|---|---:|---:|---:|---|
+| `knee-frontier-alpha` | 0.8817 | 0.917 | **0.912** | the refit rule on the fork |
+| the same, with the shipping-table rule | 0.8837 | 0.919 | — | Synovitis and PF OA at 0.7 |
+| `knee-blend-nolegacy` v4 | 0.8796 | 0.915 | — | five members reaching a 25-member score |
+
+The first row is now measured and it missed by 0.005, so read the two predictions below it
+as upper bounds. Under the dilution reading they are worth about 0.913 and 0.912, and the
+value of running v4 is no longer its score but **which of the two explanations it kills.**
 
 The third is the interesting one, and its premise is now measured rather than assumed:
 
@@ -405,12 +552,60 @@ If `frontier-alpha` lands near 0.917 the whole chain of measurement on this page
 the fold join, the gold-to-board conversion, and the rule. If it lands at 0.911 the rule
 does not survive a 24-member base and the conversion is the suspect.
 
-## Two candidates are built, dry-run and waiting on one submission
+## Three candidates for the 20:00 reset, and the queue is now the whole plan
 
-| kernel | what it changes | verified |
+| kernel | what it changes | state |
 |---|---|---|
-| `knee-blend-nolegacy` v4 | our base: fold spread, second head family, shipping-table weights | v3 dry run clean, v4 pushed |
-| `knee-frontier-alpha` | the fork's flat 0.35 replaced by the measured per-target rule | **dry run clean** |
+| `knee-blend-nolegacy` v4 | our base: fold spread, second head family, shipping-table weights | **run COMPLETE, log read** |
+| `knee-frontier-alpha` **v2** | the same fork, with PF OA and Synovitis corrected to 0.7 | **pushed, running** |
+| `knee-blend-clean` | CC0 members only, no arm and no bundle | **pushed, running** |
+
+### The 0.912 kernel carried the wrong weight on two labels
+
+`eda/build_frontier_alpha.py` held `PF OA: 0.3` and `Synovitis: 0.3`. Those are the two the
+audit had already caught: the map was fitted against `kaggle/radheads/out/oof.csv`, our
+refit of the head class, rather than `nb/rad/v52_oof.csv`, the shipping checkpoint's own
+table. The correction was found on 15 Aug and applied to `knee-blend-nolegacy` v4, and
+**nobody carried it back to the builder that produced our best score.**
+
+Re-derived from the tool rather than copied from this page, which is the whole lesson:
+
+```
+RAD_ALPHA = {'ACL': 0.3, 'MCL': 0.3, 'Medial Meniscus': 0.3, 'Lateral Meniscus': 0.7,
+             'Medial OA': 0.3, 'Lateral OA': 0.7, 'PF OA': 0.7, 'Effusion': 0.3,
+             'Synovitis': 0.7, "Baker's": 0.0, 'Contusion': 0.7, 'Fracture': 0.0}
+
+none 0.8564   flat 0.35 0.8729   rule 0.8837   argmax 0.8871
+```
+
+The arm wins both labels it was denied: Synovitis 0.810 to 0.757 and PF OA 0.831 to 0.826.
+So v2 votes 0.7 on **five** findings where v1 voted it on three.
+
+**It is worth +0.002 gold, so expect about +0.0003 on the board under the dilution reading
+and nothing measurable if that reading is right.** It is pushed anyway because it costs no
+submission slot to build and because shipping a kernel with a known-wrong constant is how
+runs 8 and 9 happened. The reason to run it is correctness, not the score.
+
+`argmax` at 0.8871 stays rejected. It is an eight-point grid on 58 studies, and its 0.0034
+gold edge over the rule converts to about 0.0006 on the board — a rounding error bought with
+overfitting, and now measurably not worth a slot.
+
+### `knee-blend-clean` exists at last
+
+CC0 members only: no RadImageNet arm (CC-BY-NC-SA), no legacy bundle (licence `unknown`).
+Two final submissions are selected in October and one of them has to survive a ruling on
+licences, so this had to be a scored, known quantity rather than something assembled in the
+final week. It is now running for the first time.
+
+It also prices the fold spread on its own, with nothing else in the blend to confound it.
+Run 4 put "the top five members" at 0.891, and those five were four seeds of fold 2 — so
+whatever this scores against 0.891 is what spreading over folds is worth, unmixed.
+
+**v4 is confirmed on both counts that could have gone wrong.** Its own log shows the fold
+spread survived — `folds ['0', '1', '2', '3', '4']`, five distinct training sets, not four
+seeds of fold 2 — and the notebook it pushed carries the shipping-table rule, with Synovitis
+and PF OA at 0.7 where v3 had Synovitis at 0.3. So the version that scores is the version
+that was reasoned about, which is the check runs 8 and 9 taught this project to make.
 
 `knee-blend-nolegacy` v3's dry run confirms the fold spread survives into the kernel, which
 until now was only checked in `eda/test_blend.py`:

@@ -6,3 +6,4 @@ __pycache__/
 kaggle/*/out/
 cloud/exports/
 cloud/exports/**/*.pt
+kaggle/*/out-*/
