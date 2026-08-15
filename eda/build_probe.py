@@ -88,10 +88,20 @@ FIND_ROOT_NEW = f"for c in [Path({PROBE_ROOT!r}), Path('/kaggle/input/competitio
 COMP_OLD = "COMP = _find_dir('rsna-knee-abnormality-detection')"
 COMP_NEW = f"COMP = Path({PROBE_ROOT!r})"
 
+# The RadImageNet stage overwrites submission.csv in place, so without this the file it
+# read is gone and its share cannot be separated from what it was added to. With it, any
+# other per-target weight can be scored offline by mixing the two files - which is the
+# difference between one submission per weight and none.
+RAD_OLD = "\n_rad_main()"
+RAD_NEW = ("\nimport shutil as _snap_shutil\n"
+           "_snap_shutil.copy('submission.csv', 'submission_prerad.csv')\n"
+           "print('probe: kept the pre-RadImageNet submission', flush=True)\n"
+           "_rad_main()")
+
 
 def main():
     nb = json.loads(SRC.read_text())
-    hits = {"find_root": 0, "COMP": 0}
+    hits = {"find_root": 0, "COMP": 0, "rad": 0}
     for cell in nb["cells"]:
         if cell["cell_type"] != "code":
             continue
@@ -102,6 +112,9 @@ def main():
         if COMP_OLD in src:
             src = src.replace(COMP_OLD, COMP_NEW)
             hits["COMP"] += 1
+        if RAD_OLD in src:
+            src = src.replace(RAD_OLD, RAD_NEW)
+            hits["rad"] += 1
         cell["source"] = src.splitlines(keepends=True)
 
     for name, n in hits.items():
