@@ -58,6 +58,11 @@ def rad_file(name):
     return None
 
 
+# The blocks below are verbatim, and they call this lookup by the name it has in the
+# notebook they were written for. Aliasing it is what keeps them verbatim.
+find_input_file = rad_file
+
+
 def _v52_sha256(path):
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
