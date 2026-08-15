@@ -755,20 +755,45 @@ TTA_TARGET_POOL = {"Fracture": "max", "Contusion": "max", "Medial Meniscus": "ma
 
     The cap is about how much say a package has in the rank mean, which is a property of
     the package rather than of the decode group a member lands in, so it is applied here.
-    Selection inside a package is by the holdout its own fold measured, the only
-    comparable number a manifest carries.
+
+    Selection is the best member of each fold, not the best members overall, and the
+    difference is not small. pilkwang's twenty are five folds by four seeds. Taking the
+    five highest holdouts takes **four seeds of fold 2 and one of fold 4** - two distinct
+    training sets wearing five votes, because four of them saw the same 80% of the data
+    and differ only by initialisation. One per fold is five distinct training sets for the
+    same five forward passes.
+
+    The individual members are slightly weaker that way - holdouts 0.8383, 0.8325, 0.8600,
+    0.8380, 0.8438 against a top-five run of 0.8438 to 0.8600 - and that is the trade being
+    made deliberately, because a rank mean pays for disagreement and not for skill.
+
+    It also reopens a conclusion. Runs 2 and 4 scored 0.891 with twenty members and with
+    the top five, which was read as votes 6-20 carrying nothing. Under this reading the
+    top five were behaving like two, so what those runs actually showed is that seeds do
+    not matter. Whether folds matter was never tested.
     """
     import json
     out = []
     for p in paths:
         man = json.loads((p / "manifest.json").read_text())
         ms = sorted(man["members"], key=lambda m: -(m.get("holdout") or 0))
-        take = ms[:MEMBERS_PER_PACKAGE]
+        by_fold = {}
+        for m in ms:
+            by_fold.setdefault(m.get("fold"), []).append(m)
+        # Round-robin over the folds, best first inside each, so a cap below the fold
+        # count still spreads and a cap above it fills up with second seeds.
+        take, depth = [], 0
+        while len(take) < MEMBERS_PER_PACKAGE and depth < max(map(len, by_fold.values())):
+            for f in sorted(by_fold, key=lambda k: (k is None, k)):
+                if depth < len(by_fold[f]) and len(take) < MEMBERS_PER_PACKAGE:
+                    take.append(by_fold[f][depth])
+            depth += 1
         for m in take:
             out.append({**m, "_root": p, "_pkg": p.name})
         log(f"package {p.name}: {len(take)} of {len(man['members'])} member(s), "
-            f"holdout {take[-1].get('holdout', float('nan')):.4f} to "
-            f"{take[0].get('holdout', float('nan')):.4f}")
+            f"folds {sorted(str(m.get('fold')) for m in take)}, "
+            f"holdout {min(m.get('holdout') or 0 for m in take):.4f} to "
+            f"{max(m.get('holdout') or 0 for m in take):.4f}")
     if not out:
         raise WeightsError("no member in any attached package")
     return out
