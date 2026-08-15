@@ -232,6 +232,29 @@ and the deployed v15 arm wins on the same three findings our refit does — Late
 
 Worth +0.0125 gold over shipped, so about **+0.006 on the board** after halving.
 
+## What frontier-alpha should score, predicted before it is submitted
+
+Worth writing down first, because a prediction that is only stated afterwards proves
+nothing.
+
+The conversion is gold + 0.035, measured on the public members: 0.856 out of fold, 0.891 on
+the board. `eda/fit_rad_alpha.py` puts the public twenty plus the arm at the measured rule
+at **0.8753 gold**, so about **0.910** on the board.
+
+The fork scores its ~0.916 with the same twenty members plus five DINOv3, the legacy four,
+the pooling map and the arm at a flat 0.35. So everything the fork has that this
+calculation does not — the DINOv3 family, the legacy bundle, the pooling map — is worth
+about **0.006** between them.
+
+That is a small number for three ingredients, and it says where the frontier actually gets
+its score: twenty DINOv2 members and one RadImageNet arm, with the rest decoration.
+
+**So `knee-frontier-alpha` should land near 0.922** — the fork's 0.916 plus the +0.006 the
+weight correction is worth. If it lands there, the arithmetic on this page is sound and the
+same method can be pointed at `MEMBERS_ALPHA` next. If it lands at 0.916, the correction
+did not survive contact with a 24-member base and the gold-to-board conversion is weaker
+than measured. Either answer is worth the slot.
+
 ## Two candidates are built, dry-run and waiting on one submission
 
 | kernel | what it changes | verified |
