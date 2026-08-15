@@ -712,8 +712,19 @@ def fix_manifest_variant(out, variant, run=None):
     mf.write_text(json.dumps(d, indent=1))
 
 
+# 8 CPUs and 128 GiB, not 16 and 192. The big box does not schedule: Modal held a full
+# run in the queue with "waiting to be scheduled on a GPU_L40S worker ... relaxing
+# requirements (cpu=16, memory=192.8GiB) may lead to faster scheduling", and each time it
+# does get a worker and then loses it, the 247 GB download starts again from zero. That
+# has cost two restarts already, which is more than the smaller box costs in speed.
+#
+# 128 GiB still holds twelve slices: the cache is 4,407 x 6 x 12 x 336^2 = 35.8 GB and
+# plan_cache takes 62% of what is free, so it sizes to 12 and not to 6. Below about
+# 64 GiB it would silently give slices away instead - that is the floor, not the target.
+# The CPUs mattered for the 1,784 s ordering pass, and that answer is now cached on the
+# Volume, so eight is no longer the bottleneck it would have been.
 @app.function(image=image, gpu="L40S", timeout=23 * 3600, volumes={"/vol": vol},
-              cpu=16.0, memory=196608, ephemeral_disk=1024 * 1024,
+              cpu=8.0, memory=131072, ephemeral_disk=1024 * 1024,
               secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
 def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
           n_group_max: int = 2, img: int = 336, batch_studies: int = 8,

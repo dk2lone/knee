@@ -17,12 +17,21 @@ So 0.936 needs a gold-58 of about 0.892, against 0.856 for the public members to
 
 | What | Where | State |
 |---|---|---|
-| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `fc-01M01EE15N0Q5BDPJJ86RH11TS` | training |
+| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | downloading the corpus |
 | `knee-blend` — the members plus the RadImageNet arm | Kaggle | running |
 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
 its other inputs**, so never launch one while a sweep is alive.
+
+**Two things bite on Modal and both cost hours.** The big box does not schedule - a run sat
+queued behind "waiting to be scheduled on a GPU_L40S worker ... relaxing requirements
+(cpu=16, memory=192.8GiB) may lead to faster scheduling", and every worker it wins and
+then loses restarts the 247 GB download from zero. The ask is now 8 CPUs and 128 GiB,
+which still sizes the cache to twelve slices. And **`hz-danielzhang` has now hit its
+billing-cycle spend limit too**, joining `daniel21cn2016` and `danielz51666`; the run moved
+to `raahncpe`, which has budget and starts from an empty Volume, so it pays the 1,784 s
+ordering pass again.
 
 ## Runs
 
