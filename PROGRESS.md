@@ -1013,6 +1013,30 @@ guessing. What follows depends on which axis moved:
    count has never been tested. The voter-count table above says it should matter, and it
    is the only untested lever left that is worth more than 0.001.
 4. **The head change**, if the cross-slice sweep earns it.
+5. **Sixteen slices instead of twelve** — the one contract difference nobody here has tested.
+
+### Sixteen slices: the frontier's members hold a contract ours does not
+
+Worth writing down because it is the only *model-side* lever left that costs a flag rather
+than a rewrite, and because the evidence points both ways.
+
+The frontier's own checkpoints declare `'n_slice': 16` — recorded on this page back when
+`m_f0.pt` was read to decide which way the port should go, and never followed up. Our
+contract is twelve, from `CACHE_SLICES = GROUP * N_GROUP` at 3 x 4.
+
+For it: slice count is the largest single effect this project has ever measured — +0.188 on
+Medial Meniscus going from 3 to 12 — and sixteen is what the members that beat ours use.
+Against it: the same page records 6 to 12 as **+0.006 overall**, which is already a sharply
+diminishing return, so 12 to 16 should be worth less than that again.
+
+Cost is memory, not time. The cross-slice sweep's cache is `(4407, 6, 12, 336, 336) = 33.4 GB`
+at twelve, so sixteen is about 44 GB against the half box's 64 GiB — it fits, but only just,
+and `plan_cache` gives slices away silently rather than failing when it does not. Any run
+that tries this must read back the `cache layout` line and confirm it got what it asked for,
+which is the same trap `n_group` was pinned to avoid in the grouping sweep.
+
+Priced honestly this is a +0.003 idea, not a +0.02 one. It is on the list because after the
+head change there is nothing else on the model side that is not a rewrite.
 
 ### The efficiency track cannot be priced from what is on disk
 
