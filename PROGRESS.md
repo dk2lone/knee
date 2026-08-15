@@ -681,6 +681,27 @@ kaggle/train-v1/knee-train-v1.ipynb   the hand-written source
   -> build_cloud_module()             -> cloud/pipeline.py
 ```
 
+**The port is scoped, and it is mechanical — checked 19:41, before the result lands.** The
+change is exactly nine hunks, 72 lines, isolated by `git diff 1effc9e 8ab162a --
+cloud/pipeline.py`. Where they go was an open question on this page and now is not:
+
+```
+old text found as a whole block in train-v1   4 of 9
+old text found as a whole block in train-v2   9 of 9
+```
+
+Five hunks match v1 only on their first line, because `build_train_v2` has already rewritten
+those regions — PatientSex adds arguments to `predict` and `main`, and the biomedclip work
+touches `build_model`. Written against v1 those five would need their `old` strings
+reconstructed by hand, which is where a port goes wrong silently.
+
+Against v2 all nine match verbatim. So **the nine `n.sub` calls append at the end of
+`build_train_v2()`**, after the existing substitutions, where the working text is already v2.
+No `old` string has to be rewritten and `Notebook.sub` asserts exactly one match on each, so
+a bad port fails the build instead of shipping. This is the same destination the page already
+argued for on other grounds — v2 is where Modal-contract changes live and the Kaggle blend
+kernel stays untouched — now with the mechanism confirmed rather than assumed.
+
 The head change was written straight into `cloud/pipeline.py`, which is the last link. The
 running sweep is unaffected — it was deployed after the edit, and `modal deploy` mounts that
 file directly — but a rebuild would overwrite it. The `xslice` sweep
