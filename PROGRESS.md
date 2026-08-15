@@ -1605,6 +1605,48 @@ rather than instead of it** — the two compound, since model work closes the ga
 teacher and label work raises where the teacher sits. It also competes for nothing: every
 Modal workspace but one is at its spend limit, and this axis needs none of them.
 
+### The first label lead, and why it is dead — 15 Aug 19:35
+
+Reading the reports of the Synovitis positives the teacher scored lowest turned up one in
+Croatian. Measured across the corpus, **2,303 of 4,407 reports (52.3%) contain not one
+common English word** — Spanish, Dutch, French, Croatian. Three things followed, and the
+first two looked strong:
+
+1. The teacher is less decisive on non-English reports on **all twelve labels**, mean
+   |p − 0.5| of 0.370 against 0.413. Twelve out of twelve is not noise.
+2. That feeds training directly. `build_labels.py` sets `W = 0.25 + 0.75 * conf`, so
+   non-English studies train at **90% of English weight** on average and **78% on Lateral
+   OA** — half the corpus, systematically down-weighted.
+3. Teacher AUC on gold is 0.899 English against 0.890 non-English. At n = 34 and 24 that is
+   noise, and it should be: AUC reads order only, so a uniformly less-confident labeler that
+   still orders correctly scores the same. The deficit could only ever show up in training.
+
+The obvious fix was to translate or re-label the 2,303. **Do not.** The rival explanation
+was tested and it wins: non-English reports are shorter, median 819 characters against
+1,276. Split into length quintiles, the language gap disappears wherever there is enough
+text to disappear in:
+
+```
+length quintile   n EN   n nonEN   conf EN   conf nonEN     diff
+              0    375       507     0.664        0.387   -0.277
+              1    247       635     0.659        0.610   -0.050
+              2    310       570     0.670        0.670   +0.001
+              3    443       438     0.718        0.738   +0.020
+              4    728       153     0.785        0.778   -0.007
+```
+
+**Length, not language.** A short report says less, and low confidence on it is the labeler
+being right rather than failing. A single Spanish report makes the same point — *"Rotura de
+menisco interno... Artrosis femorotibial medial. Derrame"* is labelled 0.975 at 0.95
+confidence on all three findings it states.
+
+Only the shortest quintile keeps a real gap (−0.277), and that is the bin with the least
+information in it either way. Not worth chasing.
+
+Kept because it cost one command to kill and would have cost days to act on. The general
+form is worth remembering: **the teacher's confidence tracks how much the report says**, so
+any label lead has to be controlled for report length before it means anything.
+
 ## What 0.938 costs, per label
 
 The public twenty score **0.856** gold macro under their own fold map and **0.891** on the
