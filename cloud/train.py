@@ -413,15 +413,21 @@ def check_encoder(variant: str = "biomedclip", img: int = 336):
     base.mkdir(parents=True, exist_ok=True)
     dest = base / f"dinov2-{variant}"
     src = pathlib.Path(f"/vol/models/dinov2-{variant}")
-    if not src.exists():
-        raise FileNotFoundError(f"{src} is missing; run --mode setup --variant {variant}")
-    if dest.exists():
-        shutil.rmtree(dest, ignore_errors=True)
-    has_st = any(src.rglob("*.safetensors"))
-    shutil.copytree(src, dest,
-                    ignore=shutil.ignore_patterns(*([".cache"] +
-                                                    (["*.bin"] if has_st else []))))
-    print(f"{dest}: {sorted(p.name for p in dest.iterdir())[:6]}", flush=True)
+    # DINOv3 has nothing staged: timm fetches it. Everything else must be staged, and a
+    # missing directory there is a real error rather than a fallback.
+    if variant == "dinov3":
+        print("dinov3: timm fetches its own weights; nothing to stage", flush=True)
+    else:
+        if not src.exists():
+            raise FileNotFoundError(
+                f"{src} is missing; run --mode setup --variant {variant}")
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        has_st = any(src.rglob("*.safetensors"))
+        shutil.copytree(src, dest,
+                        ignore=shutil.ignore_patterns(*([".cache"] +
+                                                        (["*.bin"] if has_st else []))))
+        print(f"{dest}: {sorted(p.name for p in dest.iterdir())[:6]}", flush=True)
 
     sys.path.insert(0, "/root")
     import types
@@ -430,6 +436,10 @@ def check_encoder(variant: str = "biomedclip", img: int = 336):
 
     if variant == "biomedclip":
         model = _biomedclip_build_model(stub, 6, source=dest, img=img)
+    elif variant == "dinov3":
+        # The pipeline's own builder, lifted by name, so this checks the code that will
+        # run rather than a second version of it.
+        model = stub.build_dinov3(6, img)
     else:
         from transformers import AutoModel
         bb = AutoModel.from_pretrained(str(dest))
@@ -470,12 +480,17 @@ def _head_source():
     src = (here if here.is_file() else REPO / "cloud" / "pipeline.py").read_text()
     tree = ast.parse(src)
     want = {"SlotHead", "Model"}
+    funcs = {"build_dinov3", "find_dinov3"}
     consts = {"TARGETS", "SLOTS", "SLOTS_PUBLIC", "SLOTS_RECOVERED", "SLOT_SCHEME",
               "N_SLOT", "GROUP", "POOL_PARTS"}
     out = ["import os", "import torch", "import torch.nn as nn",
-           "import torch.nn.functional as F", "def log(*a, **k): print(*a)"]
+           "import torch.nn.functional as F", "from pathlib import Path",
+           "class WeightsError(RuntimeError): pass",
+           "def log(*a, **k): print(*a)"]
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name in want:
+            out.append(ast.get_source_segment(src, node))
+        elif isinstance(node, ast.FunctionDef) and node.name in funcs:
             out.append(ast.get_source_segment(src, node))
         elif isinstance(node, ast.Assign):
             for t in node.targets:

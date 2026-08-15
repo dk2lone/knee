@@ -52,6 +52,21 @@ ENCODERS = [
      "unfreeze_last": 6},
 ]
 
+# DINOv3, the encoder this sweep could not see. Its pretrained weights are not in Kaggle's
+# model catalogue - they travel inside mattiaangeli/knee-mri-fold-weights, which every
+# 0.911-0.916 notebook mounts and whose config reads
+# `vit_small_patch16_dinov3.lvd1689m` at 336 px. So the public frontier has been running a
+# newer encoder than this repo while the encoder question here was answered against
+# DINOv2, RAD-DINO and BioMedCLIP only.
+#
+# Same shape as the control - 21.6M against 22.3M, both 384 wide over 12 blocks - so the
+# comparison is the pretraining and nothing else. The control runs again in the same
+# container rather than being compared across containers.
+DINOV3 = [
+    {"name": "dv3-control", "variant": "small", "lr_backbone": 8e-6, "unfreeze_last": 6},
+    {"name": "dv3", "variant": "dinov3", "lr_backbone": 8e-6, "unfreeze_last": 6},
+]
+
 # How much of each stack a slice is sampled from. The shipped (0.20, 0.80) throws away
 # the outer 40%, and the lateral meniscus and the lateral compartment live in those
 # slices - they are the two labels the whole public field is worst at, 0.660 and 0.706
@@ -77,7 +92,8 @@ BANDS = [
     {"name": "crop-200", "lr_backbone": 8e-6, "unfreeze_last": 6, "crop_mm": 200.0},
 ]
 
-SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS, "bands": BANDS}
+SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS,
+        "bands": BANDS, "dinov3": DINOV3}
 
 # The sweeps above RANK configurations. They cannot produce a member worth blending: one
 # fold, eight epochs and six slices holds out near 0.79, and `eda/build_kernels.py` keeps
