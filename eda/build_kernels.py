@@ -681,6 +681,14 @@ def infer_from_package(path, dev):''')
         "no weights package is attached. This notebook only predicts; the training "
         "notebooks are knee-train-v1 and knee-train-v2.")''')
 
+    # The members no longer get the whole run. The RadImageNet arm decodes the test set a
+    # second time at its own contract and then encodes every acquired slice, and it runs
+    # after this budget is spent - so a members' pass that used all 8 h would push the
+    # kernel past the 9 h cap and lose everything, including the submission it had
+    # already written. The members surrender TTA windows instead, which is measured to
+    # cost 0.003, against an arm worth about 0.025.
+    n.sub("TIME_BUDGET = 8.0 * 3600", "TIME_BUDGET = 6.5 * 3600")
+
     # The second reader, in its own cell after the driver, so it reads the submission the
     # members just wrote and can only improve it or leave it alone (issue #35).
     n.cell("kaggle/blend/rad_arm.py")

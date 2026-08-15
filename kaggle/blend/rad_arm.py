@@ -46,6 +46,13 @@ RAD_ALPHA = {"ACL": 0.7, "MCL": 0.6, "Medial Meniscus": 0.35, "Lateral Meniscus"
              "Synovitis": 0.7, "Baker's": 0.0, "Contusion": 0.7, "Fracture": 0.0}
 
 
+# What the arm needs, and what it leaves unspent. The members are given 6.5 h of the 9 h
+# cap; this is the check that the rest of it is really still there, because the members'
+# budget is a target and the cap is not.
+RAD_NEEDS_S = 1.5 * 3600
+RAD_RESERVE_S = 900.0
+
+
 def rad_file(name):
     """The one mounted file with this name, or None if the dataset is not attached."""
     base = Path("/kaggle/input")
@@ -264,6 +271,14 @@ def rad_blend(path="submission.csv"):
     sub = pd.read_csv(path, dtype={"StudyInstanceUID": str})
     if rad_file("v52_radimagenet_heads.pt") is None or rad_file("ResNet50.pt") is None:
         log("RadImageNet arm: not attached; the members' submission stands")
+        return sub
+    # A second decode of the test set plus a ResNet-50 pass over every acquired slice.
+    # Started too late it does not merely fail, it runs the kernel past the 9 h cap and
+    # takes the finished submission with it, so it is refused rather than started.
+    left = 9.0 * 3600 - (time.time() - T0) - RAD_RESERVE_S
+    if left < RAD_NEEDS_S:
+        log(f"RadImageNet arm: {left / 60:.0f} min left, needs "
+            f"{RAD_NEEDS_S / 60:.0f}; the members' submission stands")
         return sub
     keep = sub.copy()
     try:

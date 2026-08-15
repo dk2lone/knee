@@ -24,15 +24,17 @@ def load():
     nb = json.load(open(NB))
     src = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
     tree = ast.parse(src)
+    consts = ("RAD_ALPHA", "RAD_NEEDS_S", "RAD_RESERVE_S")
     want = [n for n in tree.body
             if (isinstance(n, ast.FunctionDef) and n.name in ("rad_blend", "rad_file"))
             or (isinstance(n, ast.Assign)
-                and getattr(n.targets[0], "id", None) == "RAD_ALPHA")]
-    assert len(want) == 3, f"found {len(want)} of the 3 pieces the arm needs"
+                and getattr(n.targets[0], "id", None) in consts)]
+    assert len(want) == 5, f"found {len(want)} of the 5 pieces the arm needs"
     ns = {"np": np, "pd": pd, "Path": Path, "os": __import__("os"), "TARGETS": TARGETS,
           "torch": type("t", (), {"device": lambda *a: None,
                                   "cuda": type("c", (), {"is_available": staticmethod(
                                       lambda: False)})}),
+          "time": __import__("time"), "T0": __import__("time").time(),
           "log": lambda m: print(f"  [nb] {m}"),
           "WeightsError": type("WeightsError", (RuntimeError,), {})}
     exec(compile(ast.Module(body=want, type_ignores=[]), NB, "exec"), ns)
@@ -89,7 +91,15 @@ def main():
     print(f"  attached: every target is (1-a) x base + a x arm, and the two "
           f"unvoted ones keep their order")
 
-    # 3. A failure mid-arm leaves the file it found.
+    # 3. Too little of the 9 h cap left: refused before it starts.
+    ns["T0"] = __import__("time").time() - 8.5 * 3600
+    late = ns["rad_blend"](str(tmp))
+    assert np.allclose(late[TARGETS].to_numpy(), got[TARGETS].to_numpy()), \
+        "the arm started with 30 minutes left and would have run past the cap"
+    ns["T0"] = __import__("time").time()
+    print("  30 minutes left: refused before the second decode starts")
+
+    # 4. A failure mid-arm leaves the file it found.
     before = pd.read_csv(tmp)
 
     def boom(dev):
