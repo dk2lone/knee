@@ -1838,6 +1838,88 @@ class Model(nn.Module):
         feat = torch.cat(parts, dim=1).reshape(B, S, -1)
         return self.head(feat, mask, sex_idx)
 
+def find_dinov3(name="vit_small_patch16_dinov3"):
+    """The mounted DINOv3 checkpoint, or None to let timm fetch it.
+
+    A scored kernel has no internet, so offline the weights have to be a mounted file.
+    Off the platform - the Modal container that decides whether this encoder is worth
+    publishing at all - timm downloads them, and no dataset has to exist first.
+    """
+    base = Path("/kaggle/input")
+    if not base.is_dir():
+        return None
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
+        for f in files:
+            if name in f and f.endswith((".safetensors", ".bin", ".pt", ".pth")):
+                return Path(root) / f
+    return None
+
+
+def build_dinov3(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=False,
+                 name="vit_small_patch16_dinov3.lvd1689m"):
+    """DINOv3 behind the four names the rest of this file reads.
+
+    The same rename `build_biomedclip` does, with one addition: a DINOv3 ViT carries
+    register tokens between the class token and the patches. `Model` reads index 0 as the
+    class token and means everything after it, so the registers would be averaged in as if
+    they were image content. They are dropped here instead, which is what makes the
+    feature this returns the same kind of thing DINOv2 returns.
+    """
+    import types
+
+    import timm
+
+    p = find_dinov3()
+    vit = timm.create_model(name, pretrained=p is None, num_classes=0,
+                            img_size=img_size)
+    if p is not None:
+        from timm.models.vision_transformer import checkpoint_filter_fn
+        sd = (torch.load(p, map_location="cpu", weights_only=False)
+              if p.suffix != ".safetensors" else
+              __import__("safetensors.torch", fromlist=["load_file"]).load_file(str(p)))
+        sd = sd.get("state_dict", sd) if isinstance(sd, dict) else sd
+        missing, _ = vit.load_state_dict(checkpoint_filter_fn(sd, vit), strict=False)
+        hard = [k for k in missing if not k.startswith("head")]
+        if hard:
+            raise WeightsError(f"DINOv3 is missing {len(hard)} tensors: {hard[:4]}")
+        log(f"DINOv3 weights from {p.name}")
+    else:
+        log(f"DINOv3 weights from timm ({name}), which needs the internet")
+
+    n_prefix = int(getattr(vit, "num_prefix_tokens", 1))
+
+    class _DV3(nn.Module):
+        def __init__(self, trunk):
+            super().__init__()
+            self.trunk = trunk
+            self.encoder = types.SimpleNamespace(layer=trunk.blocks)
+            self.layernorm = trunk.norm
+            self.config = types.SimpleNamespace(hidden_size=trunk.embed_dim)
+
+        def forward(self, pixel_values=None, **_):
+            x = self.trunk.forward_features(pixel_values)
+            # Class token, then the patches - the registers in between are dropped.
+            if n_prefix > 1:
+                x = torch.cat([x[:, :1], x[:, n_prefix:]], 1)
+            return types.SimpleNamespace(last_hidden_state=x)
+
+    bb = _DV3(vit)
+    n_layer = len(bb.encoder.layer)
+    for prm in bb.parameters():
+        prm.requires_grad = False
+    for blk in bb.encoder.layer[max(0, n_layer - unfreeze_last):]:
+        for prm in blk.parameters():
+            prm.requires_grad = True
+    for prm in bb.layernorm.parameters():
+        prm.requires_grad = True
+    dim = bb.config.hidden_size
+    trainable = sum(q.numel() for q in bb.parameters() if q.requires_grad)
+    log(f"backbone: DINOv3, {n_layer} blocks, last {unfreeze_last} trainable "
+        f"({trainable / 1e6:.1f}M params), feature dim {dim * POOL_PARTS[pool]}")
+    return Model(bb, dim, pool=pool, prior=prior, sex=sex)
+
+
 def find_biomedclip():
     """The mounted BioMedCLIP directory, found by its own config rather than a path.
 
@@ -1939,6 +2021,8 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",
     """
     if variant == "biomedclip":
         return build_biomedclip(unfreeze_last, IMG, pool=pool, prior=prior, sex=sex)
+    if variant == "dinov3":
+        return build_dinov3(unfreeze_last, IMG, pool=pool, prior=prior, sex=sex)
     from transformers import AutoModel
     p = source if source is not None else find_dinov2(variant)
     if p is None:
