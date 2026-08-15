@@ -170,6 +170,22 @@ FULL_BAND = [{"name": "full-band", "lr_backbone": 8e-6, "unfreeze_last": 6,
               "epochs": 22, "band": (0.02, 0.98)}]
 SETS["full-band"] = FULL_BAND
 
+# The head change, and the last untested version of the arm's-edge hypothesis. The
+# grouping sweep settled that mixing three slices before the encoder beats one slice per
+# token, by 0.019 holdout - so cross-slice information helps, and the question left is
+# whether the head should get it too. Today the encoder runs once per window and four
+# window logits are averaged *after* the head, so no attention ever crosses a slice
+# boundary. `cls_mean_focal_xs` attends over slots x windows in one pass: 24 tokens at
+# twelve slices, which is what the RadImageNet arm reads.
+#
+# The control is the same head at the same pool parts, so the only difference between the
+# two arms is where the windows are combined.
+XSLICE = [{"name": "xs-flat", "lr_backbone": 8e-6, "unfreeze_last": 6,
+           "pool": "cls_mean_focal", "n_group": 4},
+          {"name": "xs-cross", "lr_backbone": 8e-6, "unfreeze_last": 6,
+           "pool": "cls_mean_focal_xs", "n_group": 4}]
+SETS["xslice"] = XSLICE
+
 
 def status(call_id):
     """Alive, queued, or finished - without a connection that could cancel it."""

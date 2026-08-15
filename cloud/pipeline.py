@@ -871,7 +871,11 @@ N_SLOT = len(SLOTS)
 # How many 384-wide parts the per-slot feature is built from. The encoder emits one
 # vector per token; a slot feature is a fixed summary of that grid, and the summary an
 # imported member was fitted with carries a third part.
-POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3}
+POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3, "cls_mean_focal_xs": 3}
+# What the training loop builds. A module global rather than a build_model argument
+# because a sweep arm overrides it the same way it overrides GROUP - by setting the
+# attribute before main() runs - and the default keeps every existing run identical.
+POOL = "cls_mean"
 
 # Which slots an imported member's attention is tilted toward, per diagnosis. Indices are
 # into SLOTS. This is a fixed table rather than a learned parameter, so it is part of that
@@ -1751,10 +1755,18 @@ class SlotHead(nn.Module):
     """
 
     def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False,
-                 sex=False):
+                 sex=False, n_group=1):
         super().__init__()
         self.proj = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, hidden), nn.GELU())
-        self.slot_emb = nn.Parameter(torch.randn(n_slot, hidden) * 0.02)
+        # `n_group` > 1 is the cross-slice head: the sequence carries one token per
+        # (slot, window) pair rather than per slot, ordered slot-major so that index
+        # s * n_group + g is slot s read through window g. The attention below is already
+        # length-agnostic - einsum("bsh,oh->bos") does not care how long s is - so the
+        # only thing a longer sequence needs is an embedding that tells two windows of the
+        # same slot apart. One free embedding per pair does that and is strictly more
+        # expressive than adding a slot vector to a window vector.
+        self.n_group = n_group
+        self.slot_emb = nn.Parameter(torch.randn(n_slot * n_group, hidden) * 0.02)
         self.query = nn.Parameter(torch.randn(n_out, hidden) * 0.02)
         self.drop = nn.Dropout(p)
         self.out = nn.Linear(hidden, n_out)
@@ -1769,6 +1781,10 @@ class SlotHead(nn.Module):
             for t, slots in SLOT_PRIOR_TABLE.items():
                 if t in TARGETS:
                     p_[TARGETS.index(t), list(slots)] = SLOT_PRIOR_STRENGTH
+        # Built at slot resolution and then widened, so the anatomy check above still
+        # compares against len(SLOTS). Sizing it at n_slot * n_group directly would fail
+        # that check and leave the prior silently all-zero on the cross-slice head.
+        p_ = p_.repeat_interleave(n_group, dim=1)
         self.prior = prior
         if prior:
             self.register_buffer("slot_prior", p_)
@@ -1810,8 +1826,12 @@ class Model(nn.Module):
         super().__init__()
         self.backbone = backbone
         self.pool = pool
+        # The cross-slice head reads every window of every slot in one attention pass, so
+        # its sequence is N_GROUP times longer. N_GROUP is read at construction because it
+        # is fixed by the cache layout for the life of a run.
+        self.xslice = pool.endswith("_xs")
         self.head = SlotHead(dim * POOL_PARTS[pool], N_SLOT, len(TARGETS), prior=prior,
-                             sex=sex)
+                             sex=sex, n_group=N_GROUP if self.xslice else 1)
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
         self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
@@ -1834,7 +1854,7 @@ class Model(nn.Module):
         out = self.backbone(pixel_values=x).last_hidden_state
         patch = out[:, 1:]
         parts = [out[:, 0], patch.mean(1)]
-        if self.pool == "cls_mean_focal":
+        if self.pool.startswith("cls_mean_focal"):
             # The upper tail of each channel over the patch grid, taken per channel
             # rather than by selecting whole patches: a finding occupies a small part of
             # the field, so a plain mean over 256 patches dilutes it by two orders of
@@ -2359,6 +2379,23 @@ def take_group(cache_rows, g):
     return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]
 
 
+def take_all_groups(cache_rows):
+    """Every window of every slot, folded into the slot axis for the cross-slice head.
+
+    (B, S, N_GROUP * GROUP, H, W) -> (B, S * N_GROUP, GROUP, H, W), slot-major, so entry
+    s * N_GROUP + g holds exactly what `take_group(rows, g)[:, s]` holds. That ordering is
+    what `SlotHead`'s per-pair embedding and the repeated mask below both assume.
+    """
+    b, s = cache_rows.shape[:2]
+    hw = cache_rows.shape[-2:]
+    return cache_rows.reshape(b, s, N_GROUP, GROUP, *hw).reshape(b, s * N_GROUP, GROUP, *hw)
+
+
+def xslice_mask(mask):
+    """A slot's mask applies to every window cut from it."""
+    return mask.repeat_interleave(N_GROUP, dim=1)
+
+
 def augment(imgs):
     """A small rigid jitter and an intensity scale, applied to a whole bag at once.
 
@@ -2419,6 +2456,15 @@ def predict(model, cache, mask, idx, dev, img_size=None, sex=None):
         sel = idx[b:b + EVAL_BATCH]
         m = torch.from_numpy(mask[sel]).to(dev)
         sx = None if sex is None else torch.from_numpy(sex[sel]).to(dev)
+        if getattr(model, "xslice", False):
+            # One pass, not an average of N_GROUP passes: this head already saw every
+            # window inside its own attention, so averaging over windows here would
+            # average a quantity that no longer varies with g.
+            rows = torch.from_numpy(np.ascontiguousarray(cache[sel])).to(dev)
+            with torch.autocast("cuda", enabled=dev.type == "cuda"):
+                z = model(take_all_groups(rows), xslice_mask(m), img_size, sx).float()
+            out.append(torch.sigmoid(z).cpu().numpy())
+            continue
         acc = None
         for g in range(N_GROUP):
             # Gathered a group at a time rather than whole and then sliced. The two are
@@ -2629,7 +2675,7 @@ def main():
         # held out share an initialisation, and an ensemble of correlated members is a
         # slower way to be one member.
         torch.manual_seed(SEED + fold)
-        model = build_model(UNFREEZE_LAST, sex=True).to(dev)
+        model = build_model(UNFREEZE_LAST, sex=True, pool=POOL).to(dev)
         opt = torch.optim.AdamW([
             {"params": [p for p in model.backbone.parameters() if p.requires_grad],
              "lr": LR_BACKBONE},
@@ -2648,9 +2694,17 @@ def main():
             for b in range(0, len(perm) - BATCH_STUDIES + 1, BATCH_STUDIES):
                 sel = perm[b:b + BATCH_STUDIES]
                 rows = torch.from_numpy(Ctr[sel]).to(dev)
-                g = int(torch.randint(N_GROUP, (1,)).item())
-                imgs = augment(take_group(rows, g))
                 m = torch.from_numpy(Mtr[sel]).to(dev)
+                if getattr(model, "xslice", False):
+                    # Every window in one step, because the whole point of this head is
+                    # that a finding on one slice can be read against its neighbours. The
+                    # single-group draw below is an augmentation along the stack, and it
+                    # would hide exactly the comparison this head exists to make.
+                    imgs = augment(take_all_groups(rows))
+                    m = xslice_mask(m)
+                else:
+                    g = int(torch.randint(N_GROUP, (1,)).item())
+                    imgs = augment(take_group(rows, g))
                 y = torch.from_numpy(Y[sel]).to(dev)
                 w = torch.from_numpy(W[sel]).to(dev)
                 sx = torch.from_numpy(sex_tr[sel]).to(dev)

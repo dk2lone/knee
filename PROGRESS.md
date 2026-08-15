@@ -62,7 +62,8 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **Grouping sweep** — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
+| **Cross-slice sweep** — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **launched** `fc-01M03EMD3T5ZZVAEDRVWAJ1EQ2` |
+| Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
 | DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | **dead**, crashed; not relaunching |
 | Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | **dead**, crashed; not relaunching |
@@ -375,7 +376,79 @@ If v4 also pays a sixth, the conversion is broken and not the base, and gold-58 
 the tool that chooses submissions. If it pays closer to a half, dilution is confirmed and
 every future change gets priced against the pool it will actually vote in.
 
-## The head change, scoped
+## The head change is built, checked and running
+
+Written as `pool="cls_mean_focal_xs"`, launched as the `xslice` sweep. It came out smaller
+than the scope below predicted, for one reason: **`SlotHead`'s attention was already
+length-agnostic.** `einsum("bsh,oh->bos")` does not care how long the sequence is, so
+feeding it slots x windows needed no new attention code at all. What it needed was an
+embedding that tells two windows of the same slot apart, and one free embedding per
+(slot, window) pair does that — strictly more expressive than adding a slot vector to a
+window vector, and fewer lines.
+
+The whole change is four pieces:
+
+- `SlotHead(..., n_group=N)` sizes `slot_emb` at `n_slot * n_group` and widens the anatomy
+  prior with `repeat_interleave`. The prior is still **built** at slot resolution, so the
+  `n_slot == len(SLOTS)` check that fills it still fires — sizing it directly at the wider
+  shape would have failed that check and left the prior silently all-zero
+- `take_all_groups` folds windows into the slot axis, slot-major
+- the training step gathers every window instead of drawing one at random, because the
+  single-group draw is an augmentation along the stack and would hide the exact comparison
+  this head exists to make
+- `predict` makes one pass instead of averaging `N_GROUP` passes, since this head already
+  saw every window inside its own attention
+
+**It is additive.** `cls_mean_focal_xs` is a new `pool` value; `cls_mean_focal` is untouched,
+so every existing member checkpoint still loads. That was the stated risk and it is handled
+by construction rather than by care.
+
+### `eda/test_xslice.py` — six checks, and one of them earns its keep
+
+The dangerous failure here is silent. If `take_all_groups` and `xslice_mask` ever disagree
+about ordering, every mask lands on the wrong token and nothing raises — the run just trains
+against a mask hiding the wrong slots.
+
+```
+ok  test_ordering                          entry s*N_GROUP+g is take_group(rows,g)[:,s]
+ok  test_mask_follows_the_same_ordering     a slot's mask covers exactly its own windows
+ok  test_head_reads_the_longer_sequence     24 tokens in, 12 findings out
+ok  test_model_forward_both_pools           both pools return one row per study
+ok  test_xslice_head_actually_sees_every_window
+ok  test_existing_head_is_unchanged         the shipped path keeps its shapes
+```
+
+The suite was checked against a deliberately wrong ordering — window-major instead of
+slot-major, the plausible mistake — and `test_ordering` caught it at (slot 1, window 0). A
+test that has never failed has not been shown to work.
+
+`test_xslice_head_actually_sees_every_window` guards the other silent failure: a head that
+reads only the first window would keep every shape correct and quietly score the old model.
+It bumps each window in turn and requires the output to move.
+
+The laptop sizes its cache to one group, and at `N_GROUP=1` these ordering checks are
+trivially true, so the test pins `GROUP=3, N_GROUP=4` the way `cloud/train.py` does. It also
+builds its own corpus root of symlinks, because `pipeline.py` resolves the corpus at import
+and the local `data/` has the tables but no DICOM tree.
+
+### What the sweep asks
+
+```
+xs-flat    pool cls_mean_focal      four window logits averaged after the head
+xs-cross   pool cls_mean_focal_xs   one head call over 6 slots x 4 windows = 24 tokens
+```
+
+Same encoder, same slices, same epochs, same learning rate. The only difference is **where
+the windows are combined** — after the head, or inside its attention. 24 tokens is what the
+RadImageNet arm reads, and reading them jointly is the last untested explanation for its
+lateral labels.
+
+Expect `xs-cross` to cost about four times the compute per epoch, and this time the
+prediction has a reason behind it: the cross-slice step encodes all four windows where the
+flat step encodes one. That is the opposite of the grouping sweep, where sampling one random
+group made both arms cost the same.
+
+## The head change, scoped — the original plan, kept for comparison
 
 The grouping sweep tests packing, not token count, so the token-count hypothesis still has
 no experiment. Here is what one costs, written down before it is built.

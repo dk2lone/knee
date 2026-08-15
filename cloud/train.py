@@ -862,6 +862,12 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         # 12. Without this the arm would answer "fewer slices is worse", which is known.
         if "n_group" in arm:
             pipeline.N_GROUP_MAX = int(arm["n_group"])
+        # The cross-slice head. GROUP=1 lost to GROUP=3 by 0.019, so mixing slices before
+        # the encoder helps; this asks whether mixing them again *inside the head* helps
+        # too, by attending over slots x windows in one pass instead of averaging one
+        # head call per window. Set here rather than passed to build_model so the arm
+        # reads like every other override, and defaulted so no existing arm changes.
+        pipeline.POOL = arm.get("pool", "cls_mean")
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600
