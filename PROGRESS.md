@@ -802,8 +802,31 @@ Slightly under the 150 s floor I guessed, which is the expected direction: the e
 most of a step but not all of it, so quadrupling the encoder work multiplies the step by a
 little under four.
 
-First epoch holdout is 0.7353 against `xs-flat`'s 0.7211. One epoch decides nothing and it
-is recorded only so the curve can be read against the flat arm as it fills in.
+### The two curves, side by side as they fill in
+
+Same fold, same 882 holdout studies, same 19 annotated held out, same eight epochs. The only
+difference is whether the head sees one sampled window per step or all four.
+
+| epoch | xs-flat | xs-cross | delta | s/epoch cross |
+|---|---:|---:|---:|---:|
+| 1 | 0.7211 | 0.7353 | **+0.0142** | 143.2 |
+| 2 | 0.7463 | 0.7621 | **+0.0158** | 146.7 |
+| 3 | 0.7760 | | | |
+| 4 | 0.7890 | | | |
+| 5 | 0.7937 | | | |
+| 6 | 0.8030 | | | |
+| 7 | 0.8073 | | | |
+| 8 | **0.8071** | | | |
+
+`xs-cross` is ahead at both epochs so far, by about the same margin. Two points prove
+nothing — the flat arm gained 0.025 between epochs 1 and 2 on its own, so a 0.015 gap is
+inside one epoch of progress — but the sign is worth watching because the hypothesis
+predicts it.
+
+What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
+(0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
+epoch budget is the binding constraint and the comparison understates it; if it plateaus
+too, the two numbers are comparable as they stand.
 
 ### What the sweep asks
 
