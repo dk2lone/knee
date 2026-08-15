@@ -115,6 +115,39 @@ can answer it. Paired with v4, which differs in four lines, the board is a clean
 the two come back equal, logit pooling is worth nothing at five members and the idea dies
 for the price of a slot that expires unused anyway.
 
+**One thing could be checked, and it clears the change to fly.** The degenerate row above
+is the *fold join*, not the pooling. Letting all five members vote on all 58 studies — which
+is what happens at inference — the two rules do disagree:
+
+```
+5 members, 58 studies   identical orderings: False
+mean |rank shift| 0.0164   max 0.1552
+Synovitis 0.0268   Medial Meniscus 0.0211   MCL 0.0190
+```
+
+That is not an AUC and is not honest as one — every member has seen most of those studies.
+It answers only the mechanical question, which is the one that decides whether the slot is
+wasted: **the pooling really does reorder studies at five voters.** So `knee-blend-logit`
+will not come back byte-identical to v4.
+
+### And the same change on the fork, which is where it should matter most
+
+`knee-frontier-logit`, built on **alpha v2** rather than the plain fork so the pair isolates
+one thing, exactly as `blend-logit` does against v4. Pooling rules matter more the more
+voters disagree, and this is **25 members against our 5** — the fork is where the +0.0021
+was measured, since the public twenty are its core.
+
+The fork has several `rank(pct=True)` sites and only one pools the members. The builder
+matches `infer_from_package`'s weighted rank mean **together with its per-target weight
+line**, and refuses unless it occurs exactly once, so a build cannot transform the ranks and
+leave the weighting behind. The site at line 2729 writes `submission_rankmean.csv` inside
+the training path the fork never runs, and is deliberately not touched.
+
+Downstream is safe by type: `write_submission` re-ranks, so the legacy bundle, the pooling
+map and the RadImageNet arm all receive a ranked submission either way. What changes is
+which ranking, not its kind — which is what separates this from runs 8 and 9, where a
+*constant* fitted against another pool was imported wholesale.
+
 ### Checked 15 Aug 09:30: the notebook that now sorts above the frontier *is* the frontier
 
 `nikitagajbhiye30/rsna-knee-00` took the top of `--sort-by scoreDescending`, above
@@ -778,6 +811,11 @@ only in that the first one answers the open question:
 3. `knee-blend-clean` — version 1 — the licence-safe floor
 4. `knee-blend-logit` — version 1 — v4 with the members pooled in logit space, and nothing
    else changed. Submit it **after** v4 so the pair reads as one comparison
+5. `knee-frontier-logit` — version 1 — the same pooling change on alpha v2's 25 members.
+   Submit it **after** alpha v2, for the same reason
+
+That is all five, and each of the two new ones is paired with the control directly above it.
+Two pairs and one floor, which is the most information five slots can carry tonight.
 
 Then stop — but **the reason given earlier for stopping was wrong and is worth correcting.**
 This page said "a submission spent on noise is a measurement that cannot be taken tomorrow".
