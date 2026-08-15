@@ -1,9 +1,19 @@
-"""Score each public report-label table against the 58 gold studies.
+"""Score each table of per-study scores against the 58 gold studies.
 
 Run: .venv/bin/python eda/score_labels.py
 Needs data/train.csv and data/labels/*.csv (see README).
+
+The same arithmetic reads the frontier probe, which writes one CSV per stage of the
+ensemble over the same 58 studies, so one run says which stage moves which label:
+
+    .venv/bin/python eda/score_labels.py kaggle/frontier-probe/out \\
+        kaggle/frontier-probe/out/probe_truth.csv
+
+Those numbers are inflated - the members trained on these studies - so read the column
+differences between stages, not the values.
 """
 import glob
+import sys
 
 import numpy as np
 import pandas as pd
@@ -22,12 +32,12 @@ def auc(y, s):
     return (r[y == 1].sum() - npos * (npos + 1) / 2) / (npos * nneg)
 
 
-def main():
-    train = pd.read_csv("data/train.csv")
+def main(where="data/labels", truth="data/train.csv"):
+    train = pd.read_csv(truth)
     gold = train[train[L].notna().all(axis=1)].set_index("StudyInstanceUID")[L].astype(int)
 
     rows = {}
-    for f in sorted(glob.glob("data/labels/*.csv")):
+    for f in sorted(glob.glob(f"{where}/*.csv")):
         d = pd.read_csv(f).set_index("StudyInstanceUID")
         if not all(c in d.columns for c in L):
             continue
@@ -40,6 +50,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(*sys.argv[1:])
     # ponytail: no blend search here. Rank-averaging every combination gained 0.0001
     # over the best single file, which is unmeasurable at n=58. See issue #2.
