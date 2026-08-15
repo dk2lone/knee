@@ -91,6 +91,7 @@ its other inputs**, so never launch one while a sweep is alive.
 | 8 | + legacy 4-fold bundle on its four findings | 0.904 | **a regression of 0.003** |
 | 9 | three arms + the frontier's TTA pooling map | 0.905 | the map bought back 0.001 of the 0.003 |
 | 10 | `dk2lone/knee-frontier`, the public frontier unchanged | **0.911** | +0.004 over ours, not the +0.009 advertised |
+| 11 | `knee-frontier-alpha` — per-target RadImageNet vote | pending | predicted 0.917; the day's last slot |
 
 Runs 8 and 9 are two measurements of the same law: **a constant fitted on the frontier's
 base does not transfer to ours.** The legacy fractions cost 0.003, and the pooling map that
@@ -411,7 +412,13 @@ tested. `eda/test_blend.py` now pins the fold spread so this cannot come back.
 
 The fork is unaffected: it votes all twenty, so it never had the concentration.
 
-## The last submission of the day
+## The last submission of the day — spent
+
+`knee-frontier-alpha` went out at 03:27 EDT. **Zero remaining until 20:00 EDT**, about 16.5
+hours. It carries one change against a measured base, with a written prediction of 0.917,
+which is the cleanest test this project has run: one ingredient, one number, stated first.
+
+Everything below is what that decision was weighed against.
 
 One left, and the count resets at 20:00 EDT — about 17 hours. Nothing else can be ready in
 that window: the Modal runs are hours from finishing and the probe informs a submission
