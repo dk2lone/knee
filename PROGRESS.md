@@ -786,6 +786,25 @@ these two will not.
 The landing time is itself the measurement, which is convenient: if the result arrives early
 it is not a result. Recorded before the first epoch line so it cannot be fitted afterwards.
 
+**Confirmed at 19:49.** The first epoch started at 2523.8 s and printed at 2667.0 s:
+
+```
+xs-flat   epoch 1   ~43 s
+xs-cross  epoch 1   143.2 s     3.3x
+```
+
+Cleanly inside the cross-slice band and nowhere near the 45 s that would have voided the
+comparison. **`xs-cross` really is encoding every window**, on the deployed container rather
+than in a stub, and the two arms differ in the thing they were built to differ in. Eight
+epochs at that rate land near **20:05**.
+
+Slightly under the 150 s floor I guessed, which is the expected direction: the encoder is
+most of a step but not all of it, so quadrupling the encoder work multiplies the step by a
+little under four.
+
+First epoch holdout is 0.7353 against `xs-flat`'s 0.7211. One epoch decides nothing and it
+is recorded only so the curve can be read against the flat arm as it fills in.
+
 ### What the sweep asks
 
 ```
