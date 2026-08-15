@@ -209,6 +209,43 @@ Cutting the ensemble from 20 members to 5 costs nothing — the members differ o
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
 fifteen members, which inverts the baseline's own stated priority.
 
+## The probe cannot measure the RadImageNet stage, and nearly said it could
+
+`eda/sweep_rad_alpha.py` recovered the stage's own predictions by algebra and fitted a
+per-target weight. The answer was seductive: hand Lateral Meniscus, Lateral OA and
+Synovitis **entirely** to the arm, for +0.029 macro — almost exactly the +0.031 that
+separates us from tenth.
+
+It is a leak, and three independent things say so.
+
+| label | recovered from the probe | our own refit, fold-respecting |
+|---|---:|---:|
+| Lateral Meniscus | 0.914 | **0.720** |
+| Lateral OA | 0.926 | **0.795** |
+| Synovitis | 0.916 | **0.730** |
+
+The second column is `kaggle/radheads/out/oof.csv` — our refit of the same head class on
+our own folds, scored out of fold. A second head family does not add 0.19 to a finding.
+
+`rad_heads_manifest.json` gives the mechanism exactly: five heads, one per fold,
+`gold_override: false`, `target_mode: public3`. Each head held out its own fold and trained
+on the rest — and **the fork averages all five**, so four of them trained on every study it
+is scored against.
+
+**The v15 family has the same five-fold structure**, so `knee-frontier-probe-v15` will leak
+too. It is left running because the size of the difference says how much each family
+memorised, but it cannot produce an honest weight either. Measuring this stage on gold-58
+needs the arm itself made fold-respecting, which is a change to somebody else's inference
+code, not a mount.
+
+**So the fitted map is discarded and `RAD_ALPHA` stays as it is** — fitted from the
+publisher's own out-of-fold table, which is honest by construction. The last submission
+carries two changes, not three.
+
+Leakage is a measurement problem and not a deployment one. No member and no head trained on
+the hidden test, so mounting the second family is still correct; it simply cannot be priced
+against these 58 studies.
+
 ## Our five members were two members wearing five votes
 
 pilkwang's package is five folds by four seeds. `collect_members` took the five highest
@@ -244,11 +281,16 @@ untested things at once:
 
 1. the fold spread above
 2. the frontier's second RadImageNet head family, at half the arm's vote
-3. a `RAD_ALPHA` fitted by `eda/sweep_rad_alpha.py` rather than borrowed
 
-Three changes in one submission cannot be attributed on the leaderboard. That is acceptable
-only because the probe attributes them offline for free, which is the whole reason it was
-built.
+It was going to carry a third - a `RAD_ALPHA` fitted on the probe - and that ingredient was
+dropped once the fit turned out to be reading memorised studies. `RAD_ALPHA` stays as the
+publisher's out-of-fold table set it.
+
+Two changes in one submission still cannot be attributed on the leaderboard, and here the
+probe cannot attribute them either: both are invisible to it. The fold spread changes which
+members vote, and every member recites these 58 studies; the second head family leaks the
+same way. They go together because they are both free at inference and both principled, not
+because the pairing was measured.
 
 ## What 0.938 costs, per label
 
