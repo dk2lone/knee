@@ -940,6 +940,42 @@ one axis away from v4.
 Unlike member pooling there is not even a degenerate row to reason from — which makes the
 pairing with v4 the whole experiment rather than a confirmation of one.
 
+Verified where it could be. The live kernel carries `TTA_POOL = "logit"` and no longer
+carries `"prob"`, and `predict_member` really does compute a different quantity:
+
+```
+prob :  mean(sigmoid(z))      over the ten windows
+logit:  sigmoid(mean(z))
+```
+
+Sigmoid is monotone, so the second ranks by the mean of logits. They differ by Jensen, and
+the direction is informative: sigmoid is concave above zero, so `mean(sigmoid)` sits below
+`sigmoid(mean)` for a high-scoring study. **Probability pooling penalises a study whose
+windows disagree; logit pooling does not.**
+
+Worth noticing that this is *not* the same mechanism as member pooling, even though it is the
+same word. Member logit pooling helps because it lets a confident reader speak louder. TTA
+logit pooling changes how much a member is punished for its own windows disagreeing. The two
+could easily have opposite signs, which is exactly why they are two slots and not one.
+
+### All five verified against what is on Kaggle, not against what was built
+
+Every kernel COMPLETE, and each checked by the strongest means available to it:
+
+| kernel | how it was verified |
+|---|---|
+| `knee-blend-nolegacy` v4 | pulled live; `RAD_ALPHA` has Synovitis and PF OA at 0.7 |
+| `knee-blend-logit` | log prints `logit mean of 5 member(s)` |
+| `knee-blend-ttalogit` | pulled live; has `"logit"`, no `"prob"` |
+| `knee-frontier-alpha` v2 | predictions move on exactly Synovitis and PF OA, ten labels byte-identical |
+| `knee-frontier-logit` | pulled live; logit transform in, old rank line gone, alpha map intact |
+
+Three of the five needed a live pull because **their logs cannot distinguish them from their
+controls** — a re-pooling changes no message and, at three studies, no number either. All
+three logit kernels produce output byte-identical to their controls on the dry run, and that
+is expected rather than alarming: three points are almost never reordered by a monotone
+re-pooling. It does mean the board is the first place any of them becomes visible.
+
 Then stop — but **the reason given earlier for stopping was wrong and is worth correcting.**
 This page said "a submission spent on noise is a measurement that cannot be taken tomorrow".
 That is false: the five reset every day at 20:00 and unused slots do not carry over, so an
