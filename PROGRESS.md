@@ -232,6 +232,32 @@ and the deployed v15 arm wins on the same three findings our refit does — Late
 
 Worth +0.0125 gold over shipped, so about **+0.006 on the board** after halving.
 
+## Two candidates are built, dry-run and waiting on one submission
+
+| kernel | what it changes | verified |
+|---|---|---|
+| `knee-blend-nolegacy` v3 | our base: fold spread, second head family, measured weights | dry run in flight |
+| `knee-frontier-alpha` | the fork's flat 0.35 replaced by the measured per-target rule | **dry run clean** |
+
+`knee-frontier-alpha` was checked against the plain fork's dry run on the three visible
+studies, and the differences land exactly where the rule says they should:
+
+```
+Lateral Meniscus  0.047     Baker's   0.000
+Lateral OA        0.070     Fracture  0.000
+Contusion         0.070     MCL       0.003
+```
+
+The three findings whose weight went **up** to 0.7 move most; the two with no vote are
+byte-identical; the seven that went down to 0.3 move a little. That is the map applied, not
+a coincidence — and the two zeros confirm the stage's own preservation assertion still
+holds.
+
+One caveat that costs nothing but would confuse a reader of the log: the stage still prints
+`0.65*rank(parent)+0.35*(...)`, because that message interpolates the old scalar, which the
+builder leaves in place. The arithmetic uses the map. The log line is wrong and the output
+is right.
+
 ## The diversity run will land before the submission count resets
 
 It started training at 1,927 s: five site-grouped folds of 882, 22 epochs each, 12 slices.
