@@ -89,3 +89,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# Kept alongside the geometry test because it is the same question asked of the labels:
+# if the report never said which compartment, the extractor would be unsure often and the
+# teacher would be low for that reason. Run: .venv/bin/python -c "import eda.geometry_probe
+# as g; g.label_certainty()"
+def label_certainty(table="kaggle/labels/report_labels_dk.csv"):
+    """Per label: how often the extractor was unsure, and what it scores when it was not."""
+    tab = pd.read_csv(table).set_index("StudyInstanceUID")
+    train = pd.read_csv("data/train.csv").set_index("StudyInstanceUID")
+    gold = train[train[L].notna().all(axis=1)][L].astype(int)
+    gi = gold.index.intersection(tab.index)
+    print(f"{'label':18s} {'unsure%':>8s} {'teacher':>8s} {'on its sure cells':>18s}")
+    for c in L:
+        conf = tab[c + "__conf"]
+        sure = (conf >= 0.5).reindex(gi).fillna(False).values
+        y, t = gold.loc[gi, c].values, tab.loc[gi, c].values
+        a_s = auc(y[sure], t[sure]) if sure.sum() > 6 else float("nan")
+        print(f"{c:18s} {100 * (conf < 0.5).mean():7.1f}% {auc(y, t):8.3f} {a_s:18.3f}")
