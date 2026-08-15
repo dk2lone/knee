@@ -17,6 +17,7 @@ Run: .venv/bin/python eda/probe_gold.py kaggle/probe/out/probe.csv
 import hashlib
 import json
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -51,8 +52,31 @@ def oof(pred, fold_of):
     return r.groupby("StudyInstanceUID")[L].mean()
 
 
+def load(path):
+    """One long table of member predictions, from a file or a directory of them.
+
+    `kaggle/probe` writes the long form directly. The frontier probe cannot: it dumps
+    inside somebody else's banking function, one wide table per member, named
+    `member_<id>_f<fold>.csv`. Reading both here keeps one fold join rather than two.
+    """
+    p = Path(path)
+    if not p.is_dir():
+        return pd.read_csv(p)
+    frames = []
+    for f in sorted(p.glob("member_*.csv")):
+        mid, _, fold = f.stem[len("member_"):].rpartition("_f")
+        d = pd.read_csv(f, dtype={"StudyInstanceUID": str})
+        d.insert(0, "fold", int(fold) if fold.isdigit() else -1)
+        d.insert(0, "member", mid)
+        frames.append(d)
+    if not frames:
+        raise SystemExit(f"no member_*.csv under {p}")
+    print(f"{len(frames)} member tables from {p}")
+    return pd.concat(frames, ignore_index=True)
+
+
 def main(path):
-    pred = pd.read_csv(path)
+    pred = load(path)
     train = pd.read_csv("data/train.csv").set_index("StudyInstanceUID")
     weak = pd.read_csv("data/labels/llm_labels_v4_blend.csv").set_index("StudyInstanceUID")
     man = json.load(open("data/weights/pilkwang_manifest.json"))
