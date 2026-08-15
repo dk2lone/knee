@@ -273,6 +273,32 @@ noise, and our own 0.907 was 0.004 behind it with five members and no DINOv3 at 
 `knee-frontier-alpha` should now land near **0.917**: 0.911 plus the +0.006 the weight
 correction is worth. That is the last submission of the day.
 
+## The head change, scoped
+
+The grouping sweep tests packing, not token count, so the token-count hypothesis still has
+no experiment. Here is what one costs, written down before it is built.
+
+Today the encoder runs once per window and the head runs on six slot vectors; the four
+windows are averaged as *logits*, after the head. So no attention ever crosses a slice
+boundary. Both readers that beat us on the small findings do exactly that crossing.
+
+The change is not a rewrite, and it is deliberately the cheap version:
+
+1. split `Model.forward` into `encode()` and `head()`, which it already is in all but name
+2. in `predict_member` and the training step, gather all `N_GROUP` windows' features first,
+   then make **one** head call over `S x N_GROUP` tokens instead of `N_GROUP` calls over `S`
+3. give `SlotHead` a position embedding per window alongside its slot embedding, and let
+   its existing per-finding query attend over the flattened `S x N_GROUP` sequence
+
+That is 24 tokens at the shipped twelve slices, against 24 for the RadImageNet arm. The
+query-per-finding structure already exists in `SlotHead` — what is missing is only that the
+sequence it attends over has never included the slice axis.
+
+Cost: the encoder pass is unchanged, so training time barely moves; the head grows by one
+embedding. Risk: every existing member checkpoint has a `SlotHead` without the position
+embedding, so this must be a new `pool` value rather than a change to `cls_mean_focal`, or
+the whole blend stops loading.
+
 ## Fold 0 is done, and our best model still projects short of an ordinary competitor's
 
 ```
@@ -305,8 +331,14 @@ Four folds remain at about 15 minutes each. Four folds remain at about 15 minute
 It goes to the grouping sweep, not to anything else:
 
 ```
+MODAL_PROFILE=sunnypathca .venv/bin/python -m modal deploy cloud/train.py   # after, not before
 MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py group small 8 4
 ```
+
+**Deploy after the diversity run finishes, not before.** `cloud/train.py` changed to add the
+`n_group` override, so the sweep needs a redeploy — and a running container is worth more
+than the 80 seconds the deploy costs. There is no reason to find out the hard way whether
+redeploying disturbs a five-hour job that is four folds from done.
 
 Three reasons it wins the lane over the alternatives:
 
