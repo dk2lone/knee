@@ -273,6 +273,33 @@ noise, and our own 0.907 was 0.004 behind it with five members and no DINOv3 at 
 `knee-frontier-alpha` should now land near **0.917**: 0.911 plus the +0.006 the weight
 correction is worth. That is the last submission of the day.
 
+## The moment the diversity run ends, the grouping sweep starts
+
+Fold 0 finishes at holdout 0.827 against the 0.8304 four sweeps predicted, so the run is
+behaving. Four folds remain at about 15 minutes each — **roughly an hour**, and then
+`sunnypathca` is the only free Modal lane in the account.
+
+It goes to the grouping sweep, not to anything else:
+
+```
+MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py group small 8 4
+```
+
+Three reasons it wins the lane over the alternatives:
+
+- It is the **only untested hypothesis with three independent witnesses**. Our head attends
+  over six slot vectors; the RadImageNet arm attends over 3 slots x 8 slices on a *frozen*
+  encoder and beats our fine-tuned members on the small findings; the frontier's own
+  members run `pool='xcodex'` over slots x 16 slices.
+- The remaining 0.019 gold to tenth cannot come from the arm, which already votes 0.7 on
+  every finding it wins, nor from better labels, since five of twelve findings already beat
+  their teacher. It has to come from a better model.
+- `sunnypathca` has the ordering pass cached on its Volume from this run, so the next
+  container there skips 1,784 s that a fresh workspace would pay.
+
+The corpus itself is on ephemeral disk and is not cached, so the new container pays the
+download again. On the half box that was 34 minutes.
+
 ## Predictions on record, for tomorrow's slots
 
 The conversion is gold + 0.035. Every number below was written before the submission that
