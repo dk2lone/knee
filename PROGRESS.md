@@ -722,6 +722,31 @@ work that a 0.01 holdout difference could throw away.
 Tonight's three submissions are not exposed to any of this: all three kernels were built and
 pushed before the edit, and none of them trains.
 
+### A free third measurement the sweep was not designed to make
+
+`xs-flat` looked like a replica of the grouping sweep's `grp-3` — same `lr_backbone` 8e-6,
+same `unfreeze_last` 6, same `n_group` 4, and `xs-flat` sets no `group` so both take the
+default 3, which the log confirms as "4 group(s) of 3 = 12 slices per slot". Both run one
+fold and eight epochs, the sweep default.
+
+They differ in exactly one thing. `GROUPING` sets no `pool`, so `grp-3` took the default
+`cls_mean`; `XSLICE` sets `pool: cls_mean_focal`. That is 2 parts against 3, and the log
+prints it as feature dim 1152 where `grp-3` had 768.
+
+Two consequences, and the first is a caveat:
+
+- **`xs-flat` cannot be used to check that the rig reproduces `grp-3`.** They are not the
+  same arm, so a difference between them is not evidence of run-to-run drift.
+- **It prices `cls_mean_focal` against `cls_mean` for free**, which nothing on this page set
+  out to measure. `grp-3` held out 0.8298. `xs-flat` is at 0.8073 through seven of eight
+  epochs and rising slowly.
+
+If `xs-flat` lands near 0.81 the reading is that the focal pool costs about 0.02 at this
+grouping — worth knowing, since `POOL` is a one-word change and the more expensive pool is
+currently the default in the sweep set. Read it as one run against one run across two
+sweeps, so it is a lead and not a result. It does not touch the `xs-flat` against `xs-cross`
+comparison, which shares the pool family and is still one change wide.
+
 ### What the sweep asks
 
 ```
