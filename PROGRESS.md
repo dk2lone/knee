@@ -150,6 +150,33 @@ the pattern works: it is appended last, it shadows the names defined before it, 
 reads `submission.csv` off disk rather than from a variable. Our stage becomes the next
 one in that chain.
 
+## The forum says the ensemble is the wrong axis
+
+`discussion/735304`, "Best single-model score". The asker notes that the public solutions
+ensemble twenty or more models to reach about 0.91, and asks whether 0.92 to 0.94 needs an
+ensemble. **Chikuwabu, 15th in this competition, answers: "A single model actually works
+much better than you'd expect."**
+
+Fifteenth is about 0.936. So a team at the rung we are aiming for says one model gets
+there, while the public frontier needs twenty-five to reach 0.916. That is evidence the
+teams above us hold a **better model**, not a bigger vote — and assembling public parts
+reaches the frontier and not past it, which runs 8 and 9 already showed from the other
+side.
+
+It agrees with the headroom split above: four findings are model-limited and five cannot
+move at all without better labels. Both point at the same work.
+
+## Is the private split by site? Still unanswered
+
+`discussion/734681`. The question matters because it decides how folds should be built: if
+whole sites are held out, site-grouped cross-validation measures the right thing and the
+OOF score it costs is worth paying; if both splits are stratified across all sixteen
+sites, that cost buys nothing. No host has answered. A competitor with six past RSNA
+competitions read across them and found shakeups from none to 1,039 places for first, so
+the category is not decidable from history either.
+
+Our fold map is site-grouped, which is the conservative choice of the two.
+
 ## Which base to build on
 
 This repo's blend runs 5 members. The fork runs 25 plus everything our blend has. Nothing
