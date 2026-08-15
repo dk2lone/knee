@@ -35,13 +35,27 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 
 | What | Where | State |
 |---|---|---|
-| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | corpus in 136.6 min, extracting |
-| Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | corpus in 125.3 min, extracting |
-| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | corpus 95% |
+| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | corpus in 125.3 min, extracting |
+| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | corpus in 108.7 min, extracting |
+| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016`, `fc-01M01YRGT6HQ13AD3GD2WRYNQV` | spawned |
 | `dk2lone/knee-frontier` — fork of the frontier ensemble | Kaggle | submitted, pending |
 
-All three lanes are past 95% of the 247 GB corpus, so none is worth killing to free a lane
-for the zoom sweep. That sweep waits for the first one to finish.
+**The parity run is cancelled.** It held an L40S worker, lost it, and went back to "waiting
+to be scheduled ... relaxing requirements (memory=128.8GiB) may lead to faster scheduling"
+with its 136.6-minute download to repeat. It was also the least valuable of the three: it
+trains members at the *public* contract, and issue #37 already measured those as too
+correlated to pay their way — +0.0012 earned against 0.005 lost nested. The diversity run
+is the same architecture on the one contract nobody else holds, and it kept its worker.
+
+**A sweep now asks for half the box** — `cpu=4, memory=65536, cache_budget_gb=48` — because
+L40S capacity, not compute, is what the queue is short of. A sweep arm caches six slices
+where a full run caches twelve, so this is the same memory per slice. A `full` run keeps
+the large box; below 64 GiB the planner gives slices away silently instead of failing.
+
+**Modal budget.** `raahncpe` and `hz-danielzhang` have now hit their billing-cycle spend
+limits, joining `danielz51666`, which still runs what it already started. `daniel21cn2016`
+had never had the app deployed, so it was the one lane with budget left; the zoom sweep
+runs there. **There are no spare lanes after this one.**
 
 A Modal call only answers to the workspace that spawned it, so prefix the status call:
 `MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py status <fc-id>`. Without it the

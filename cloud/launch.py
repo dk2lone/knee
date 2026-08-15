@@ -167,13 +167,24 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
     workspaces isolates it at every learning rate for the price of one extra extraction.
     """
     fn = modal.Function.from_name(APP, "sweep" if what in SETS else "train")
+    # A sweep gets half the box. L40S capacity is the binding constraint, not compute:
+    # the parity run held a worker, lost it, and went back to "waiting to be scheduled on
+    # a GPU_L40S worker ... relaxing requirements (memory=128.8GiB) may lead to faster
+    # scheduling" after a 137-minute download it then had to repeat. A sweep arm caches
+    # six slices where a full run caches twelve, so 64 GiB is the same cache per slice and
+    # a box that actually schedules. A `full` run keeps the large box - below 64 GiB the
+    # planner gives slices away silently rather than failing.
+    if what in SETS and not what.startswith("full"):
+        fn = fn.with_options(cpu=4.0, memory=65536)
     if what in SETS:
         # Five folds for a real run, one for a sweep arm: a sweep is comparing
         # configurations and five folds of each would cost five times as much to answer
         # the same question.
         call = fn.spawn(SETS[what], variant=variant, epochs=epochs,
                         n_group_max=n_group_max,
-                        folds=5 if what.startswith("full") else folds)
+                        folds=5 if what.startswith("full") else folds,
+                        **({} if what.startswith("full") else
+                           {"cache_budget_gb": 48.0}))
     else:
         call = fn.spawn(what, variant=variant, epochs=epochs)
     print(f"spawned {what} on {variant}: {call.object_id}")
