@@ -118,6 +118,28 @@ def test_paths_are_all_under_kaggle_input():
         assert "/kaggle/input" in body[i:i + 1200], f"{fn} no longer looks under /kaggle/input"
 
 
+def test_one_slice_per_token_reaches_the_encoder_as_three_channels():
+    """GROUP=1 gives the head a token per slice, and it works by a broadcast.
+
+    `Model.forward` normalises with buffers shaped (1, 3, 1, 1). At GROUP=3 that is an
+    elementwise divide. At GROUP=1 the input is (B, 1, H, W) and the subtraction
+    broadcasts the channel axis to three, which is exactly replicate-then-normalise - the
+    standard grayscale path - so a ViT gets the three channels it needs.
+
+    It is correct and it is invisible, which is why it is pinned here: a future change
+    that normalises before folding, or that makes the buffers (1, 1, 1, 1), would turn a
+    working arm into one that dies inside patch_embed on a Modal box and nowhere else.
+    """
+    import torch
+
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+    one = torch.rand(2, 1, 4, 4)
+    out = (one - mean) / std
+    assert out.shape == (2, 3, 4, 4), f"GROUP=1 reaches the encoder as {out.shape}"
+    assert torch.allclose(out, (one.repeat(1, 3, 1, 1) - mean) / std)
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
