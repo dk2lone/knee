@@ -7,8 +7,7 @@ with two tables that are honest by construction and already on disk:
 
   kaggle/probe/out/probe.csv      the public members, joined to the fold that held each
                                   study out - the join `probe_gold.oof` performs
-  kaggle/radheads/out/oof.csv     our refit of the arm's head class on our own folds,
-                                  predicted out of fold
+  nb/rad/v52_oof.csv              the shipping arm's own out-of-fold table
 
 Neither has seen the study it is scored on, so their blend has not either, and the whole
 per-target grid costs one pass over 58 studies.
@@ -18,9 +17,13 @@ members out of fold - and a weight of 0.7 if it does, 0.3 if it does not. The ar
 grid scores 0.002 higher and is an eight-point search on 58 studies, which is a way of
 buying overfitting with a rounding error.
 
-The arm here is our refit and the arm that ships is the v15 checkpoint. The rule survives
-that because it depends only on *which* reader wins, and both win on the same three
-findings.
+**Use the shipping table, not a proxy.** An earlier version read
+`kaggle/radheads/out/oof.csv`, our refit of the same head class, arguing that a rule only
+needs to know which reader wins. The two agree on ten labels of twelve and disagree on the
+two that matter: the shipping arm beats the members on Synovitis (0.810 to 0.757) and PF OA
+(0.831 to 0.826), where the refit loses both. Synovitis is a 0.053 margin, so the proxy was
+handing a minority vote to the better reader on a finding the members are weak at. The
+refit rule scores 0.8817 and this one scores 0.8837.
 
 Run: .venv/bin/python eda/fit_rad_alpha.py
 """
@@ -46,7 +49,11 @@ def honest_tables():
     fmap = {s: int(hashlib.md5(rep.get(s, s).encode()).hexdigest()[:8], 16) % N_FOLDS
             for s in gold.index}
     pub = oof(pd.read_csv("kaggle/probe/out/probe.csv"), fmap)
-    rad = pd.read_csv("kaggle/radheads/out/oof.csv").set_index("StudyInstanceUID")
+    # The shipping checkpoint's own out-of-fold table, not our refit of its head
+    # class. The two disagree on Synovitis and PF OA, and the shipping arm wins both,
+    # so a rule fitted on the refit gave the better reader a minority vote on a
+    # finding the members are weak at. `kaggle/radheads/out/oof.csv` is the proxy.
+    rad = pd.read_csv("nb/rad/v52_oof.csv").set_index("StudyInstanceUID")
     keep = pub.index.intersection(rad.index).intersection(gold.index)
     rank = lambda d: pd.DataFrame(d.loc[keep, L].to_numpy(float)).rank(pct=True).to_numpy()
     return gold.loc[keep], rank(pub), rank(rad)
