@@ -390,6 +390,24 @@ That pushes `dk2lone/knee-members-full-band`. Then add it to `WEIGHT_PACKAGES` i
 v3 cleared v2's log before it was fetched. Nothing of substance was lost - v3 is a superset
 - but the confirmation had to be re-run rather than read.
 
+## The tool that prices our members is sound, and it already knew better
+
+`eda/tune_blend.py` was audited before tomorrow depends on it, because two leaks got
+through today and both were subtle. It is correct on all three counts:
+
+- the public column comes from the **report-hash** map, so only members that held a study
+  out vote on it
+- the nested split uses `data/folds.csv` `fold_grouped`, our own map — used to choose
+  weights without the fold they are scored on, which is a different job from the honesty
+  join and correctly a different map
+- `RAD_OOF = "nb/rad/v52_oof.csv"` — **the shipping arm's own table**
+
+That last line is the uncomfortable one. This repo had the correct RadImageNet table wired
+up all along, and today's weight rule was fitted against `kaggle/radheads/out/oof.csv`
+instead, because a new tool was written rather than the existing one read. The cost was
+Synovitis at 0.3 when it should have been 0.7, caught only by an unrelated audit. **Read
+what is already here before building the thing that reads it.**
+
 ## Our own members cannot be priced yet
 
 The same three-arm blend was run with `cloud/exports/sl12-adapt-8e6/oof.csv` as a third
