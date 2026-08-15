@@ -209,6 +209,43 @@ Cutting the ensemble from 20 members to 5 costs nothing — the members differ o
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
 fifteen members, which inverts the baseline's own stated priority.
 
+## The RadImageNet weights were wrong, and now they are measured
+
+`eda/fit_rad_alpha.py`. Two tables on disk are honest by construction — the public members
+joined to the fold that held each study out, and our refit of the arm's head class on our
+own folds — so their blend is honest too, and the whole grid costs one pass over 58
+studies. No kernel, no submission.
+
+```
+none 0.8564   shipped 0.8628   flat 0.35 0.8662   rule 0.8753   argmax 0.8779
+```
+
+The shipped map, from `e10_contract.json`, gave the arm a **majority vote on five findings
+where it is worse**: ACL lost 0.046, Synovitis 0.034, MCL 0.029, PF OA 0.015, Medial OA
+0.012. Another borrowed constant, and the third one this file has caught.
+
+The replacement is a rule, not a fit: **0.7 where the arm beats the members out of fold,
+0.3 where it does not, 0 where it has no vote.** One binary decision per label. The argmax
+is 0.0026 better and is an eight-point grid search on 58 studies, which is overfitting
+bought with a rounding error.
+
+It transfers to the checkpoint that ships because it depends only on *which* reader wins,
+and the deployed v15 arm wins on the same three findings our refit does — Lateral Meniscus
+0.722 to 0.660, Lateral OA 0.812 to 0.706, Contusion 0.901 to 0.870.
+
+Worth +0.0125 gold over shipped, so about **+0.006 on the board** after halving.
+
+## Our own members cannot be priced yet
+
+The same three-arm blend was run with `cloud/exports/sl12-adapt-8e6/oof.csv` as a third
+reader. **Only 19 of the 58 studies had all three predictions**, because that model is a
+one-fold sweep arm and its out-of-fold table covers one fold. At n=19 the per-label numbers
+are noise — Lateral OA reads 0.354 and Effusion reads 1.000 — and no weight chosen there
+means anything.
+
+So `MEMBERS_ALPHA` stays at zero and the question waits for the diversity run, which is
+five folds and therefore covers all 58. That is the first thing to measure when it lands.
+
 ## The probe cannot measure the RadImageNet stage, and nearly said it could
 
 `eda/sweep_rad_alpha.py` recovered the stage's own predictions by algebra and fitted a
