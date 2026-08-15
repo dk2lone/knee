@@ -112,26 +112,28 @@ ZOOM = [
     {"name": "zoom-90mm", "lr_backbone": 8e-6, "unfreeze_last": 6, "crop_mm": 90.0},
 ]
 
-# One token per slice, against three slices averaged into one RGB image. This is the
-# largest untested difference between our members and everything that beats them on the
-# small findings, and three independent readings point at it:
+# One slice per encoder input, against three stacked into its RGB channels. Both arms see
+# the same twelve slices per slot; only how they are packed differs.
 #
-#   - our RadImageNet arm attends over 3 slots x 8 slices with a query per finding, on a
-#     FROZEN ResNet-50, and beats our fine-tuned members on Lateral Meniscus (0.722 to
-#     0.660), Lateral OA (0.812 to 0.706) and Contusion (0.901 to 0.870)
-#   - the frontier's own members run `pool='xcodex'` over their slots x 16 slices
-#   - our SlotHead attends over six slot vectors and its docstring argues that parameters
-#     below the slot level "would have nothing to learn from"
+# **This is not the token-count experiment, and the difference matters.** The head reads
+# `feat.reshape(B, S, -1)` where S is the slot count, so it attends over six tokens per
+# call whatever GROUP is - and `predict_member` averages the N_GROUP windows *after* the
+# head. GROUP changes what one token is built from, not how many there are. The readers
+# that beat us on the small findings attend over slots x slices jointly in one pass: the
+# RadImageNet arm over 3 x 8 = 24, the frontier's members over slots x 16 under
+# `pool='xcodex'`. Reaching that needs a head change, not a flag - see #38.
 #
-# The third is the claim under test. A meniscal tear appears on one or two slices, so
-# averaging three of them into one image is a way to lose it, and the two arms that read
-# slices separately are exactly the two that find it.
+# What this arm does test is real but narrower: a ViT `patch_embed` projects three channels
+# jointly, so three neighbouring slices are mixed before the encoder sees any of them, and
+# a meniscal tear on one slice is entered as a third of one token. At GROUP=1 a slice is
+# its own input and nothing is mixed.
 #
-# GROUP=1 costs encoder passes: a study becomes 12 forwards where it was 4. The control
-# runs in the same container so the comparison is the token layout and nothing else.
+# `n_group` is what keeps this honest. CACHE_SLICES = GROUP * N_GROUP, so GROUP=1 with the
+# default N_GROUP would cache four slices against twelve and the arm would answer "fewer
+# slices is worse" - which is known, at +0.188 on Medial Meniscus from 3 to 12.
 GROUPING = [
-    {"name": "grp-3", "lr_backbone": 8e-6, "unfreeze_last": 6, "group": 3},
-    {"name": "grp-1", "lr_backbone": 8e-6, "unfreeze_last": 6, "group": 1},
+    {"name": "grp-3", "lr_backbone": 8e-6, "unfreeze_last": 6, "group": 3, "n_group": 4},
+    {"name": "grp-1", "lr_backbone": 8e-6, "unfreeze_last": 6, "group": 1, "n_group": 12},
 ]
 
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS,

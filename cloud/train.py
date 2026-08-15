@@ -856,6 +856,12 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         # image is a way to lose it.
         if "group" in arm:
             pipeline.GROUP = int(arm["group"])
+        # `plan_cache` sets CACHE_SLICES = GROUP * N_GROUP, so an arm that halves GROUP
+        # and leaves this alone also thirds the slices it sees - and slice count is the
+        # single largest effect ever measured here, +0.188 on Medial Meniscus from 3 to
+        # 12. Without this the arm would answer "fewer slices is worse", which is known.
+        if "n_group" in arm:
+            pipeline.N_GROUP_MAX = int(arm["n_group"])
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600

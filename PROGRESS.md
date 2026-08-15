@@ -310,10 +310,22 @@ MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py group small 8 4
 
 Three reasons it wins the lane over the alternatives:
 
-- It is the **only untested hypothesis with three independent witnesses**. Our head attends
-  over six slot vectors; the RadImageNet arm attends over 3 slots x 8 slices on a *frozen*
-  encoder and beats our fine-tuned members on the small findings; the frontier's own
-  members run `pool='xcodex'` over slots x 16 slices.
+- It is the closest available test of the one hypothesis with three witnesses. **Correcting
+  an earlier claim on this page:** GROUP does *not* change how many tokens the head sees.
+  `Model.forward` returns `feat.reshape(B, S, -1)` with S the slot count, so the head reads
+  six tokens per call whatever GROUP is, and `predict_member` averages the windows *after*
+  the head. GROUP changes what a token is built from, not how many there are. Attending
+  over slots x slices jointly - 24 for the RadImageNet arm, slots x 16 for the frontier's
+  members - needs a head change, not a flag.
+
+  What the arm does test is narrower and still real: a ViT `patch_embed` projects three
+  channels jointly, so three neighbouring slices are mixed before the encoder sees any of
+  them and a tear on one slice enters as a third of one token.
+
+- **The arms were also confounded and are now fixed.** `CACHE_SLICES = GROUP * N_GROUP`, so
+  GROUP=1 at the default would have cached four slices against twelve, and the sweep would
+  have answered "fewer slices is worse" - already known, at +0.188 on Medial Meniscus from
+  3 to 12. Both arms now pin `n_group` so both see twelve.
 - The remaining 0.019 gold to tenth cannot come from the arm, which already votes 0.7 on
   every finding it wins, nor from better labels, since five of twelve findings already beat
   their teacher. It has to come from a better model.
