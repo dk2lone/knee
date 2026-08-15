@@ -18,6 +18,19 @@ So 0.936 needs a gold-58 of about 0.892, against 0.856 for the public members to
 promises before believing it - 58 studies with 9 to 35 positives per label cannot resolve
 better than that, and the honest number was already the conservative one.
 
+## Before anything else, every session
+
+```
+kaggle kernels list --competition rsna-knee-abnormality-detection --sort-by scoreDescending --page-size 25
+kaggle kernels pull -p nb/new/<name> -m <owner>/<kernel>
+```
+
+Diff the top notebook's `dataset_sources` against `WEIGHT_PACKAGES`, `RAD_ARM` and
+`LEGACY_ARM` in `eda/build_kernels.py`, and read its aggregation code. A package we do not
+mount is an ingredient we do not have, and the free score hides in how they combine what
+we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pooling.
+**Titles lie**: the notebook called "V40 DINOv3 E10 Hybrid" mounts `metaresearch/dinov2`.
+
 ## Running now
 
 | What | Where | State |
