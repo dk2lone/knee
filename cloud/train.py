@@ -842,6 +842,20 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         # carries IMG, so an arm that moves it decodes its own pixels.
         if "img" in arm:
             pipeline.CACHE_IMG = pipeline.IMG = int(arm["img"])
+        # How many slices are stacked into one encoder input, and therefore how many
+        # tokens the head gets to attend over. At GROUP=3 a study is six tokens, one per
+        # slot, and three slices are averaged into the RGB channels of each. At GROUP=1 a
+        # study is a token per slice and the head can prefer one.
+        #
+        # This is the difference between our members and both arms that beat them on the
+        # small findings. The RadImageNet head attends over 3 slots x 8 slices, the
+        # frontier's own members over their slots x 16 slices under `pool='xcodex'`, and
+        # our SlotHead over six slot vectors - its docstring argues that parameters below
+        # the slot level "would have nothing to learn from", which is the claim this arm
+        # tests. A meniscal tear appears on one or two slices; averaging three into one
+        # image is a way to lose it.
+        if "group" in arm:
+            pipeline.GROUP = int(arm["group"])
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600

@@ -112,8 +112,30 @@ ZOOM = [
     {"name": "zoom-90mm", "lr_backbone": 8e-6, "unfreeze_last": 6, "crop_mm": 90.0},
 ]
 
+# One token per slice, against three slices averaged into one RGB image. This is the
+# largest untested difference between our members and everything that beats them on the
+# small findings, and three independent readings point at it:
+#
+#   - our RadImageNet arm attends over 3 slots x 8 slices with a query per finding, on a
+#     FROZEN ResNet-50, and beats our fine-tuned members on Lateral Meniscus (0.722 to
+#     0.660), Lateral OA (0.812 to 0.706) and Contusion (0.901 to 0.870)
+#   - the frontier's own members run `pool='xcodex'` over their slots x 16 slices
+#   - our SlotHead attends over six slot vectors and its docstring argues that parameters
+#     below the slot level "would have nothing to learn from"
+#
+# The third is the claim under test. A meniscal tear appears on one or two slices, so
+# averaging three of them into one image is a way to lose it, and the two arms that read
+# slices separately are exactly the two that find it.
+#
+# GROUP=1 costs encoder passes: a study becomes 12 forwards where it was 4. The control
+# runs in the same container so the comparison is the token layout and nothing else.
+GROUPING = [
+    {"name": "grp-3", "lr_backbone": 8e-6, "unfreeze_last": 6, "group": 3},
+    {"name": "grp-1", "lr_backbone": 8e-6, "unfreeze_last": 6, "group": 1},
+]
+
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS,
-        "bands": BANDS, "dinov3": DINOV3, "zoom": ZOOM}
+        "bands": BANDS, "dinov3": DINOV3, "zoom": ZOOM, "group": GROUPING}
 
 # The sweeps above RANK configurations. They cannot produce a member worth blending: one
 # fold, eight epochs and six slices holds out near 0.79, and `eda/build_kernels.py` keeps
