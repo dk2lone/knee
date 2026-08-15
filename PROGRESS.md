@@ -68,16 +68,79 @@ gap is +0.69, which is +0.058 macro, more than the +0.041 that separates this re
 tenth. And the public package is not site-grouped, so its holdout is optimistic by
 whatever site memorisation is worth.
 
-## Next
+## The plan to tenth
 
-1. **Parity run** → `cloud/export.py --run full` → the members join `WEIGHT_PACKAGES` in
-   `eda/build_kernels.py`. They must hold out near 0.84 first: B3 at 0.834 dragged 0.895
-   down to 0.891, so a weak member is dilution, not diversity (#29).
-2. **Submit the blend with the RadImageNet arm.** Priced offline at +0.024 to +0.034 gold
-   macro, which is about 0.92. **The checkpoint is CC-BY-NC-SA-4.0** — it buys rank and
-   may cost prize eligibility (#26, unanswered at discussion/735121).
-3. **The specialist**, now aimed: Lateral Meniscus and Lateral OA, at higher resolution,
-   blended per label with the generalist. This is the part nobody has published.
+0.936 needs +0.041. Four steps, each measured before the next one is trusted. The gains
+are what has already been measured somewhere, not hopes.
+
+### 1. The RadImageNet arm — running, worth about +0.025
+
+Priced offline from the publisher's own OOF table and bootstrap: +0.024 to +0.034 gold
+macro over the same base this repo blends. **The checkpoint is CC-BY-NC-SA-4.0** — it buys
+rank and may cost prize eligibility (#26, unanswered at discussion/735121).
+
+```
+kaggle kernels status dk2lone/knee-blend      # wait for COMPLETE
+# browser: Submit to Competition
+```
+
+Success is about 0.92. Below 0.90 the arm did not run — read the log for "RadImageNet arm
+skipped", which is the fail-safe reporting itself rather than a bad blend.
+
+### 2. Our own members join the vote — worth about +0.010
+
+The parity run is five folds, 22 epochs, 12 slices, at the configuration four sweeps
+agree on. Its members vote beside the public ones, and they are **site-grouped**, so their
+errors are not the public members' errors.
+
+```
+cloud/launch.py status fc-01M01EE15N0Q5BDPJJ86RH11TS
+.venv/bin/python cloud/export.py --run full          # pull, check, push to Kaggle
+# then add dk2lone/knee-members-full to WEIGHT_PACKAGES in eda/build_kernels.py
+.venv/bin/python eda/build_kernels.py && kaggle kernels push -p kaggle/blend
+```
+
+**Gate it at 0.84 holdout.** B3 at 0.834 dragged 0.895 down to 0.891: a weak member is
+dilution, not diversity (#29).
+
+### 3. The slice band — untested, and the cheapest thing left
+
+`SLICE_BAND = (0.20, 0.80)` throws away the outer 40% of every stack. **The lateral
+meniscus and the lateral compartment live in those slices.** It is the one preprocessing
+constant nobody has challenged, and the field's per-label numbers point straight at it:
+the RadImageNet arm reads (0.12, 0.88) and beats every DINOv2 member on exactly the two
+labels the band would cut — Lateral OA by +0.106 and Lateral Meniscus by +0.062.
+
+Resolution is not the explanation. 130 mm over 336 px is 0.387 mm/px, already finer than
+the acquisition, so a tighter crop would upsample rather than resolve.
+
+One sweep, three arms, one fold, eight epochs, in one container:
+
+```
+# arms: band (0.20,0.80) control | (0.10,0.90) | (0.02,0.98)
+.venv/bin/python -m modal deploy cloud/train.py
+.venv/bin/python cloud/launch.py bands small 8 4
+```
+
+If a wider band lifts Lateral Meniscus, it lifts it for every member and costs nothing at
+inference. Closing half of that label's gap to its teacher is +0.009 macro on its own.
+
+### 4. The specialist — the part nobody has published
+
+Whatever step 3 finds, Lateral Meniscus at 0.660 and Lateral OA at 0.706 stay the two
+worst labels on the public frontier, against teachers of 0.879 and 0.833. A model trained
+on those two findings alone, blended per label with the generalist, is the only remaining
++0.02 that is not already on Kaggle. Build it after step 3 says what the pixels should be.
+
+### Where that lands
+
+| after | expected |
+|---|---|
+| now | 0.895 |
+| 1 | ~0.920 |
+| 2 | ~0.930 |
+| 3 | ~0.935 |
+| 4 | 0.94+ |
 
 ## What is settled, so it is not re-run
 
