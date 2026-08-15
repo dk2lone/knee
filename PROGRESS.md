@@ -70,8 +70,13 @@ ordering pass again.
 | 6 | 5 members + focal max pooling | 0.895 | free at inference (#30) |
 | 7 | + RadImageNet arm, per-target weights | **0.907** | +0.012, against +0.022 predicted on gold |
 | 8 | + legacy 4-fold bundle on its four findings | 0.904 | **a regression of 0.003** |
-| 9 | three arms + the frontier's TTA pooling map | pending | |
+| 9 | three arms + the frontier's TTA pooling map | 0.905 | the map bought back 0.001 of the 0.003 |
 | 10 | `dk2lone/knee-frontier`, the public frontier unchanged | pending | the floor, and the base to build on |
+
+Runs 8 and 9 are two measurements of the same law: **a constant fitted on the frontier's
+base does not transfer to ours.** The legacy fractions cost 0.003, and the pooling map that
+is worth points on a 25-member pool bought back 0.001 of it on a 5-member one. Our own best
+is still run 7 at 0.907, with neither borrowing applied.
 
 Run 8 is the cost of a borrowed constant. The legacy bundle's per-target fractions were
 fitted against twenty members with no RadImageNet arm applied; this pool is five members
