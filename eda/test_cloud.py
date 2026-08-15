@@ -140,6 +140,37 @@ def test_one_slice_per_token_reaches_the_encoder_as_three_channels():
     assert torch.allclose(out, (one.repeat(1, 3, 1, 1) - mean) / std)
 
 
+def test_the_cross_slice_head_lines_its_two_embeddings_up():
+    """Token g*n_slot + s must carry slot s and window g, and the mask must agree.
+
+    `SlotHead` adds `slot_emb.repeat(n_pos, 1)` and `pos_emb.repeat_interleave(n_slot, 0)`
+    to a sequence built by concatenating windows along the slot axis. Swap `repeat` and
+    `repeat_interleave` and every shape still matches - the model just learns a worse
+    thing, on a Modal box, three hours later, with nothing in the log to say so.
+    """
+    import torch
+
+    hidden, n_slot, n_pos = 4, 3, 2
+    slot = torch.arange(n_slot * hidden, dtype=torch.float).reshape(n_slot, hidden)
+    pos = torch.arange(n_pos * hidden, dtype=torch.float).reshape(n_pos, hidden) * 100
+    tiled = slot.repeat(n_pos, 1) + pos.repeat_interleave(n_slot, 0)
+    for g in range(n_pos):
+        for sl in range(n_slot):
+            assert torch.allclose(tiled[g * n_slot + sl], slot[sl] + pos[g]), (g, sl)
+
+    # The slot mask is repeated the same way the slot embedding is tiled.
+    mask = torch.tensor([[1.0, 0.0, 1.0]])
+    assert mask.repeat(1, n_pos).tolist() == [[1.0, 0.0, 1.0, 1.0, 0.0, 1.0]]
+
+
+def test_only_the_new_pool_attends_across_slices():
+    """Existing members must keep loading, so `_x` has to be a separate pool name."""
+    body = GEN.read_text()
+    assert 'def xslice(pool)' in body, "xslice is gone from the module"
+    assert '"cls_mean_focal_x": 3' in body, "the cross-slice pool is not registered"
+    assert 'POOL = "cls_mean"' in body, "the default pool is no longer the shipped one"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

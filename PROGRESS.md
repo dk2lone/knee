@@ -556,9 +556,12 @@ does not survive a 24-member base and the conversion is the suspect.
 
 | kernel | what it changes | state |
 |---|---|---|
-| `knee-blend-nolegacy` v4 | our base: fold spread, second head family, shipping-table weights | **run COMPLETE, log read** |
-| `knee-frontier-alpha` **v2** | the same fork, with PF OA and Synovitis corrected to 0.7 | **pushed, running** |
-| `knee-blend-clean` | CC0 members only, no arm and no bundle | **pushed, running** |
+| `knee-blend-nolegacy` v4 | our base: fold spread, second head family, shipping-table weights | **COMPLETE, verified** |
+| `knee-frontier-alpha` **v2** | the same fork, with PF OA and Synovitis corrected to 0.7 | **COMPLETE, verified** |
+| `knee-blend-clean` | CC0 members only, no arm and no bundle | **COMPLETE, verified** |
+
+All three ran and all three were read. Two slots of the five stay empty on purpose — see
+"there is nothing left to recombine" below.
 
 ### The 0.912 kernel carried the wrong weight on two labels
 
@@ -600,6 +603,47 @@ final week. It is now running for the first time.
 It also prices the fold spread on its own, with nothing else in the blend to confound it.
 Run 4 put "the top five members" at 0.891, and those five were four seeds of fold 2 — so
 whatever this scores against 0.891 is what spreading over folds is worth, unmixed.
+
+Its log is exactly what a clean kernel should say:
+
+```
+package rsna-knee-weights: 5 of 20 member(s), folds ['0','1','2','3','4'], holdout 0.8325 to 0.8600
+legacy bundle: not attached; the members' submission stands
+RadImageNet arm: not attached; the members' submission stands
+```
+
+Both encumbered arms decline by absence rather than by a flag, which is what makes the
+licence claim checkable from the log alone.
+
+### v2 changes two labels and only two, which is the map and nothing else
+
+The strongest check available without a submission. v2's predictions against v1's, on the
+three visible studies:
+
+```
+Synovitis  0.1333      PF OA  0.0933      the other ten labels  0.0000
+```
+
+Exactly the two findings whose weight went 0.3 to 0.7 moved, and the ten that did not change
+are byte-identical — including Baker's and Fracture at zero, so the stage's own preservation
+assertion still holds. A wrong edit here would have moved labels it was not supposed to
+touch, and none moved.
+
+### Volume reads survive a spend limit, so the dead run's members are not stranded
+
+Worth knowing before October rather than during it. `sunnypathca` cannot start a container
+any more, but
+
+```
+MODAL_PROFILE=sunnypathca .venv/bin/python -m modal volume get knee-data runs/full-band/<file> .
+```
+
+still succeeds. So the four members from the diversity run can be pulled whenever they are
+wanted. They are not wanted for the public board — three of four folds are below the 0.84
+gate — but the licence-clean submission owed in October is CC0 members **plus this repo's
+own**, and `knee-blend-clean` currently has none of ours in it. That is the one place these
+four are still the best thing available, and recovering them will need a hand-built manifest
+because `pipeline.main()` never reached the line that writes one.
 
 **v4 is confirmed on both counts that could have gone wrong.** Its own log shows the fold
 spread survived — `folds ['0', '1', '2', '3', '4']`, five distinct training sets, not four
@@ -822,6 +866,44 @@ probe cannot attribute them either: both are invisible to it. The fold spread ch
 members vote, and every member recites these 58 studies; the second head family leaks the
 same way. They go together because they are both free at inference and both principled, not
 because the pairing was measured.
+
+## There is nothing left to recombine, and 0.938 is not reachable today
+
+Five measurements from 15 Aug all point the same way, and it is worth stating plainly rather
+than letting the queue imply otherwise.
+
+1. **The public field tops out at 0.912.** The fork scores 0.911 unchanged, the notebook now
+   sorting above it is that same fork with one prefix renamed, and our best correction to it
+   scores 0.912.
+2. **The fork's own extras are worth 0.001** between DINOv3, the legacy four and the pooling
+   map — measured by decomposition, and runs 8 and 9 saw two of the three cost score outright
+   on a thinner base.
+3. **Arm re-weighting pays a sixth of its gold price** on a 25-member pool, because the arm
+   holds 0.35 of one vote in twenty-six.
+4. **`argmax` and the bootstrap's neighbours are inside the rounding error**, so the weight
+   grid has no more to give.
+5. **Our own members are weaker than the public ones** at the configuration four sweeps
+   agreed on — roughly 0.81 holdout against 0.8325 to 0.8600.
+
+Tenth is 0.938, so +0.026 from here. Nothing in the list above is worth a hundredth of that,
+and the forum already said why: a team at that rung reports **a single model** getting there,
+while the public frontier needs twenty-five to reach 0.912. The gap is a better model, and
+that is the one thing today cannot buy — four Modal workspaces are at their billing-cycle
+spend limits and the fifth is running the grouping sweep.
+
+**So the 20:00 reset gets three submissions, not five.** Two slots stay unspent because no
+fourth or fifth candidate tests anything the first three do not, and a submission spent on
+noise is a measurement that cannot be taken tomorrow. What the three buy is a decision:
+
+| kernel | predicts | what its result decides |
+|---|---:|---|
+| `knee-blend-nolegacy` v4 | ~0.915 | whether dilution or the conversion is what broke the prediction |
+| `knee-frontier-alpha` v2 | ~0.912 | whether a correct constant is measurable at all on this base |
+| `knee-blend-clean` | ~0.89 | the licence-safe floor, and the fold spread unmixed |
+
+The path to 0.938 runs through the grouping sweep and the head change, not through the
+queue. That is the same conclusion as yesterday, now with the recombination branch closed
+rather than merely doubted.
 
 ## What 0.938 costs, per label
 
