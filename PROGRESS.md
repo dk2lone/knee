@@ -18,7 +18,7 @@ So 0.936 needs a gold-58 of about 0.892, against 0.856 for the public members to
 | What | Where | State |
 |---|---|---|
 | Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `fc-01M01EE15N0Q5BDPJJ86RH11TS` | training |
-| `knee-blend` v3 — the members plus the RadImageNet arm | Kaggle | running |
+| `knee-blend` — the members plus the RadImageNet arm | Kaggle | running |
 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
@@ -103,34 +103,33 @@ cloud/launch.py status fc-01M01EE15N0Q5BDPJJ86RH11TS
 **Gate it at 0.84 holdout.** B3 at 0.834 dragged 0.895 down to 0.891: a weak member is
 dilution, not diversity (#29).
 
-### 3. The slice band — untested, and the cheapest thing left
+### 3. ~~The slice band~~ — tested offline and dropped (#36)
 
-`SLICE_BAND = (0.20, 0.80)` throws away the outer 40% of every stack. **The lateral
-meniscus and the lateral compartment live in those slices.** It is the one preprocessing
-constant nobody has challenged, and the field's per-label numbers point straight at it:
-the RadImageNet arm reads (0.12, 0.88) and beats every DINOv2 member on exactly the two
-labels the band would cut — Lateral OA by +0.106 and Lateral Meniscus by +0.062.
+The band and the crop each discard a share of a study whose size varies, so how much they
+discard varies too. Our score moves +0.013 across the whole range of the band, and the
+arm's advantage is *smallest* where our crop throws away the most. A geometry cause
+predicts a gradient and neither shows one, so the sweep was not run.
 
-Resolution is not the explanation. 130 mm over 336 px is 0.387 mm/px, already finer than
-the acquisition, so a tighter crop would upsample rather than resolve.
+What is left as the explanation for the arm's lateral labels is what it is rather than
+what it looks at: RadImageNet pretraining, and a head that attends over every slice token
+with one query per finding against our per-slot pooling. The two are confounded. The
+candidate that separates them is **one token per slice instead of three slices stacked as
+channels** — a meniscus tear appears on one or two slices, and stacking them into an RGB
+image may be what loses it. That is a `GROUP` change, and it is the next thing to sweep
+once the parity run frees the app.
 
-One sweep, three arms, one fold, eight epochs, in one container:
-
-```
-# arms: band (0.20,0.80) control | (0.10,0.90) | (0.02,0.98)
-.venv/bin/python -m modal deploy cloud/train.py
-.venv/bin/python cloud/launch.py bands small 8 4
-```
-
-If a wider band lifts Lateral Meniscus, it lifts it for every member and costs nothing at
-inference. Closing half of that label's gap to its teacher is +0.009 macro on its own.
+The plumbing for a geometry sweep stays (`cloud/launch.py bands`), unscheduled.
 
 ### 4. The specialist — the part nobody has published
 
-Whatever step 3 finds, Lateral Meniscus at 0.660 and Lateral OA at 0.706 stay the two
-worst labels on the public frontier, against teachers of 0.879 and 0.833. A model trained
-on those two findings alone, blended per label with the generalist, is the only remaining
-+0.02 that is not already on Kaggle. Build it after step 3 says what the pixels should be.
+Lateral Meniscus at 0.660 and Lateral OA at 0.706 are the two worst labels on the public
+frontier, against teachers of 0.879 and 0.833. Three independent measurements agree on
+that: this repo's probe, the arm's published diagnostic, and a rival's forum post on a
+different label set. A reader aimed at those two findings, blended per label with the
+generalist, is the only remaining +0.02 that is not already on Kaggle.
+
+It is now aimed at the through-plane axis rather than the field of view, because #36 ruled
+the field of view out.
 
 ### Where that lands
 
@@ -139,7 +138,7 @@ on those two findings alone, blended per label with the generalist, is the only 
 | now | 0.895 |
 | 1 | ~0.920 |
 | 2 | ~0.930 |
-| 3 | ~0.935 |
+| 3 | ~0.930 |
 | 4 | 0.94+ |
 
 ## What is settled, so it is not re-run
@@ -151,6 +150,7 @@ on those two findings alone, blended per label with the generalist, is the only 
 | More epochs? | No. 25 did not beat 10 (#31) |
 | More slices? | Yes, modestly. 12 beats 6 by +0.006 (#33) |
 | A second architecture? | Only a strong one. B3 at 0.834 hurt; the RadImageNet arm helps (#29, #35) |
+| Is the arm's edge the pixels it samples? | No. Neither the band nor the crop shows a gradient (#36) |
 | Site-grouped folds? | Right, and nearly free. The site probe scores 0.519 (#15) |
 | An uncertainty policy for the weak labels? | No. All five CheXpert policies cross zero |
 | Can the CLI submit? | No. This is a code competition; submitting is a button on the notebook page |
