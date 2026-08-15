@@ -741,11 +741,21 @@ Two consequences, and the first is a caveat:
   out to measure. `grp-3` held out 0.8298. `xs-flat` is at 0.8073 through seven of eight
   epochs and rising slowly.
 
-If `xs-flat` lands near 0.81 the reading is that the focal pool costs about 0.02 at this
-grouping — worth knowing, since `POOL` is a one-word change and the more expensive pool is
-currently the default in the sweep set. Read it as one run against one run across two
-sweeps, so it is a lead and not a result. It does not touch the `xs-flat` against `xs-cross`
-comparison, which shares the pool family and is still one change wide.
+**`xs-flat` finished at 19:44 and it landed there.**
+
+```
+grp-3    pool cls_mean         768 dim   holdout 0.8298   annot(n=19) 0.7733
+xs-flat  pool cls_mean_focal  1152 dim   holdout 0.8071   annot(n=19) 0.7133
+```
+
+The focal pool is **worse by 0.023 holdout and 0.060 on the annotated subset**, at one more
+part and 384 more feature dimensions. It also plateaued — 0.8073 at epoch 7 and 0.8071 at
+epoch 8 — so it is not short of training.
+
+Read it as one run against one run across two sweeps, so it is a lead and not a result. But
+it is a cheap one to settle and it points the wrong way for a pool that costs more to
+compute. It does not touch the `xs-flat` against `xs-cross` comparison, which shares the
+pool family and is still one change wide.
 
 ### What the sweep asks
 
