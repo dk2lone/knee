@@ -62,7 +62,7 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **Grouping sweep** — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **launched** `fc-01M02T8S56J0Z1FE8B65K252JZ` |
+| **Grouping sweep** — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
 | DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | **dead**, crashed; not relaunching |
 | Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | **dead**, crashed; not relaunching |
@@ -918,14 +918,56 @@ The contrast the sweep measures is therefore the intended one: **three neighbour
 mixed before the encoder sees them, against one slice per encoder call**, both at twelve
 cached slices, so slice count is not confounded.
 
-One cost to expect rather than discover: `grp-1` runs `N_GROUP=12` encoder calls per slot
-where `grp-3` runs 4, so it is about three times the compute per epoch. Eight epochs on one
-fold, so it is minutes rather than hours, but the two arms will not take the same time and
-that is not a symptom.
+**That compute prediction was wrong, and the reason matters.** I wrote that `grp-1` would
+cost about three times the compute per epoch because it runs `N_GROUP=12` encoder calls per
+slot against `grp-3`'s 4. It ran at 42 s an epoch against 40 s. The training loop samples
+**one** group per step:
+
+```
+g = int(torch.randint(N_GROUP, (1,)).item())
+imgs = augment(take_group(rows, g))
+```
+
+so a step costs the same whatever `N_GROUP` is, and only inference averages over all of
+them. Both arms therefore saw the same number of gradient steps at the same price, which is
+a better-controlled experiment than the one I described.
 
 **Download took 132.9 minutes against the 34.3 the same corpus took this morning** — 37 MB/s
-against 140. The half box is not the cause; the throughput is. Extraction follows, so the
-sweep trains around 15:00 and lands well before the 20:00 reset.
+against 140. The half box is not the cause; the throughput is.
+
+### The answer is no: stacking three slices as channels is the better arm
+
+```
+grp-3   group 3, n_group 4    holdout 0.8298   annot(n=19) 0.7733
+grp-1   group 1, n_group 12   holdout 0.8106   annot(n=19) 0.7356
+```
+
+**One token per slice is worse by 0.019 holdout and 0.038 on the annotated subset.** The
+hypothesis was the opposite — that a meniscus tear appears on one or two slices and stacking
+three into an RGB image is what loses it. Measured on the one contract we control, mixing
+neighbouring slices before the encoder sees them *helps*, and it is not close.
+
+The experiment is fair in the way that matters: both arms cached twelve slices, both trained
+eight epochs on the same fold at the same learning rate, and both used all twelve slices at
+inference. `grp-3` averages four predictions over three slices each; `grp-1` averages twelve
+over one each. Same pixels, same budget, different packing.
+
+**This closes the arm's-edge question for good.** #36 ruled out the field of view, and the
+zoom sweep that would have re-asked it was cancelled this morning. The remaining explanation
+for the RadImageNet arm's lateral labels was "one token per slice against our per-slot
+pooling", and the packing half of that is now refuted. What survives is the other half: the
+arm's head attends over *every slice token at once* with one query per finding, which is a
+head change and not a flag.
+
+**So the sweep argues for the head change rather than against it.** If mixing three slices
+early is worth 0.019, letting the head attend across the slice axis is the same medicine at
+a different level, and it is the one version of the hypothesis that has never been tested.
+`grp-3` is already what ships, so nothing about the current configuration changes.
+
+One number worth keeping: `grp-3` holds out 0.8298 at **eight** epochs where the diversity
+run's fold 0 reached 0.8276 at twenty-two. That is #31 again — more epochs are not the
+constraint — and it means a head-change experiment can be run at eight epochs for a third of
+the training time.
 
 ## There is nothing left to recombine, and 0.938 is not reachable today
 
@@ -964,6 +1006,15 @@ noise is a measurement that cannot be taken tomorrow. What the three buy is a de
 The path to 0.938 runs through the grouping sweep and the head change, not through the
 queue. That is the same conclusion as yesterday, now with the recombination branch closed
 rather than merely doubted.
+
+**The sweep has since answered, and it narrowed the path to one item.** Packing is not the
+arm's edge, so the head change is the only untested version of the hypothesis left and the
+only remaining route to a better model. It is a real code change, not a flag — a new `pool`
+value, an `encode`/`head` split, and a position embedding per window — and every existing
+member checkpoint has a `SlotHead` without it, so getting it wrong stops the whole blend
+loading. **It is not being rushed into a lane to catch tonight's reset**: a one-fold sweep
+arm produces no submittable model, and the three candidates already queued do not depend on
+it.
 
 ## What 0.938 costs, per label
 
@@ -1185,6 +1236,8 @@ public blend.
 | Does an arm of our own earn a vote? | Only if it reads different pixels. Three measured, one paid (#37) |
 | Refit the RadImageNet heads on our folds? | Done, and not mounted: +0.0026 against the published arm's +0.0262 (#37) |
 | Is the arm's edge the pixels it samples? | No. Neither the band nor the crop shows a gradient (#36) |
+| Is it one token per slice instead of three stacked? | No. GROUP=1 loses 0.019 holdout to GROUP=3 |
+| More epochs, again? | No. 8 epochs holds out 0.8298 against 22 epochs' 0.8276 |
 | Site-grouped folds? | Right, and nearly free. The site probe scores 0.519 (#15) |
 | An uncertainty policy for the weak labels? | No. All five CheXpert policies cross zero |
 | Can the CLI submit? | No. This is a code competition; submitting is a button on the notebook page |
