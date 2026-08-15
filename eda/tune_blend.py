@@ -181,6 +181,25 @@ def main(probe, *extra):
         nested = np.nanmean([auc(y[c].to_numpy()[seen], out[c][seen]) for c in L])
         print(f"\nnested over {done} fold(s), {int(seen.sum())} studies pooled: "
               f"{nested:.4f}")
+    # Whether the nested number beats the base by more than 58 studies can resolve. The
+    # arm this harness priced at +0.022 delivered +0.012 on the leaderboard, so a gain
+    # whose interval crosses zero is not a gain at all.
+    if done:
+        rng = np.random.default_rng(2026)
+        base_macro = np.nanmean([auc(y[c], base[c]) for c in L])
+        draws = []
+        for _ in range(2000):
+            take = rng.integers(0, int(seen.sum()), int(seen.sum()))
+            a = np.nanmean([auc(y[c].to_numpy()[seen][take], out[c][seen][take])
+                            for c in L])
+            b = np.nanmean([auc(y[c].to_numpy()[seen][take],
+                                base[c].to_numpy()[seen][take]) for c in L])
+            draws.append(a - b)
+        lo, hi = np.percentile(draws, [2.5, 97.5])
+        print(f"  against the base {base_macro:.4f}: {nested - base_macro:+.4f} "
+              f"[{lo:+.4f}, {hi:+.4f}] over 2,000 draws, "
+              f"p(beats it) {np.mean(np.array(draws) > 0):.3f}")
+
     print("\nDeploy the nested number's weights, not the descriptive ones.")
 
 

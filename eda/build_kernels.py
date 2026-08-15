@@ -832,6 +832,17 @@ def infer_from_package(path, dev):''')
     meta("kaggle/blend/kernel-metadata.json", "knee-blend", "knee blend",
          "knee-blend.ipynb", WEIGHT_PACKAGES + RAD_ARM + LEGACY_ARM, TRAINED)
 
+    # The same notebook with the encumbered packages unmounted, which is all it takes:
+    # each arm reports "not attached" and leaves the members' submission alone. Two
+    # submissions are selected in October and one of them has to survive a ruling on
+    # licences - RadImageNet is CC-BY-NC-SA and the legacy bundle's licence field reads
+    # `unknown`, while the members are CC0-1.0 (#26). Built now so that it is a scored,
+    # known quantity rather than something assembled in the final week.
+    Path("kaggle/blend-clean").mkdir(parents=True, exist_ok=True)
+    n.write("kaggle/blend-clean/knee-blend-clean.ipynb")
+    meta("kaggle/blend-clean/kernel-metadata.json", "knee-blend-clean",
+         "knee blend clean", "knee-blend-clean.ipynb", WEIGHT_PACKAGES, TRAINED)
+
 
 # ---------------------------------------------------------------------- duo --- #
 B3_PACKAGE = "prvsiyan/rsna-knee-b3-v47-public-deployment"
