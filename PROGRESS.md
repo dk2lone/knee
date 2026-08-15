@@ -1,6 +1,6 @@
 # Progress
 
-Where the score is, what is running, what happens next. Updated 14 Aug 2026, 21:30 EDT.
+Where the score is, what is running, what happens next. Updated 15 Aug 2026, 03:20 EDT.
 
 | | |
 |---|---|
@@ -35,10 +35,21 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 
 | What | Where | State |
 |---|---|---|
-| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | corpus in 125.3 min, extracting |
-| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | corpus in 108.7 min, extracting |
-| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016`, `fc-01M01YRGT6HQ13AD3GD2WRYNQV` | corpus in 34.3 min, extracting |
-| `dk2lone/knee-frontier` — fork of the frontier ensemble | Kaggle | submitted, pending |
+| Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **decoding**, `train 12288/20130` |
+| DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | extracting |
+| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | extracting, 2.5 h |
+| `dk2lone/knee-frontier` — the fork, unchanged | Kaggle | submitted, **pending 4 h** |
+| `dk2lone/knee-blend-nolegacy` — fold spread + second head family | Kaggle | dry run, 1 h |
+| `dk2lone/knee-frontier-probe-v15` — v15 family alone | Kaggle | dry run, 1 h |
+
+**Kaggle allows two GPU sessions at once.** Both are held, so `knee-blend-nolegacy` cannot
+be re-pushed with the measured weights and `kaggle/frontier-alpha/` cannot start at all.
+That is the current bottleneck, not compute and not ideas.
+
+**The half box trades download for extraction.** It pulled the corpus in 34.3 minutes
+against 108 to 136 for the large box, then spent two and a half hours unzipping on four
+CPUs instead of eight. Net it is still ahead, but a run that is extraction-bound should ask
+for the CPUs even when it does not need the memory.
 
 **The parity run is cancelled.** It held an L40S worker, lost it, and went back to "waiting
 to be scheduled ... relaxing requirements (memory=128.8GiB) may lead to faster scheduling"
