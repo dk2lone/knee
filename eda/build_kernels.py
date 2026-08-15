@@ -48,6 +48,11 @@ MODEL_SOURCES = ["metaresearch/dinov2/PyTorch/small/1",
 MEDICAL_ENCODERS = ["dk2lone/raddino-dinov2-medical",
                     "dk2lone/biomedclip-vitb16"]
 
+# The RadImageNet arm: the frozen ResNet-50 checkpoint and the five published heads that
+# read it. Both are CC-BY-NC-SA-4.0 - see #26 and the licence note in rad_arm.py.
+RAD_ARM = ["marwanmath/resnet-50-radimagenet-marwan",
+           "antoinegg1/rsna-knee-e9-radimagenet-heads-v15"]
+
 
 class Notebook:
     def __init__(self, path):
@@ -69,6 +74,12 @@ class Notebook:
         i = hits[0][0]
         s = "".join(self.nb["cells"][i]["source"])
         self.nb["cells"][i]["source"] = s.replace(old, new).splitlines(keepends=True)
+
+    def cell(self, path):
+        """Append a source file as the last cell, after the driver has run main()."""
+        self.nb["cells"].append({
+            "cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [],
+            "source": Path(path).read_text().splitlines(keepends=True)})
 
     def write(self, path):
         Path(path).write_text(json.dumps(self.nb))
@@ -670,11 +681,14 @@ def infer_from_package(path, dev):''')
         "no weights package is attached. This notebook only predicts; the training "
         "notebooks are knee-train-v1 and knee-train-v2.")''')
 
+    # The second reader, in its own cell after the driver, so it reads the submission the
+    # members just wrote and can only improve it or leave it alone (issue #35).
+    n.cell("kaggle/blend/rad_arm.py")
     n.write("kaggle/blend/knee-blend.ipynb")
     # Only kernels that have produced an output can be mounted, so a training kernel
     # joins this list after its first successful run, not when its code is written.
     meta("kaggle/blend/kernel-metadata.json", "knee-blend", "knee blend",
-         "knee-blend.ipynb", WEIGHT_PACKAGES, TRAINED)
+         "knee-blend.ipynb", WEIGHT_PACKAGES + RAD_ARM, TRAINED)
 
 
 # ---------------------------------------------------------------------- duo --- #

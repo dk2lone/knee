@@ -9,7 +9,9 @@
   "enable_tpu": false,
   "enable_internet": false,
   "dataset_sources": [
-    "pilkwang/rsna-knee-weights"
+    "pilkwang/rsna-knee-weights",
+    "marwanmath/resnet-50-radimagenet-marwan",
+    "antoinegg1/rsna-knee-e9-radimagenet-heads-v15"
   ],
   "kernel_sources": [],
   "competition_sources": [
