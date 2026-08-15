@@ -1,0 +1,24 @@
+{
+  "id": "dk2lone/knee-radheads",
+  "title": "knee radheads",
+  "code_file": "knee-radheads.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "dk2lone/knee-pipeline",
+    "dk2lone/knee-report-labels-dk",
+    "marwanmath/resnet-50-radimagenet-marwan"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1"
+  ],
+  "machine_shape": "NvidiaTeslaT4"
+}
