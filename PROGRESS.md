@@ -289,12 +289,23 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **Cross-slice sweep** — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **launched** `fc-01M03EMD3T5ZZVAEDRVWAJ1EQ2` |
+| **Cross-slice sweep** — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **ordering**, 19:15; holdouts expected 19:50–20:00 |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
 | DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | **dead**, crashed; not relaunching |
 | Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | **dead**, crashed; not relaunching |
 | every Kaggle kernel | Kaggle | all COMPLETE, both GPU sessions free |
+
+The sweep's schedule, so a slow tick is not mistaken for a dead one: extraction ended and
+`pipeline` imported about 19:03, ordering began 90 s later, and the pass took 1,784 s the
+last time it ran end to end. Decode is another 290 s, then two arms of 8 epochs at 42 s.
+That puts the holdouts at **19:50 to 20:00**. `ORDER_BUDGET_S` is 5,400 s against that
+1,784 s, so the pass will not be cut short — which matters more here than usual, because a
+cut leaves the remainder in arbitrary file order and slice arrangement is the one thing this
+sweep is measuring.
+
+Nothing in tonight's five submissions depends on the result. The queue is blend and frontier
+kernels, already pushed and COMPLETE, so a sweep landing at 20:00 costs nothing.
 
 **Kaggle is no longer the bottleneck. Submissions are.** Both GPU sessions are free and all
 five kernels finished, but the day's five submissions are spent and the count resets at
