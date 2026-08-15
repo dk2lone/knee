@@ -960,6 +960,20 @@ Three comparisons against two controls, every variant one change from its contro
 the most attributable night this project has had — runs 8 and 9 were unattributable by
 construction, and tonight nothing is.
 
+**The five links, in submission order.** Open each one, go to the Output tab, press *Submit
+to competition*. Check the version number on the two that have more than one — the wrong
+version spends the slot on a question already answered.
+
+```
+1  https://www.kaggle.com/code/dk2lone/knee-blend-nolegacy     version 4
+2  https://www.kaggle.com/code/dk2lone/knee-blend-logit        version 1
+3  https://www.kaggle.com/code/dk2lone/knee-blend-ttalogit     version 1
+4  https://www.kaggle.com/code/dk2lone/knee-frontier-alpha     version 2
+5  https://www.kaggle.com/code/dk2lone/knee-frontier-logit     version 1
+```
+
+All five re-checked COMPLETE at 19:13 EDT, 47 minutes before the reset.
+
 ### The third axis: pooling the TTA windows rather than the members
 
 `TTA_POOL` has been a supported constant all along — `predict_member` already branches on
