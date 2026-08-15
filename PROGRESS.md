@@ -1539,10 +1539,10 @@ it.
 ### Correction, 15 Aug 19:25: the path does not run through the head change
 
 Written above: "the path to 0.938 runs through the grouping sweep and the head change".
-The honest frontier headroom, run tonight, bounds that path at **0.917**. A better model
-reaches two findings on this base, and closing both of them completely is +0.026 gold. The
-head change is still the right experiment and it is still worth running — it just cannot be
-the route to tenth, because there is no route to tenth on the model axis at all.
+The honest frontier headroom, run tonight, puts that path between **0.917 and 0.949**
+depending on how the significance line is drawn — see the correction below, which walks
+back a tighter claim I made first. The head change keeps its place; what changes is that it
+is no longer the only thing that has to work.
 
 **And `score_labels` on the frontier probe cannot take over as the load-bearing measurement
 either, which is what I said one tick earlier and was wrong about.** It reads
@@ -1562,13 +1562,35 @@ Four axes, each measured rather than assumed:
 
 | axis | where it stands | ceiling from here |
 |---|---|---|
-| a better model | 2 of 12 findings still model-limited | **+0.005**, to about 0.917 |
-| better labels | 7 of 12 findings teacher-limited | unmeasured |
+| a better model | 2 findings significant, 7 with a positive gap | **0.917 to 0.949** |
+| better labels | 7 of 12 findings at the teacher | unmeasured |
 | more voters | our members 0.81 against the public 0.8325–0.8600 | negative so far |
 | pooling rules | three variants queued tonight | +0.001 to +0.003 |
 
-Nothing identified reaches 0.026. But the label axis is the only one whose ceiling is
-**unmeasured**, and it is the largest by count of findings — seven against two.
+**Correction to the row above, written minutes after it.** I first put the model ceiling at
+0.917 and said the axis could not be the route to tenth. That is the tightest of several
+readings and it over-states what 58 studies can tell anyone. `headroom.py` calls a finding
+teacher-limited when the teacher sits **inside our bootstrap interval**, and at this sample
+size those intervals are enormous — PF OA is [0.703, 0.932]. "Teacher-limited" there means
+*not distinguishable*, not *no headroom*.
+
+The same table, read four ways:
+
+```
+strictly significant only        2 findings  +0.0261 -> board 0.917
+every positive teacher gap       7 findings  +0.0575 -> board 0.949
+positive gaps, >=15 positives    5 findings  +0.0412 -> board 0.932
+half of every positive gap                   +0.0287 -> board 0.920
+```
+
+The two that flip between readings are **PF OA (+0.075, 21 positives)** and **Medial
+Meniscus (+0.072, 26 positives)** — substantial gaps on well-populated labels that fail
+significance only because n is 58. Dropping the three under-powered labels and keeping the
+rest puts the ceiling at **0.932**, which is within reach of tenth.
+
+So the honest statement is a range, 0.917 to 0.949, and gold-58 cannot narrow it. **The
+model axis is not closed and the head change keeps its place.** What survives from the
+first version is only the addition, not the exclusion.
 
 The label question was closed on 14 Aug, and it is worth being precise about what was
 closed: `score_labels` ranked `llm_labels_v4_blend` best of the **five public tables**, and
@@ -1576,10 +1598,12 @@ rank-averaging every combination of them gained 0.0001. That is a closed search 
 other people have published. It is not evidence that no better teacher exists — only that
 none of the five is better than the best of the five, which is nearly a tautology.
 
-Seven findings sit at their teacher's ceiling. Raising that ceiling is a text problem, needs
-no GPU, and is the one thing on this page with real headroom and no measurement against it.
-**That is the next axis**, and unlike the head change it is not competing for a Modal
-workspace at its spend limit.
+Seven findings sit at or below their teacher, and every one of those gaps is capped by the
+teacher whatever the model does. Raising that cap is a text problem, needs no GPU, and is
+the one axis with no measurement against it at all. **It runs alongside the head change
+rather than instead of it** — the two compound, since model work closes the gap to the
+teacher and label work raises where the teacher sits. It also competes for nothing: every
+Modal workspace but one is at its spend limit, and this axis needs none of them.
 
 ## What 0.938 costs, per label
 
