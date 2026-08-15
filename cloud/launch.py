@@ -42,10 +42,13 @@ ADAPT = [
 #
 # One container serves all three: the pixel cache does not depend on which encoder reads
 # it, so this costs one extraction rather than three.
+# Rerun at 8e-6: the first pass ran at 3e-5, which the adaptation sweep then showed is the
+# wrong rate (8e-6 beat it on both slice counts), so BioMedCLIP's +0.012 over DINOv2-small
+# was measured where both encoders are handicapped. RAD-DINO is dropped - it lost by 0.021
+# at 3e-5 and it was pretrained on chest X-ray, so it has no route back.
 ENCODERS = [
-    {"name": "enc-small", "variant": "small", "lr_backbone": 3e-5, "unfreeze_last": 6},
-    {"name": "enc-raddino", "variant": "raddino", "lr_backbone": 3e-5, "unfreeze_last": 6},
-    {"name": "enc-biomedclip", "variant": "biomedclip", "lr_backbone": 3e-5,
+    {"name": "enc8-small", "variant": "small", "lr_backbone": 8e-6, "unfreeze_last": 6},
+    {"name": "enc8-biomedclip", "variant": "biomedclip", "lr_backbone": 8e-6,
      "unfreeze_last": 6},
 ]
 
