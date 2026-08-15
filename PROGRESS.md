@@ -694,8 +694,37 @@ only in that the first one answers the open question:
    board, and resubmitting it spends a slot to learn nothing
 3. `knee-blend-clean` — version 1 — the licence-safe floor
 
-Then stop. Slots 4 and 5 stay unspent unless the grouping sweep produces something, because
-no other candidate tests anything these three do not.
+Then stop — but **the reason given earlier for stopping was wrong and is worth correcting.**
+This page said "a submission spent on noise is a measurement that cannot be taken tomorrow".
+That is false: the five reset every day at 20:00 and unused slots do not carry over, so an
+unspent slot is worth exactly zero and spending one costs nothing tomorrow.
+
+The real constraints are different and both survive the correction:
+
+- **Measurability.** The public board is deterministic to three decimals, so a change is
+  readable at about 0.001. Everything left in the weight grid is worth +0.0006 or less after
+  dilution, which lands on the boundary between "+0.001" and "no change" — a coin flip
+  reported as a measurement.
+- **Each submission is a manual browser click**, so the fourth and fifth cost attention
+  rather than quota.
+
+If the two spare slots are wanted anyway, the best available filler is the fork with
+`fit_rad_alpha`'s **argmax** map instead of the rule — gold 0.8871 against 0.8837, so about
++0.0006 on the board. It tests whether an eight-point grid on 58 studies really overfits, a
+claim this page has asserted three times and never measured. It is one dict literal in
+`eda/build_frontier_alpha.py` and about an hour of Kaggle GPU. It is not recommended, it is
+priced.
+
+### The efficiency track cannot be priced from what is on disk
+
+`blend-clean` finishes its dry run in 41.1 s and `frontier-alpha` v2 in 77.1 s. That ratio
+is **not** the efficiency ratio: both runs predict the three visible studies, where mounting
+and model construction dominate and per-study decoding barely registers. Five members
+against twenty-five does not show up at n=3.
+
+So the honest position is the one this page already took — read the runtime off a scored
+rerun before assuming anything. What the dry runs do establish is that the cheap entry is
+genuinely cheaper on fixed cost too, which is the half that does not scale with the test set.
 
 ### The 0.912 kernel carried the wrong weight on two labels
 
@@ -1098,9 +1127,9 @@ while the public frontier needs twenty-five to reach 0.912. The gap is a better 
 that is the one thing today cannot buy — four Modal workspaces are at their billing-cycle
 spend limits and the fifth is running the grouping sweep.
 
-**So the 20:00 reset gets three submissions, not five.** Two slots stay unspent because no
-fourth or fifth candidate tests anything the first three do not, and a submission spent on
-noise is a measurement that cannot be taken tomorrow. What the three buy is a decision:
+**So the 20:00 reset gets three submissions, not five.** Two slots stay unspent because
+nothing left to try is large enough to read on a three-decimal board — not because slots are
+scarce, which they are not. What the three buy is a decision:
 
 | kernel | predicts | what its result decides |
 |---|---:|---|
