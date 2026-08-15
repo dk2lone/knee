@@ -209,6 +209,47 @@ Cutting the ensemble from 20 members to 5 costs nothing — the members differ o
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
 fifteen members, which inverts the baseline's own stated priority.
 
+## Our five members were two members wearing five votes
+
+pilkwang's package is five folds by four seeds. `collect_members` took the five highest
+holdouts, which is **four seeds of fold 2 and one of fold 4**:
+
+```
+rank  fold  holdout          after the fix
+   0  2     0.8600           folds    [0, 1, 2, 3, 4]
+   1  2     0.8595           holdout  [0.8383, 0.8325, 0.8600, 0.8380, 0.8438]
+   2  2     0.8583
+   3  2     0.8570
+   4  4     0.8438
+```
+
+Four of those five saw the same 80% of the data and differ only by initialisation. A rank
+mean pays for disagreement, not for skill, so we were buying five forward passes and about
+two opinions. Selection is now a round-robin over folds, best first inside each: same cost,
+five distinct training sets, individually a little weaker on purpose.
+
+**It reopens runs 2 and 4.** Both scored 0.891 — twenty members, then "the top five" — and
+this file read that as votes 6-20 carrying nothing. If the top five were behaving like two,
+what those runs showed is that **seeds do not matter**. Whether folds matter was never
+tested. `eda/test_blend.py` now pins the fold spread so this cannot come back.
+
+The fork is unaffected: it votes all twenty, so it never had the concentration.
+
+## The last submission of the day
+
+One left, and the count resets at 20:00 EDT — about 17 hours. Nothing else can be ready in
+that window: the Modal runs are hours from finishing and the probe informs a submission
+rather than producing one. So the slot goes to `knee-blend-nolegacy`, carrying three
+untested things at once:
+
+1. the fold spread above
+2. the frontier's second RadImageNet head family, at half the arm's vote
+3. a `RAD_ALPHA` fitted by `eda/sweep_rad_alpha.py` rather than borrowed
+
+Three changes in one submission cannot be attributed on the leaderboard. That is acceptable
+only because the probe attributes them offline for free, which is the whole reason it was
+built.
+
 ## What 0.938 costs, per label
 
 The public twenty score **0.856** gold macro under their own fold map and **0.891** on the
