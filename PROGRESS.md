@@ -80,8 +80,40 @@ and silently dropped the cross-slice head. It mounts exactly what `knee-blend-no
 mounts and differs from it in four lines, so the two submitted together **attribute the
 change cleanly** — which is the thing runs 8 and 9 could not do.
 
-Expect +0.001 on the board after halving, which sits right on what a three-decimal board can
-read. It is worth one of the two free slots precisely because it is paired with its control.
+### No offline harness can check this one, and that is the argument for submitting it
+
+Two independent attempts to verify it before spending a slot, both of which fail for
+structural reasons rather than because the change is wrong.
+
+**The dry run cannot see it.** `knee-blend-logit`'s predictions are byte-identical to v4's on
+all twelve labels. Three visible studies means each member's rank vector is a permutation of
+{0.333, 0.667, 1.0}, and a monotone re-pooling of three points almost never reorders them.
+The kernel log proves the code path ran — `submission.csv = logit mean of 5 member(s)` —
+so this is a limit of n=3, not a failed substitution. Unlike `frontier-alpha` v2, where a
+weight change moved values directly, **a re-ranking change is invisible at three studies.**
+
+**The gold-58 harness cannot see it either, at the size that ships.**
+
+```
+all 20 members          rank 0.8564   logit 0.8585   +0.0021
+fold spread, 5 members  rank 0.8422   logit 0.8422    0.0000
+```
+
+That second row is not evidence against the change. It is the join being degenerate: out of
+fold a study is scored only by members that held it out, and with one member per fold that
+is **exactly one voter**. Any pooling rule applied to a single voter is the identity. This
+page already knew that — "with five spread it is exactly one" — and it now bites the one
+question it would have been useful for.
+
+So the +0.0021 is measured on ~4 voters per study, all seeds of the same fold and therefore
+highly correlated. What ships is 5 voters that differ by fold, which is more diverse. Pooling
+rules matter *more* when voters disagree, so 0.0021 is likelier a floor than a ceiling — but
+that is an argument, not a measurement.
+
+**This is the case where a submission is the correct instrument**, because no table on disk
+can answer it. Paired with v4, which differs in four lines, the board is a clean readout. If
+the two come back equal, logit pooling is worth nothing at five members and the idea dies
+for the price of a slot that expires unused anyway.
 
 ### Checked 15 Aug 09:30: the notebook that now sorts above the frontier *is* the frontier
 
