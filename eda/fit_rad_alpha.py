@@ -81,8 +81,44 @@ def main():
                     ("argmax", fitted)):
         print(f"{name:9s} macro {macro(gold, pr, rr, m):.4f}")
     print("\nRAD_ALPHA = " + repr(rule))
+    robustness(gold, pr, rr, {t: auc(gold[t].to_numpy(), rr[:, j])
+                              > auc(gold[t].to_numpy(), pr[:, j]) for j, t in enumerate(L)})
     print("\nHalve the gold delta before believing it on the board: the arm itself was "
           "priced at +0.022 on these 58 studies and delivered +0.012.")
+
+
+def robustness(gold, pr, rr, wins, draws=400):
+    """Does the answer depend on the two numbers, or only on the split?
+
+    The rule has two free parameters - what a winning finding gets and what a losing one
+    gets - so the whole surface fits in one table, which is the point: twelve per-label
+    weights could not be checked this way at all.
+
+    The surface is flat. Everything from (0.15, 0.7) to (0.3, 0.9) lands inside 0.003, and
+    a bootstrap over the studies cannot separate (0.3, 0.7) from (0.3, 0.8). So the numbers
+    are not the finding - **which findings sit on which side is** - and that is what makes
+    the rule safe to carry to the v15 checkpoint that ships, whose exact curve we cannot
+    measure.
+    """
+    grid = lambda lo, wi: {t: (0.0 if t in NO_VOTE else (wi if wins[t] else lo)) for t in L}
+    los, wis = (0.15, 0.2, 0.25, 0.3, 0.35, 0.4), (0.5, 0.6, 0.7, 0.8, 0.9)
+    print(f"\n{'lose':>6s} " + " ".join(f"{w:>7.2f}" for w in wis))
+    for lo in los:
+        print(f"{lo:6.2f} " + " ".join(f"{macro(gold, pr, rr, grid(lo, w)):7.4f}"
+                                       for w in wis))
+
+    rng = np.random.default_rng(0)
+    picks = {}
+    for _ in range(draws):
+        ix = rng.integers(0, len(gold), len(gold))
+        g2, p2, r2 = gold.iloc[ix], pr[ix], rr[ix]
+        sc = {(lo, wi): macro(g2, p2, r2, grid(lo, wi))
+              for lo in (0.2, 0.3, 0.4) for wi in (0.6, 0.7, 0.8)}
+        k = max(sc, key=sc.get)
+        picks[k] = picks.get(k, 0) + 1
+    top = sorted(picks.items(), key=lambda kv: -kv[1])[:4]
+    print(f"bootstrap over {draws} resamples picks: "
+          + ", ".join(f"{k} {n}" for k, n in top))
 
 
 if __name__ == "__main__":
