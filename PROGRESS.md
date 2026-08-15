@@ -137,6 +137,41 @@ borrowed-constant lesson of runs 8 and 9 arriving from a third direction.
 `write_submission` re-ranks afterwards, so the arm still receives ranks and still blends in
 rank space at the alpha it was fitted under. Nothing about the arm moved.
 
+### The gain scales with how many voters disagree, and that predicts both pairs
+
+Held the fold spread and varied the pool size, so each subset still covers all five training
+sets and the only thing moving is how many members vote on each study:
+
+```
+members  voters/study     rank    logit     gain
+      5           1.0   0.8422   0.8422  +0.0000
+     10           2.0   0.8528   0.8525  -0.0003
+     15           3.0   0.8541   0.8546  +0.0005
+     20           4.0   0.8564   0.8585  +0.0021
+```
+
+Monotone once the degenerate row is passed. One voter cannot be re-pooled at all; two
+voters barely; by four the rule is worth +0.0021 and still climbing. **Logit pooling is not
+a better average, it is a better way of resolving disagreement** — so it pays in proportion
+to how much disagreement there is to resolve.
+
+**Written before the slots are spent, which is the only way a prediction counts:**
+
+| pair | voters at inference | expected |
+|---|---:|---|
+| v4 against `blend-logit` | 5 | within 0.001 — probably indistinguishable |
+| alpha v2 against `frontier-logit` | 24 | the larger of the two, ~+0.001 on the board |
+
+So **`knee-frontier-logit` is the more promising of the two**, which is fortunate because it
+sits on our best base. If the board reverses this — if the five-member pair separates and the
+twenty-four-member pair does not — then voter count is not the mechanism and this whole
+table is a coincidence fitted to 58 studies.
+
+Note the conversion caveat cuts the other way here than it did for the arm. Dilution applied
+because the arm holds 0.35 of one vote in twenty-six; this changes **the base itself**, so
+there is nothing diluting it. Halving for the usual gold-to-board shrinkage is the only
+discount applied.
+
 ### No offline harness can check this one, and that is the argument for submitting it
 
 Two independent attempts to verify it before spending a slot, both of which fail for
