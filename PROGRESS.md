@@ -166,6 +166,22 @@ side.
 It agrees with the headroom split above: four findings are model-limited and five cannot
 move at all without better labels. Both point at the same work.
 
+**The same thread prices our own model, and the number is unflattering.** The asker's best
+single DINOv2 model scores **0.887**. Ours scored 0.831 (run 5). That is 0.056 behind an
+ordinary competitor's single model, and it is the largest single gap on this page.
+
+The comparison is not fair yet, and that is the point. Run 5 was train-v1: **one fold,
+three cached slices**, a configuration built to be cheap rather than good. Slice count
+alone was measured at +0.188 on Medial Meniscus going from 3 to 12. **This repo has never
+put a properly trained single model on the leaderboard.** Five folds, twelve slices and
+twenty-two epochs holds out at 0.8304 against train-v1's 0.8084, and no submission has
+ever carried it.
+
+So the diversity run is promoted. It was queued to be decorrelated from the public members;
+under this reading it is also **our first real single model**, and band (0.02, 0.98) costs
+little — issue #36 measured the whole range of the band at 0.013. When it lands it gets a
+submission on its own, before it is blended into anything.
+
 ## Is the private split by site? Still unanswered
 
 `discussion/734681`. The question matters because it decides how folds should be built: if
