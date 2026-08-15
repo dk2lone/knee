@@ -52,7 +52,24 @@ ENCODERS = [
      "unfreeze_last": 6},
 ]
 
-SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS}
+# How much of each stack a slice is sampled from. The shipped (0.20, 0.80) throws away
+# the outer 40%, and the lateral meniscus and the lateral compartment live in those
+# slices - they are the two labels the whole public field is worst at, 0.660 and 0.706
+# against teachers of 0.879 and 0.833 (#35). The one arm of the field that beats every
+# DINOv2 member on both reads (0.12, 0.88). Nobody has challenged this constant.
+#
+# Resolution is not the alternative explanation: 130 mm over 336 px is 0.387 mm/px,
+# already finer than the acquisition, so a tighter crop upsamples rather than resolves.
+#
+# Each arm decodes its own cache here - the band changes what a pixel is - so this costs
+# about half an hour more per arm than an adaptation sweep does.
+BANDS = [
+    {"name": "band-20-80", "lr_backbone": 8e-6, "unfreeze_last": 6, "band": (0.20, 0.80)},
+    {"name": "band-10-90", "lr_backbone": 8e-6, "unfreeze_last": 6, "band": (0.10, 0.90)},
+    {"name": "band-02-98", "lr_backbone": 8e-6, "unfreeze_last": 6, "band": (0.02, 0.98)},
+]
+
+SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS, "bands": BANDS}
 
 # The sweeps above RANK configurations. They cannot produce a member worth blending: one
 # fold, eight epochs and six slices holds out near 0.79, and `eda/build_kernels.py` keeps

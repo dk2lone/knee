@@ -796,6 +796,11 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         pipeline.EPOCHS = arm.get("epochs", epochs)
         pipeline.LR_BACKBONE = arm["lr_backbone"]
         pipeline.UNFREEZE_LAST = arm["unfreeze_last"]
+        # An arm may move the slice band, which changes what a slice IS rather than how
+        # the encoder is fitted. The memo key already carries the band, so such an arm
+        # decodes its own cache instead of quietly reusing the previous arm's pixels.
+        if "band" in arm:
+            pipeline.SLICE_BAND = tuple(arm["band"])
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600
@@ -809,6 +814,7 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
                 "folds": folds, "img": img, "slices": pipeline.CACHE_SLICES,
                 "lr_backbone": arm["lr_backbone"],
                 "unfreeze_last": arm["unfreeze_last"],
+                "band": [float(x) for x in pipeline.SLICE_BAND],
                 "batch_studies": batch_studies, "seed": pipeline.SEED,
             })
             done.append({"name": name, "hours": (time.time() - t0) / 3600,
