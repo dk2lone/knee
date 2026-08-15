@@ -302,6 +302,20 @@ It finishes well before 20:00 EDT. So the first submission of tomorrow can carry
 trained model of ours, which no submission ever has: run 5's 0.831 was one fold at three
 slices.
 
+**The export needs the workspace prefix, and this is the step that will otherwise waste an
+hour.** The Modal Volume is per workspace, so `cloud/export.py` walks an empty one under
+the default profile and reports nothing to export. The run is `runs/full-band` on
+`sunnypathca`, confirmed by `modal volume ls`:
+
+```
+MODAL_PROFILE=sunnypathca .venv/bin/python cloud/export.py --run full-band --dry-run
+MODAL_PROFILE=sunnypathca .venv/bin/python cloud/export.py --run full-band
+```
+
+That pushes `dk2lone/knee-members-full-band`. Then add it to `WEIGHT_PACKAGES` in
+`eda/build_kernels.py`, rebuild, and the members join the vote — and because
+`collect_members` now spreads over folds, all five of them will, not four seeds of one.
+
 **Pull a kernel's output before pushing its next version.** Pushing `knee-blend-nolegacy`
 v3 cleared v2's log before it was fetched. Nothing of substance was lost - v3 is a superset
 - but the confirmation had to be re-run rather than read.
