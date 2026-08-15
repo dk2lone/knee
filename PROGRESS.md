@@ -757,6 +757,35 @@ it is a cheap one to settle and it points the wrong way for a pool that costs mo
 compute. It does not touch the `xs-flat` against `xs-cross` comparison, which shares the
 pool family and is still one change wide.
 
+### A runtime check on whether `xs-cross` is really cross-slice, written at 19:46 before the first epoch printed
+
+The six checks in `eda/test_xslice.py` all pass, re-run just now. They prove the head reads
+the longer sequence in a stub. They cannot prove the deployed container took that path,
+and a silent fallback to the flat path would make the two arms identical and the comparison
+empty while still producing a plausible number.
+
+There is a signature that settles it without any new code. The training step samples **one**
+group per step on the flat path:
+
+```
+g = int(torch.randint(N_GROUP, (1,)).item())
+imgs = augment(take_group(rows, g))
+```
+
+`xs-cross` calls `take_all_groups` instead, which hands the encoder `s * N_GROUP` slots
+rather than `s`. With `N_GROUP = 4` that is four times the encoder work per step, and the
+encoder is what a step costs — this is the same reasoning that made the earlier "grp-1 costs
+3x" prediction wrong, run in reverse, and it is why `grp-1` and `grp-3` cost the same while
+these two will not.
+
+`xs-flat` ran **42 to 48 s an epoch, mean about 45 s**. So:
+
+- **cross-slice active:** roughly 150 to 180 s an epoch, and eight epochs land near **20:10**
+- **silent fallback:** about 45 s an epoch, landing near 19:51, and **the comparison is void**
+
+The landing time is itself the measurement, which is convenient: if the result arrives early
+it is not a result. Recorded before the first epoch line so it cannot be fitted afterwards.
+
 ### What the sweep asks
 
 ```
