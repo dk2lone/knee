@@ -37,7 +37,7 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 |---|---|---|
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | corpus in 125.3 min, extracting |
 | DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | corpus in 108.7 min, extracting |
-| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016`, `fc-01M01YRGT6HQ13AD3GD2WRYNQV` | spawned |
+| Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016`, `fc-01M01YRGT6HQ13AD3GD2WRYNQV` | corpus in 34.3 min, extracting |
 | `dk2lone/knee-frontier` — fork of the frontier ensemble | Kaggle | submitted, pending |
 
 **The parity run is cancelled.** It held an L40S worker, lost it, and went back to "waiting
@@ -51,6 +51,12 @@ is the same architecture on the one contract nobody else holds, and it kept its 
 L40S capacity, not compute, is what the queue is short of. A sweep arm caches six slices
 where a full run caches twelve, so this is the same memory per slice. A `full` run keeps
 the large box; below 64 GiB the planner gives slices away silently instead of failing.
+
+**The half-size box downloaded the corpus in 34.3 minutes.** The three large boxes took
+108.7, 125.3 and 136.6. That is a factor of three to four on the same 247 GB from the same
+source, so the wait was never bandwidth — it was which worker the scheduler could spare.
+The large box is the reason every run has started slowly, and the small box should be the
+default for anything that is not a five-fold run.
 
 **Modal budget.** `raahncpe` and `hz-danielzhang` have now hit their billing-cycle spend
 limits, joining `danielz51666`, which still runs what it already started. `daniel21cn2016`
