@@ -96,6 +96,20 @@ SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS, "bands": BANDS}
 FULL = [{"name": "full", "lr_backbone": 8e-6, "unfreeze_last": 6, "epochs": 22}]
 SETS["full"] = FULL
 
+# The diversity run, and the reason it exists is issue #37: a member trained at the public
+# contract is correlated with the public members by construction, and train-v1 offered as
+# a third arm earned a vote on two labels while dropping the nested gold number. The
+# legacy bundle is weaker than train-v1 and earns three quarters of two labels, because it
+# reads different pixels.
+#
+# (0.02, 0.98) is the contract nobody else holds. The public members, the legacy bundle
+# and this repo all sample the middle 60% of every stack; this one reads the outer 40%
+# that all three discard, so where it disagrees it disagrees about slices no other arm has
+# seen. That is the disagreement a vote can use - not a better model, a different one.
+FULL_BAND = [{"name": "full-band", "lr_backbone": 8e-6, "unfreeze_last": 6,
+              "epochs": 22, "band": (0.02, 0.98)}]
+SETS["full-band"] = FULL_BAND
+
 
 def status(call_id):
     """Alive, queued, or finished - without a connection that could cancel it."""
@@ -123,7 +137,7 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
         # the same question.
         call = fn.spawn(SETS[what], variant=variant, epochs=epochs,
                         n_group_max=n_group_max,
-                        folds=5 if what == "full" else folds)
+                        folds=5 if what.startswith("full") else folds)
     else:
         call = fn.spawn(what, variant=variant, epochs=epochs)
     print(f"spawned {what} on {variant}: {call.object_id}")
