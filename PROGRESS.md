@@ -883,6 +883,26 @@ tests it, which is the only way a prediction is worth anything.
 | the same, with the shipping-table rule | 0.8837 | 0.919 | — | Synovitis and PF OA at 0.7 |
 | `knee-blend-nolegacy` v4 | 0.8796 | 0.915 | — | five members reaching a 25-member score |
 
+**All five of tonight's slots, in one place, written at 19:35 before any of them is spent.**
+The three above are scattered across this page; these are the numbers to check results
+against at 20:00.
+
+| # | kernel | predicted board | how the number was reached |
+|---|---|---:|---|
+| 1 | `knee-blend-nolegacy` v4 | **0.915** | gold 0.8796 + 0.035; read as an upper bound, ~0.913 under dilution |
+| 2 | `knee-blend-logit` | **within 0.001 of #1** | +0.0021 gold at 4 voters, and this has 5 |
+| 3 | `knee-blend-ttalogit` | **0.000 to +0.002 vs #1** | see below — the only one with no offline price at all |
+| 4 | `knee-frontier-alpha` v2 | **0.912 to 0.919** | 0.8837 + 0.035 is 0.919; v1 measured 0.912 on a 0.917 prediction |
+| 5 | `knee-frontier-logit` | **~+0.001 over #4** | the same rule at 24 voters, where the scaling curve is steepest |
+
+Slot 3 has no harness behind it, so the prediction is mechanical rather than measured. The
+ten TTA windows are ten crops of one study through one model, so their disagreement is view
+noise and not case ambiguity. Probability pooling penalises that disagreement and logit
+pooling does not. Removing a penalty on noise should be neutral to slightly positive, which
+is why the range is narrow and one-sided. **If slot 3 moves more than 0.002 in either
+direction, the premise is wrong** — the windows would be carrying case information, and that
+is worth more than the slot cost.
+
 The first row is now measured and it missed by 0.005, so read the two predictions below it
 as upper bounds. Under the dilution reading they are worth about 0.913 and 0.912, and the
 value of running v4 is no longer its score but **which of the two explanations it kills.**
