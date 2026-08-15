@@ -166,6 +166,36 @@ Cutting the ensemble from 20 members to 5 costs nothing — the members differ o
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
 fifteen members, which inverts the baseline's own stated priority.
 
+## Where the work pays, and where it cannot
+
+`eda/headroom.py` splits the twelve findings by what limits them. On train-v1: our model
+0.765 against gold, the teacher 0.893.
+
+| class | findings | what moves them |
+|---|---|---|
+| model-limited | Lateral Meniscus, Medial Meniscus, PF OA, ACL | a better model takes this |
+| teacher-limited | Synovitis, Effusion, Contusion, Fracture, Medial OA | only better labels |
+| too few positives | MCL, Lateral OA, Baker's | fewer than 15 of 58; the interval is too wide to act on |
+
+**Five of twelve are teacher-limited**, so a bigger encoder cannot move them. That is not a
+reason to chase better labels, because the label question is already closed: `score_labels`
+ranks `llm_labels_v4_blend` best of the five public tables at 0.893, rank-averaging every
+combination gained 0.0001 over it, and `eda/build_labels.py` already trains on it with
+confidence taken from `report_labels_v2`. **We are not behind the frontier on training
+signal** — it mounts the same report tables we do.
+
+The whole remaining gap therefore sits in the four model-limited findings, and two of them
+are the menisci. That is the same place the zoom sweep is aimed.
+
+This diagnostic is for train-v1, not for the frontier. When the probe lands, the frontier's
+own version is one command, and it decides everything after it:
+
+```
+.venv/bin/python eda/headroom.py kaggle/frontier-probe/out/submission.csv
+.venv/bin/python eda/score_labels.py kaggle/frontier-probe/out \
+    kaggle/frontier-probe/out/probe_truth.csv
+```
+
 ## Per label, on the 58 gold studies
 
 The number that decides where the remaining score is. Ours is `knee-train-v1`, one fold at
