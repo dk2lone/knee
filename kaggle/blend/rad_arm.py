@@ -46,6 +46,12 @@ RAD_ALPHA = {"ACL": 0.7, "MCL": 0.6, "Medial Meniscus": 0.35, "Lateral Meniscus"
              "Synovitis": 0.7, "Baker's": 0.0, "Contusion": 0.7, "Fracture": 0.0}
 
 
+# How the arm's own vote splits between its two head families, from the frontier
+# ensemble, which calls it untuned and gives each half. Neither family can dominate the
+# other, because the mix is over ranks and not over probabilities.
+RAD_FAMILY_WEIGHT = 0.50
+
+
 # What the arm needs, and what it leaves unspent. The members are given 6.5 h of the 9 h
 # cap; this is the check that the rest of it is really still there, because the members'
 # budget is a target and the cap is not.
@@ -203,6 +209,38 @@ def predict_head(model, features, masks, indices, device, batch=64):
     return torch.cat(pred).numpy()
 
 
+def rad_second_family(features, token_mask, rows, dev):
+    """`mattiaangeli/rsna-knee-radimagenet-foldsv1-heads` as a mean of fold ranks, or None.
+
+    The frontier ensemble carries two RadImageNet head families inside one vote. This is
+    the second, and adopting it is nearly free: same class, same 2048 -> 512 dims, and the
+    same pixel contract this arm already decoded - 224 px, band (0.12, 0.88), 8 slices,
+    3 fluid slots - so the cache and the encoder pass are paid for and only five head
+    forwards are added. The heads are fitted on a different fold map, which is the whole
+    reason a second family is worth a vote rather than a duplicate one.
+
+    Rank each fold and then average, which is the estimator its author validated it with;
+    the v15 family means probabilities first. That difference is kept on purpose.
+    """
+    paths = [rad_file(f"rad_head_f{f}.pt") for f in range(5)]
+    if any(p is None for p in paths):
+        log("RadImageNet arm: the second head family is not attached")
+        return None
+    ranks = []
+    for path in paths:
+        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+        head = FoundationQueryHead().to(dev)
+        head.load_state_dict(ckpt["state_dict"], strict=True)
+        ranks.append(pd.DataFrame(predict_head(head, features, token_mask, rows, dev)
+                                  ).rank(pct=True).to_numpy())
+        del head, ckpt
+        if dev.type == "cuda":
+            torch.cuda.empty_cache()
+    log(f"RadImageNet arm: second head family, {len(ranks)} folds at "
+        f"{1.0 - RAD_FAMILY_WEIGHT:.2f} of the arm's vote")
+    return np.mean(np.stack(ranks), axis=0)
+
+
 def rad_predict(dev):
     """The arm's test predictions, on its own pixels.
 
@@ -257,6 +295,11 @@ def rad_predict(dev):
     p = np.mean(np.stack(preds), axis=0)
     if p.shape != (len(test), len(TARGETS)) or not np.isfinite(p).all():
         raise WeightsError(f"the RadImageNet arm returned {p.shape}")
+
+    second = rad_second_family(features, token_mask, rows, dev)
+    if second is not None:
+        p = (RAD_FAMILY_WEIGHT * pd.DataFrame(p).rank(pct=True).to_numpy()
+             + (1.0 - RAD_FAMILY_WEIGHT) * second)
     return test["StudyInstanceUID"].astype(str).tolist(), p
 
 

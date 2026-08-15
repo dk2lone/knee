@@ -51,7 +51,11 @@ MEDICAL_ENCODERS = ["dk2lone/raddino-dinov2-medical",
 # The RadImageNet arm: the frozen ResNet-50 checkpoint and the five published heads that
 # read it. Both are CC-BY-NC-SA-4.0 - see #26 and the licence note in rad_arm.py.
 RAD_ARM = ["marwanmath/resnet-50-radimagenet-marwan",
-           "antoinegg1/rsna-knee-e9-radimagenet-heads-v15"]
+           "antoinegg1/rsna-knee-e9-radimagenet-heads-v15",
+           # The arm's second head family. Same class, same dims, same pixel contract as
+           # the v15 heads and a different fold map, so it rides the cache the arm has
+           # already decoded - see `rad_second_family` in rad_arm.py.
+           "mattiaangeli/rsna-knee-radimagenet-foldsv1-heads"]
 
 # The four-fold bundle the public 0.916 notebooks vote with on four findings. Weaker than
 # the members everywhere and better than them on the two lateral labels, which is the only

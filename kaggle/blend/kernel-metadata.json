@@ -12,6 +12,7 @@
     "pilkwang/rsna-knee-weights",
     "marwanmath/resnet-50-radimagenet-marwan",
     "antoinegg1/rsna-knee-e9-radimagenet-heads-v15",
+    "mattiaangeli/rsna-knee-radimagenet-foldsv1-heads",
     "tonylica/rsna2026-models"
   ],
   "kernel_sources": [],
