@@ -92,6 +92,17 @@ COMP_NEW = f"COMP = Path({PROBE_ROOT!r})"
 # read is gone and its share cannot be separated from what it was added to. With it, any
 # other per-target weight can be scored offline by mixing the two files - which is the
 # difference between one submission per weight and none.
+# The first probe run measured 0.998 macro and that number is worthless: every member
+# trained on most of these 58 studies, so the blend is reciting them. The fix is the join
+# `eda/probe_gold.py` already does for the public package - score each study only with the
+# members that held it out - and that needs one table per member rather than their mean.
+# 25 members x 58 studies is nothing to write and it is the difference between a probe
+# that measures and a probe that recites.
+BANK_OLD = '\n            log(f"  banked {m[\'id\']} fold'
+BANK_NEW = ('\n            _pm = "member_%s_f%s.csv" % (m["id"], m.get("fold", "x"))'
+            '\n            write_submission(pred, ids, test_df, _pm)'
+            '\n            log(f"  banked {m[\'id\']} fold')
+
 RAD_OLD = "\n_rad_main()"
 RAD_NEW = ("\nimport shutil as _snap_shutil\n"
            "_snap_shutil.copy('submission.csv', 'submission_prerad.csv')\n"
@@ -101,7 +112,7 @@ RAD_NEW = ("\nimport shutil as _snap_shutil\n"
 
 def main():
     nb = json.loads(SRC.read_text())
-    hits = {"find_root": 0, "COMP": 0, "rad": 0}
+    hits = {"find_root": 0, "COMP": 0, "rad": 0, "bank": 0}
     for cell in nb["cells"]:
         if cell["cell_type"] != "code":
             continue
@@ -115,6 +126,9 @@ def main():
         if RAD_OLD in src:
             src = src.replace(RAD_OLD, RAD_NEW)
             hits["rad"] += 1
+        if BANK_OLD in src:
+            src = src.replace(BANK_OLD, BANK_NEW)
+            hits["bank"] += 1
         cell["source"] = src.splitlines(keepends=True)
 
     for name, n in hits.items():
