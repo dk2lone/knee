@@ -5,7 +5,7 @@ Where the score is, what is running, what happens next. Updated 14 Aug 2026, 21:
 | | |
 |---|---|
 | Public leaderboard | **0.907** |
-| Tenth place | 0.936 |
+| Tenth place | 0.938 (was 0.936; the bar moved on 14 Aug) |
 | Best public notebook | 0.916 |
 | Final submission | 22 Oct 2026 |
 | Submissions | 5 per day, the count resets 20:00 EDT |
@@ -35,11 +35,13 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 
 | What | Where | State |
 |---|---|---|
-| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | running or queued |
-| Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | running or queued |
-| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | running or queued |
-| `knee-blend` v7 — three arms + the frontier's TTA pooling map | Kaggle | submitted, pending |
-| `dk2lone/knee-frontier` — fork of the frontier ensemble | Kaggle | dry run |
+| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | corpus in 136.6 min, extracting |
+| Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | corpus in 125.3 min, extracting |
+| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | corpus 95% |
+| `dk2lone/knee-frontier` — fork of the frontier ensemble | Kaggle | submitted, pending |
+
+All three lanes are past 95% of the 247 GB corpus, so none is worth killing to free a lane
+for the zoom sweep. That sweep waits for the first one to finish.
 
 A Modal call only answers to the workspace that spawned it, so prefix the status call:
 `MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py status <fc-id>`. Without it the
@@ -151,10 +153,15 @@ whatever site memorisation is worth.
 
 ## The plan to tenth
 
-0.936 needs +0.041. Four steps, each measured before the next one is trusted. The gains
-are what has already been measured somewhere, not hopes.
+**Tenth is now 0.938, not 0.936.** The bar moved on 14 Aug. From the fork's floor of about
+0.916 that is +0.022 to find.
 
-### 1. The RadImageNet arm — running, worth about +0.025
+The base changed on 15 Aug. Runs 8 and 9 showed that a constant fitted on the frontier's
+25-member pool loses score on our 5-member one, so the direction reverses: the fork is the
+base, and our work is an arm bolted on to it. Steps 1 and 2 below are finished and are kept
+because they are what the reversal is built on. Steps 3 and 4 are the live ones.
+
+### 1. The RadImageNet arm — done, worth +0.012 (about half of what gold predicted)
 
 Priced offline from the publisher's own OOF table and bootstrap: +0.024 to +0.034 gold
 macro over the same base this repo blends. **The checkpoint is CC-BY-NC-SA-4.0** — it buys
@@ -168,7 +175,7 @@ kaggle kernels status dk2lone/knee-blend      # wait for COMPLETE
 Success is about 0.92. Below 0.90 the arm did not run — read the log for "RadImageNet arm
 skipped", which is the fail-safe reporting itself rather than a bad blend.
 
-### 2. Our own members join the vote — worth about +0.010, and not guaranteed
+### 2. Our own members join the vote — the three Modal runs, all past the download
 
 The parity run is five folds, 22 epochs, 12 slices, at the configuration four sweeps
 agree on. Its members vote beside the public ones, and they are **site-grouped**, so their
