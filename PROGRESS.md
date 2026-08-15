@@ -56,6 +56,25 @@ The holdout weighting is skipped rather than measured, and the reason is already
 page: holdout rank tracks **fold**, not skill — the old top-five selection was four seeds of
 fold 2. Weighting members by holdout re-creates exactly the concentration that was fixed.
 
+### Checked 15 Aug 19:05: the new top of the list is a merge of things already priced
+
+`sakhawathossen/rsna-knee-enhanced-ensemble`, 78 votes, run 18:54 EDT, took the head of
+`scoreDescending` from `rsna-knee-00`. 235k characters of code against the baseline's 118k,
+which looks like a new recipe and is not one. Its own first markdown cell says what it is:
+`mattiaangeli/bend-the-knee-to-dinov3-ensembled` with a legacy branch appended and a
+finalizer cell that deletes every other `submission.csv`.
+
+Its eleven `dataset_sources` against ours: `pilkwang/rsna-knee-weights`, both RadImageNet
+head families, `marwanmath/resnet-50-radimagenet-marwan` and `tonylica/rsna2026-models` are
+all already mounted. `metaresearch/dinov2` small **and** base, same as ours. That leaves
+four label tables and `sohaibanwaar1203/kneemridataset`, none of which the code references
+by name at all, and `mattiaangeli/knee-mri-fold-weights`, which is the five DINOv3 members
+this page settled at "The fork's own extras are worth 0.001".
+
+**Nothing to mount and nothing to read.** A bigger notebook that mounts the same packages
+and votes them the same way is the same submission with more lines. Recorded so the next
+session does not pull it twice.
+
 ### Logit mean is real, and it is now a submission
 
 `eda/fit_aggregation.py`, over the 20 public members with the same honest fold join
