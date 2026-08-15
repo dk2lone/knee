@@ -813,6 +813,7 @@ difference is whether the head sees one sampled window per step or all four.
 | 2 | 0.7463 | 0.7621 | **+0.0158** | 146.7 |
 | 3 | 0.7760 | 0.7842 | **+0.0082** | 143.1 |
 | 4 | 0.7890 | 0.8125 | **+0.0235** | 143.3 |
+| 5 | 0.7937 | 0.8186 | **+0.0249** | 144.1 |
 | 5 | 0.7937 | | | |
 | 6 | 0.8030 | | | |
 | 7 | 0.8073 | | | |
@@ -844,6 +845,29 @@ This does not yet settle the compute question. Four cross-slice epochs cost abou
 thirteen flat ones would, and the flat arm had nothing left to do with them. What it does
 settle is that the two arms converge to different places rather than at different speeds,
 which is what epoch 3 had put in doubt.
+
+### The bar is `grp-3`, not `xs-flat`
+
+Beating its own control is what makes the experiment valid. It is not what makes the change
+worth shipping. **The best arm this project has measured is `grp-3` at 0.8298**, and it uses
+the cheap `cls_mean` pool and the ordinary head.
+
+```
+grp-3     cls_mean,        flat head    holdout 0.8298   annot 0.7733   ~40 s/epoch
+xs-flat   cls_mean_focal,  flat head    holdout 0.8071   annot 0.7133   ~45 s/epoch
+xs-cross  cls_mean_focal,  cross head   holdout 0.8186   annot 0.7338   ~144 s/epoch  (epoch 5 of 8)
+```
+
+So `xs-cross` is beating a control that is itself 0.023 below the best known configuration,
+and at epoch 5 it has recovered most but not all of that. It is climbing about 0.006 an
+epoch with three left, which would put it around 0.836 — past `grp-3`, but only just, and
+at **3.6x the cost per epoch**.
+
+The honest form of the decision is therefore not "did cross-slice beat flat" but **"does
+`cls_mean_focal_xs` beat `cls_mean` at all, given it costs 3.6x"**. The sweep as designed
+cannot answer that, because it never ran the cross head against the cheap pool. If
+`xs-cross` finishes near 0.836 the next arm to run is obvious and it is one line:
+`cls_mean_xs`, the cross head on the cheap pool.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
