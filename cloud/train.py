@@ -801,6 +801,8 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         # decodes its own cache instead of quietly reusing the previous arm's pixels.
         if "band" in arm:
             pipeline.SLICE_BAND = tuple(arm["band"])
+        if "crop_mm" in arm:
+            pipeline.CROP_MM = float(arm["crop_mm"])
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600

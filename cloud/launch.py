@@ -67,6 +67,14 @@ BANDS = [
     {"name": "band-20-80", "lr_backbone": 8e-6, "unfreeze_last": 6, "band": (0.20, 0.80)},
     {"name": "band-10-90", "lr_backbone": 8e-6, "unfreeze_last": 6, "band": (0.10, 0.90)},
     {"name": "band-02-98", "lr_backbone": 8e-6, "unfreeze_last": 6, "band": (0.02, 0.98)},
+    # The second geometry suspect, in the same container because the extraction is
+    # already paid for. The 130 mm crop is centred, and on a CORONAL series the in-plane
+    # axis is medial-lateral, so a knee sitting off-centre loses its lateral compartment
+    # to the crop rather than to the band. The arm that wins both lateral labels applies
+    # no crop at all. Widening costs sharpness - 200 mm over 336 px is 0.595 mm/px,
+    # coarser than the acquisition, where 130 mm is finer - so this is a real trade and
+    # not a free one.
+    {"name": "crop-200", "lr_backbone": 8e-6, "unfreeze_last": 6, "crop_mm": 200.0},
 ]
 
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS, "bands": BANDS}
