@@ -166,6 +166,14 @@ frozen encoder, against the 20-member ensembles everyone else submits - so if th
 lands near 0.92 the entry is both accurate enough and unusually cheap. Read the runtime
 off the scored rerun before assuming it.
 
+**Two of the three arms carry licence risk, and they are different risks.** The members
+are CC0-1.0 and clean. The RadImageNet encoder and its heads are CC-BY-NC-SA-4.0 (#26).
+The legacy bundle's licence field reads **`unknown`**, which is not permissive and not
+restrictive - it is the absence of any grant, and the winner's obligation is to publish
+code and weights under CC-BY-NC 4.0. So one of the two final submissions should be
+**clean**: the CC0 members plus this repo's own, and nothing else. It has to exist and be
+scored before the final week.
+
 **The private split is not confirmed and a shakeup is normal here.** The hosts have not
 answered whether entire sites are held out (discussion/734681), and a competitor who
 checked six past RSNA competitions found shakeups from none to 1,039 places. Our members
