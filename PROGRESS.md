@@ -867,6 +867,37 @@ members vote, and every member recites these 58 studies; the second head family 
 same way. They go together because they are both free at inference and both principled, not
 because the pairing was measured.
 
+## The grouping sweep will run, and `GROUP=1` works for a reason nobody wrote down
+
+Checked before the lane commits, because there is no second lane to retry on and the arm
+that has never been run is `grp-1`. It does not crash, and the reason is broadcasting:
+
+```
+Model.forward:  x = (x - self.mean) / self.std     mean, std are (1, 3, 1, 1)
+
+GROUP=1: in (2, 1, 8, 8) -> out (2, 3, 8, 8)      same pixels in all three channels
+GROUP=3: in (2, 3, 8, 8) -> out (2, 3, 8, 8)      three distinct slices
+```
+
+So a single slice is expanded to the three channels the encoder demands, each offset by its
+own ImageNet constant. That is the correct behaviour and it is **entirely implicit** — no
+`repeat`, no `expand`, no `in_chans` anywhere in the pipeline. Reshaping `mean`/`std` any
+other way would turn `GROUP=1` into a shape error at the first batch, two hours after the
+run started paying for its corpus. There is now a `ponytail:` comment at that line saying so.
+
+The contrast the sweep measures is therefore the intended one: **three neighbouring slices
+mixed before the encoder sees them, against one slice per encoder call**, both at twelve
+cached slices, so slice count is not confounded.
+
+One cost to expect rather than discover: `grp-1` runs `N_GROUP=12` encoder calls per slot
+where `grp-3` runs 4, so it is about three times the compute per epoch. Eight epochs on one
+fold, so it is minutes rather than hours, but the two arms will not take the same time and
+that is not a symptom.
+
+**Download took 132.9 minutes against the 34.3 the same corpus took this morning** — 37 MB/s
+against 140. The half box is not the cause; the throughput is. Extraction follows, so the
+sweep trains around 15:00 and lands well before the 20:00 reset.
+
 ## There is nothing left to recombine, and 0.938 is not reachable today
 
 Five measurements from 15 Aug all point the same way, and it is worth stating plainly rather

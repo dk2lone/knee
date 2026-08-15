@@ -1824,6 +1824,12 @@ class Model(nn.Module):
             # through a different sampling grid rather than a different crop.
             x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
                               align_corners=False)
+        # ponytail: GROUP=1 arrives here as (N, 1, H, W) against buffers of (1, 3, 1, 1),
+        # and broadcasting - not an explicit repeat - is what makes it a 3-channel input
+        # the encoder accepts. The one slice lands in all three channels, each offset by
+        # its own ImageNet constant. That is the right behaviour and it is invisible:
+        # reshaping mean/std any other way turns GROUP=1 into a shape error at the first
+        # batch of a run that has already paid two hours for its corpus.
         x = (x - self.mean) / self.std
         out = self.backbone(pixel_values=x).last_hidden_state
         patch = out[:, 1:]
