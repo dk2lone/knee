@@ -25,9 +25,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-print("mounts:", sorted(p.name for p in Path("/kaggle/input").iterdir()), flush=True)
-for c in Path("/kaggle/input").glob("*/pipeline.py"):
-    sys.path.insert(0, str(c.parent))
+# The mount nests a level deeper than usual - /kaggle/input/datasets/<owner>/<slug> -
+# which is the same surprise find_root() carries a fallback for. rglob is not the fix: it
+# would descend into train_series and read thousands of study directories to find one file.
+for depth in ("*", "*/*", "*/*/*", "*/*/*/*"):
+    for c in Path("/kaggle/input").glob(f"{depth}/pipeline.py"):
+        sys.path.insert(0, str(c.parent))
+        print(f"pipeline: {c}", flush=True)
 import pipeline as P  # noqa: E402
 
 L = P.TARGETS
