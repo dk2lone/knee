@@ -80,6 +80,45 @@ and silently dropped the cross-slice head. It mounts exactly what `knee-blend-no
 mounts and differs from it in four lines, so the two submitted together **attribute the
 change cleanly** — which is the thing runs 8 and 9 could not do.
 
+### The pooling space, searched — and the search winner is not the one to ship
+
+The harness prices any pooling rule for free, so it was pointed at eight of them. Every rule
+is applied to each member's percentile ranks before the honest fold join, so only the
+pooling changes.
+
+```
+rank mean (ships)      0.8564  +0.0000
+logit mean             0.8585  +0.0021
+(r - 0.5)^3            0.8597  +0.0033
+power r^2              0.8573  +0.0009
+power r^0.5            0.8564  -0.0000
+geometric, log r       0.8558  -0.0006
+harmonic, -1/r         0.8539  -0.0025
+tanh 4(r - 0.5)        0.8534  -0.0030
+```
+
+A pattern rather than a winner: rules that **stretch both tails** gain, rules that compress
+them or favour one tail lose. That is the whole story of why logit helps — a member putting
+a study at the very top or bottom says so loudly, and one that is undecided says little.
+
+**Eight rules on 58 studies is the same search that made `argmax` untrustworthy**, so the
+point estimates were bootstrapped rather than ranked:
+
+```
+over 400 resamples of the 58 studies
+  logit  beats rank mean in 95.2%
+  cubic  beats rank mean in 87.2%
+```
+
+**The cubic has the higher point estimate and the worse consistency**, which is the exact
+signature of a rule that fitted the sample. Logit wins on both the principle — log-odds is
+the natural scale on which to average probabilities, chosen before the search rather than
+after — and on the resampling. So logit ships and the cubic is recorded and discarded, the
+same disposal `argmax` got.
+
+95.2% is the strongest single result of the day, and it is what turns the two logit kernels
+from a hunch into the best-supported change currently queued.
+
 ### No offline harness can check this one, and that is the argument for submitting it
 
 Two independent attempts to verify it before spending a slot, both of which fail for

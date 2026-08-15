@@ -115,3 +115,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# Appended 15 Aug after the eight-rule search. Kept as a function rather than a note so the
+# claim is re-runnable: the cubic wins the point estimate and loses the bootstrap, which is
+# why logit ships. See PROGRESS.md, "The pooling space, searched".
+def bootstrap(pred, gold, fmap, n=400, seed=0):
+    """How often each rule beats the rank mean over resampled studies."""
+    rules = {"rank": lambda r: r,
+             "logit": lambda r: np.log(r / (1 - r)),
+             "cubic": lambda r: (r - 0.5) ** 3}
+    pooled = {}
+    for name, rule in rules.items():
+        frames = []
+        for _, g in pred.groupby("member"):
+            r = np.clip(g[L].rank(pct=True).to_numpy(), 1e-4, 1 - 1e-4)
+            d = pd.DataFrame(rule(r), columns=L)
+            d.insert(0, "StudyInstanceUID", g["StudyInstanceUID"].values)
+            d.insert(0, "fold", g["fold"].values)
+            frames.append(d)
+        r = pd.concat(frames)
+        r = r[[fmap.get(s, -1) == f for s, f in zip(r["StudyInstanceUID"], r["fold"])]]
+        pooled[name] = r.groupby("StudyInstanceUID")[L].mean()
+
+    keep = list(gold.index.intersection(pooled["rank"].index))
+    rng = np.random.default_rng(seed)
+    wins = {k: 0 for k in rules if k != "rank"}
+    for _ in range(n):
+        idx = [keep[i] for i in rng.choice(len(keep), len(keep), replace=True)]
+        sc = {k: float(np.nanmean([auc(gold.loc[idx, c].values, p.loc[idx, c].values)
+                                   for c in L])) for k, p in pooled.items()}
+        for k in wins:
+            wins[k] += sc[k] > sc["rank"]
+    return {k: v / n for k, v in wins.items()}
