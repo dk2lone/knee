@@ -838,6 +838,17 @@ def infer_from_package(path, dev):''')
     # licences - RadImageNet is CC-BY-NC-SA and the legacy bundle's licence field reads
     # `unknown`, while the members are CC0-1.0 (#26). Built now so that it is a scored,
     # known quantity rather than something assembled in the final week.
+    # The same notebook with only the legacy bundle unmounted. v6 shipped the bundle at
+    # the public authors' per-target fractions and scored 0.904 against 0.907 without it,
+    # so the bundle costs 0.003 on this base - their fractions were fitted against twenty
+    # members with no RadImageNet arm applied yet, and this pool is five with the arm in.
+    # This is the revert, kept as a built kernel so it is one push rather than an edit.
+    Path("kaggle/blend-nolegacy").mkdir(parents=True, exist_ok=True)
+    n.write("kaggle/blend-nolegacy/knee-blend-nolegacy.ipynb")
+    meta("kaggle/blend-nolegacy/kernel-metadata.json", "knee-blend-nolegacy",
+         "knee blend nolegacy", "knee-blend-nolegacy.ipynb",
+         WEIGHT_PACKAGES + RAD_ARM, TRAINED)
+
     Path("kaggle/blend-clean").mkdir(parents=True, exist_ok=True)
     n.write("kaggle/blend-clean/knee-blend-clean.ipynb")
     meta("kaggle/blend-clean/kernel-metadata.json", "knee-blend-clean",
