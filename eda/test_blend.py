@@ -164,14 +164,23 @@ def main():
         # Equal say is the point: neither package may outvote the other.
         assert len(by_pkg["rsna-knee-weights"]) == len(by_pkg["knee-weights-v1"])
 
-        # Selection inside a package is by holdout, best first.
+        # Selection inside a package spreads over folds before it takes a second seed.
+        # Taking the five best holdouts instead took four seeds of fold 2 and one of
+        # fold 4 - two training sets wearing five votes - which is what this pins.
         for name, ms in by_pkg.items():
-            h = [m["holdout"] for m in ms]
-            assert h == sorted(h, reverse=True), f"{name} not ordered by holdout: {h}"
-            assert min(h) >= min(x["holdout"] for x in
-                                 (public if "rsna" in name else fake_ours())["members"])
-        print(f"  public took holdout {by_pkg['rsna-knee-weights'][0]['holdout']:.4f} "
-              f"down to {by_pkg['rsna-knee-weights'][-1]['holdout']:.4f}")
+            folds = [m.get("fold") for m in ms]
+            n_folds = len({x.get("fold") for x in
+                           (public if "rsna" in name else fake_ours())["members"]})
+            assert len(set(folds)) == min(cap, n_folds), \
+                f"{name} covers {len(set(folds))} of {n_folds} folds: {folds}"
+            # Best available inside each fold, so the spread costs nothing it need not.
+            src = (public if "rsna" in name else fake_ours())["members"]
+            for m in ms:
+                same = [x["holdout"] for x in src if x.get("fold") == m.get("fold")]
+                assert m["holdout"] == max(same), \
+                    f"{name} fold {m.get('fold')} took {m['holdout']}, best is {max(same)}"
+        print(f"  public covers folds "
+              f"{sorted(str(m.get('fold')) for m in by_pkg['rsna-knee-weights'])}")
 
         # A member names its file inside its own package. Merging the two lists without
         # keeping the roots apart would load one package's weights from the other's dir.
