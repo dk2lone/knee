@@ -92,8 +92,28 @@ BANDS = [
     {"name": "crop-200", "lr_backbone": 8e-6, "unfreeze_last": 6, "crop_mm": 200.0},
 ]
 
+# Resolution, which the whole field has left at 336 px or below and which is the last
+# untested explanation for the two lateral labels (#35). Everything else has been
+# eliminated: band, crop, slice count, laterality, and the labels themselves - the
+# extractor is unsure on one Lateral Meniscus cell in ten and its teacher reads 0.879
+# where the model reads 0.660.
+#
+# The argument is the token grid. A ViT patch is 14 px whatever the image is, so at 336 px
+# over a 130 mm field one patch covers 5.4 mm. A meniscal tear is 2 to 5 mm - smaller than
+# the patch meant to represent it. At 448 px a patch covers 4.1 mm and there are 1,024
+# tokens instead of 576; at 90 mm the field itself shrinks and a patch covers 3.8 mm for
+# no extra compute, at the price of cutting anything outside the joint.
+#
+# It also explains the one thing the eliminations did not: why a frozen ResNet-50 beats
+# every DINOv2 member on exactly the small findings. A CNN has no patch quantisation.
+ZOOM = [
+    {"name": "zoom-control", "lr_backbone": 8e-6, "unfreeze_last": 6},
+    {"name": "zoom-448", "lr_backbone": 8e-6, "unfreeze_last": 6, "img": 448},
+    {"name": "zoom-90mm", "lr_backbone": 8e-6, "unfreeze_last": 6, "crop_mm": 90.0},
+]
+
 SETS = {"sweep": ADAPT, "adapt": ADAPT, "encoders": ENCODERS,
-        "bands": BANDS, "dinov3": DINOV3}
+        "bands": BANDS, "dinov3": DINOV3, "zoom": ZOOM}
 
 # The sweeps above RANK configurations. They cannot produce a member worth blending: one
 # fold, eight epochs and six slices holds out near 0.79, and `eda/build_kernels.py` keeps

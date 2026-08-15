@@ -835,6 +835,13 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
             pipeline.SLICE_BAND = tuple(arm["band"])
         if "crop_mm" in arm:
             pipeline.CROP_MM = float(arm["crop_mm"])
+        # Resolution is the one axis where the token grid changes with it: a ViT patch is
+        # 14 px whatever the image is, so 336 px over a 130 mm field puts 5.4 mm inside
+        # one patch and 448 px puts 4.1 mm. A meniscal tear is 2-5 mm, which is to say it
+        # is smaller than the patch that is supposed to represent it. The cache key
+        # carries IMG, so an arm that moves it decodes its own pixels.
+        if "img" in arm:
+            pipeline.CACHE_IMG = pipeline.IMG = int(arm["img"])
         # Each arm gets the time still left, so one slow arm cannot starve the rest
         # silently - the pipeline breaks out on its own budget instead.
         pipeline.TIME_BUDGET = 6.0 * 3600
