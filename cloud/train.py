@@ -348,6 +348,12 @@ def link_inputs(variant="small", corpus=None):
         base / "knee-report-labels-dk": pathlib.Path("/root/labels"),
         base / f"dinov2-{variant}": pathlib.Path(f"/vol/models/dinov2-{variant}"),
     }
+    # DINOv3 fetches its own weights through timm rather than from a staged directory,
+    # so there is nothing to copy and nothing to refuse over. A container has the
+    # internet; the scored kernel does not, which is why find_dinov3 still looks under
+    # /kaggle/input first - if a run ever stages them there, they win.
+    if variant == "dinov3":
+        copies.pop(base / f"dinov2-{variant}", None)
     for dest, src in copies.items():
         if not src.exists():
             raise FileNotFoundError(f"{src} is missing; run --mode setup first")
