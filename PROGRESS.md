@@ -35,11 +35,15 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 
 | What | Where | State |
 |---|---|---|
-| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | downloading the corpus |
-| `knee-blend` v6 — members, legacy bundle, RadImageNet arm | Kaggle | submitted, pending |
-| Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | downloading the corpus |
-| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | downloading the corpus |
+| Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | running or queued |
+| Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | running or queued |
+| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | running or queued |
 | `knee-blend` v7 — three arms + the frontier's TTA pooling map | Kaggle | submitted, pending |
+| `dk2lone/knee-frontier` — fork of the frontier ensemble | Kaggle | dry run |
+
+A Modal call only answers to the workspace that spawned it, so prefix the status call:
+`MODAL_PROFILE=sunnypathca .venv/bin/python cloud/launch.py status <fc-id>`. Without it the
+call returns `PermissionDeniedError`, which means the wrong profile, not a dead run.
 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
@@ -65,7 +69,24 @@ ordering pass again.
 | 5 | own model, r336 | 0.831 | one fold, 3 slices, holdout 0.8084 |
 | 6 | 5 members + focal max pooling | 0.895 | free at inference (#30) |
 | 7 | + RadImageNet arm, per-target weights | **0.907** | +0.012, against +0.022 predicted on gold |
-| 8 | + legacy 4-fold bundle on its four findings | pending | the last public ingredient |
+| 8 | + legacy 4-fold bundle on its four findings | 0.904 | **a regression of 0.003** |
+| 9 | three arms + the frontier's TTA pooling map | pending | |
+
+Run 8 is the cost of a borrowed constant. The legacy bundle's per-target fractions were
+fitted against twenty members with no RadImageNet arm applied; this pool is five members
+with the arm already in, so the fractions transfer to a base they were never measured on.
+`kaggle/blend-nolegacy/` is the built revert.
+
+## What the frontier ensemble holds and this repo does not
+
+`mattiaangeli/bend-the-knee-to-dinov3-ensembled`, 92 votes, the current public top. Three
+ingredients, in order of what they cost to adopt:
+
+| ingredient | what it is | cost here |
+|---|---|---|
+| `mattiaangeli/rsna-knee-radimagenet-foldsv1-heads` | a second RadImageNet head family, mixed 50/50 with the v15 heads inside the same 0.35 vote | one mount — its contract is 224 px, band (0.12, 0.88), 8 slices, 3 slots, which `rad_arm.py` already decodes |
+| a report teacher on Synovitis | 8 checkpoints, `RT_SYN_WEIGHT = 0.75` rank blend on that one label | a third decode pass at 336 px over 7 slices, against a 9 h cap already at 5.5 h + 2 arms |
+| a DINOv3 ViT-S/16 member | one more member in the DINOv2 rank mean | the Modal DINOv3 sweep answers whether this is worth training ourselves |
 
 Cutting the ensemble from 20 members to 5 costs nothing — the members differ only by fold
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
