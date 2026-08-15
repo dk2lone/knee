@@ -563,6 +563,35 @@ does not survive a 24-member base and the conversion is the suspect.
 All three ran and all three were read. Two slots of the five stay empty on purpose — see
 "there is nothing left to recombine" below.
 
+### Each one was checked against the code that is actually on Kaggle
+
+A log does not print the weight map, so `knee-blend-nolegacy`'s log cannot tell v3 from v4 —
+and the only difference between them **is** the map. Pulling the live kernel back and
+comparing settles it:
+
+```
+kaggle kernels pull -m dk2lone/knee-blend-nolegacy      # then diff RAD_ALPHA
+live on Kaggle: Synovitis 0.7, PF OA 0.7   local build: identical
+```
+
+So the run that COMPLETEd is v4. `knee-frontier-alpha` v2 is confirmed a different way —
+its predictions move on exactly the two labels its map changed — and `knee-blend-clean` has
+only one version. **All three are verified at the code level, not the log level**, which is
+the check that runs 8 and 9 exist to demand.
+
+### The exact 20:00 procedure
+
+Submitting is a button, not a CLI call, so this is the part a person does. Order matters
+only in that the first one answers the open question:
+
+1. `knee-blend-nolegacy` — **version 4** — the dilution test, predicts ~0.915
+2. `knee-frontier-alpha` — **version 2, not version 1** — v1 is the 0.912 already on the
+   board, and resubmitting it spends a slot to learn nothing
+3. `knee-blend-clean` — version 1 — the licence-safe floor
+
+Then stop. Slots 4 and 5 stay unspent unless the grouping sweep produces something, because
+no other candidate tests anything these three do not.
+
 ### The 0.912 kernel carried the wrong weight on two labels
 
 `eda/build_frontier_alpha.py` held `PF OA: 0.3` and `Synovitis: 0.3`. Those are the two the
