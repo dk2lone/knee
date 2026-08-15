@@ -4,9 +4,9 @@ Where the score is, what is running, what happens next. Updated 15 Aug 2026, 03:
 
 | | |
 |---|---|
-| Public leaderboard | **0.907** |
+| Public leaderboard | **0.911** |
 | Tenth place | 0.938 (was 0.936; the bar moved on 14 Aug) |
-| Best public notebook | 0.916 |
+| Best public notebook | 0.911 measured, not the 0.916 its title claims |
 | Final submission | 22 Oct 2026 |
 | Submissions | 5 per day, the count resets 20:00 EDT |
 
@@ -90,7 +90,7 @@ its other inputs**, so never launch one while a sweep is alive.
 | 7 | + RadImageNet arm, per-target weights | **0.907** | +0.012, against +0.022 predicted on gold |
 | 8 | + legacy 4-fold bundle on its four findings | 0.904 | **a regression of 0.003** |
 | 9 | three arms + the frontier's TTA pooling map | 0.905 | the map bought back 0.001 of the 0.003 |
-| 10 | `dk2lone/knee-frontier`, the public frontier unchanged | pending | the floor, and the base to build on |
+| 10 | `dk2lone/knee-frontier`, the public frontier unchanged | **0.911** | +0.004 over ours, not the +0.009 advertised |
 
 Runs 8 and 9 are two measurements of the same law: **a constant fitted on the frontier's
 base does not transfer to ours.** The legacy fractions cost 0.003, and the pooling map that
@@ -250,10 +250,27 @@ That is a small number for three ingredients, and it says where the frontier act
 its score: twenty DINOv2 members and one RadImageNet arm, with the rest decoration.
 
 **So `knee-frontier-alpha` should land near 0.922** — the fork's 0.916 plus the +0.006 the
-weight correction is worth. If it lands there, the arithmetic on this page is sound and the
-same method can be pointed at `MEMBERS_ALPHA` next. If it lands at 0.916, the correction
-did not survive contact with a 24-member base and the gold-to-board conversion is weaker
-than measured. Either answer is worth the slot.
+weight correction is worth.
+
+### The fork scored 0.911, and that halves the prediction's premise
+
+Measured, not 0.916. Two corrections follow.
+
+**The public frontier is 0.911.** The 0.916 in every title on the leaderboard page is a
+claim, not a measurement — the same notebook, forked verbatim and run unchanged, scores
+0.911. Titles lie about scores as well as about encoders.
+
+**The decomposition tightens rather than breaks.** Public twenty plus the arm at the
+measured rule predicts 0.910 from gold. The fork adds five DINOv3 members, the legacy four
+and the pooling map, and reaches 0.911. **Those three ingredients are worth 0.001 between
+them** — not the 0.006 estimated against the advertised number. That is consistent with
+runs 8 and 9, where two of the three cost us score outright on a smaller base.
+
+So the frontier is twenty DINOv2 members and one RadImageNet arm. Everything else in it is
+noise, and our own 0.907 was 0.004 behind it with five members and no DINOv3 at all.
+
+`knee-frontier-alpha` should now land near **0.917**: 0.911 plus the +0.006 the weight
+correction is worth. That is the last submission of the day.
 
 ## Two candidates are built, dry-run and waiting on one submission
 
