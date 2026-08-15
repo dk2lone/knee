@@ -1,4 +1,16 @@
-"""What per-target weight the RadImageNet stage should get, measured instead of borrowed.
+"""Whether the frontier probe can price the RadImageNet stage. It cannot, and here is why.
+
+This began as a weight fitter. It is kept as the evidence that the weight cannot be fitted
+this way, because the failure is not obvious and the fitted answer is attractive: it asks
+for a near-total vote on exactly the three findings the public members are worst at, for a
+gain of almost exactly the margin to tenth place.
+
+Use `eda/fit_rad_alpha.py` to fit the weight. This tool exists to show its input is clean
+and this one is not.
+
+---
+
+What per-target weight the RadImageNet stage should get, measured instead of borrowed.
 
 This is the tool runs 8 and 9 did not have. Both took a constant the frontier fitted on
 its own 25-member pool, applied it to our 5-member one, and lost score - 0.003 and 0.002.
@@ -24,8 +36,11 @@ anything.
 **A grid.** With both halves in hand every weight is a mix of two columns, so the whole
 per-target grid costs one pass over 58 rows.
 
-Read the differences, not the level. n=58 is small, the interval is wide, and a weight that
-wins by less than the interval has not won.
+**And it does not work**, which one experiment settled. `_RAD_FAMILY_WEIGHT = 1.00` gives
+the v15 heads the whole vote, and the recovered arm then scores 0.967 on Lateral Meniscus
+where it honestly scores 0.720. Both families are five heads averaged over studies four of
+them trained on. The dual family recovers 0.914 and the v15 family alone recovers 0.967 -
+mixing two leaked readers dilutes the recitation rather than removing it.
 
     .venv/bin/python eda/sweep_rad_alpha.py kaggle/frontier-probe/out
 """
@@ -98,8 +113,22 @@ def main(where="kaggle/frontier-probe/out"):
         print(f"{t:18s} {int(y.sum()):4d}  "
               + "  ".join(f"{v:.3f}{m}" for v, m in zip(row, mark)))
 
-    print("\nfitted map:")
-    print("RAD_ALPHA = " + repr({t: best.get(t, 0.0) for t in L}))
+    # No map is printed, and that is deliberate. Both head families average five folds
+    # over studies four of them trained on, so what this recovers is partly recitation.
+    # Measured: the arm scores 0.720 on Lateral Meniscus out of fold, 0.914 recovered from
+    # the dual-family probe, and 0.967 recovered with the v15 family alone. A map fitted
+    # here asks for alpha near 1.0 on exactly the findings where the arm is honestly worst,
+    # which is the most expensive possible mistake. `eda/fit_rad_alpha.py` fits the weight
+    # from two tables that are out of fold by construction; use that.
+    honest = {"Lateral Meniscus": 0.720, "Lateral OA": 0.795, "Synovitis": 0.730}
+    print("\nleak check, recovered against out-of-fold (eda/fit_rad_alpha.py):")
+    for t, h in honest.items():
+        j = L.index(t)
+        got = auc(gold.loc[keep, t].to_numpy(), rad[:, j])
+        flag = "  <-- recitation" if got - h > 0.05 else ""
+        print(f"  {t:18s} recovered {got:.3f}   out of fold {h:.3f}{flag}")
+    print("\nNo weight map is printed. What this recovers includes the studies the heads "
+          "trained on, so fitting against it is worse than not fitting at all.")
     flat = np.nanmean([auc(gold.loc[keep, t].to_numpy(),
                            (1 - APPLIED) * base_r[:, j] + APPLIED * rad[:, j])
                        for j, t in enumerate(L) if t not in EXCLUDED])
