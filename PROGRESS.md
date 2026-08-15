@@ -32,7 +32,58 @@ mount is an ingredient we do not have, and the free score hides in how they comb
 we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pooling.
 **Titles lie**: the notebook called "V40 DINOv3 E10 Hybrid" mounts `metaresearch/dinov2`.
 
-### Checked 15 Aug: the notebook that now sorts above the frontier *is* the frontier
+### Checked 15 Aug 18:30: a "0.93" notebook, and the one real idea in it
+
+`ranjithragavan07/rsna-knee-dinov2-0-93`, run 17:33 EDT, mounts **only** `pilkwang/rsna-knee-weights`
+plus label tables — no RadImageNet, no legacy bundle, no DINOv3. That would be remarkable
+if the number were real. It is the **public baseline** with the docstrings stripped: 118,422
+characters against the baseline's 118,333, and this repo measured that baseline at **0.891**
+as run 2. Three aggregation changes separate them.
+
+| change | worth |
+|---|---|
+| `rank ** p`, p = 1.15 / 1.25 per target | **exactly nothing** |
+| holdout weighting, `w = exp((h - min h) / 0.02)` | not run; predicted harmful |
+| logit-space mean instead of rank mean | **+0.0021 gold, measured** |
+
+**The headline feature cannot do anything.** AUC reads order only, and `rank ** p` is
+strictly increasing, so it is invariant — verified to twelve decimals at p = 1.0, 1.15,
+1.25 and 3.0. The notebook advertises "target-specific calibrated power scaling for
+rare/localized pathology" and it is a no-op. Worth knowing as a trap on our own side too:
+any monotone recalibration of a submission is free and worthless under this metric.
+
+The holdout weighting is skipped rather than measured, and the reason is already on this
+page: holdout rank tracks **fold**, not skill — the old top-five selection was four seeds of
+fold 2. Weighting members by holdout re-creates exactly the concentration that was fixed.
+
+### Logit mean is real, and it is now a submission
+
+`eda/fit_aggregation.py`, over the 20 public members with the same honest fold join
+`probe_gold.oof` performs:
+
+```
+rank mean (ships)   gold macro 0.8564   +0.0000
+logit mean          gold macro 0.8585   +0.0021
+```
+
+The rank-mean row reproduces the 0.8564 this page has carried all along, which is what says
+the harness is wired correctly rather than merely producing numbers.
+
+Why it can differ at all: ranks are uniform, so averaging them weights every member's every
+study identically. In logit space a member that puts a study at the very top or bottom says
+so loudly, and one that is undecided says little. The final step re-ranks, so the output is
+still ranks — only the pooling changed.
+
+**`knee-blend-logit` is built and pushed**, by `eda/build_blend_logit.py` doing notebook
+surgery rather than by `build_kernels.py`, which would have regenerated `cloud/pipeline.py`
+and silently dropped the cross-slice head. It mounts exactly what `knee-blend-nolegacy` v4
+mounts and differs from it in four lines, so the two submitted together **attribute the
+change cleanly** — which is the thing runs 8 and 9 could not do.
+
+Expect +0.001 on the board after halving, which sits right on what a three-decimal board can
+read. It is worth one of the two free slots precisely because it is paired with its control.
+
+### Checked 15 Aug 09:30: the notebook that now sorts above the frontier *is* the frontier
 
 `nikitagajbhiye30/rsna-knee-00` took the top of `--sort-by scoreDescending`, above
 `mattiaangeli/bend-the-knee-to-dinov3-ensembled`. It mounts one package set with the fork
@@ -693,6 +744,8 @@ only in that the first one answers the open question:
 2. `knee-frontier-alpha` — **version 2, not version 1** — v1 is the 0.912 already on the
    board, and resubmitting it spends a slot to learn nothing
 3. `knee-blend-clean` — version 1 — the licence-safe floor
+4. `knee-blend-logit` — version 1 — v4 with the members pooled in logit space, and nothing
+   else changed. Submit it **after** v4 so the pair reads as one comparison
 
 Then stop — but **the reason given earlier for stopping was wrong and is worth correcting.**
 This page said "a submission spent on noise is a measurement that cannot be taken tomorrow".
