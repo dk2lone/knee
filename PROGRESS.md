@@ -24,6 +24,7 @@ better than that, and the honest number was already the conservative one.
 |---|---|---|
 | Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | downloading the corpus |
 | `knee-blend` v6 — members, legacy bundle, RadImageNet arm | Kaggle | submitted, pending |
+| Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | downloading the corpus |
 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
