@@ -273,10 +273,33 @@ noise, and our own 0.907 was 0.004 behind it with five members and no DINOv3 at 
 `knee-frontier-alpha` should now land near **0.917**: 0.911 plus the +0.006 the weight
 correction is worth. That is the last submission of the day.
 
+## Fold 0 is done, and our best model still projects short of an ordinary competitor's
+
+```
+fold 0: epoch 22/22  loss 0.3387  holdout 0.8276  annot(n=19) 0.7430   [done]
+fold 1: train 3525 / holdout 882, 9 of 58 annotated studies held out   [running]
+```
+
+0.8276 against the 0.8304 four sweeps predicted, and against `sl12-adapt-8e6`'s 0.8295 on
+one fold. The configuration is reproducing, which is what a parity number is for.
+
+**Now the uncomfortable arithmetic.** train-v1 held out 0.8084 and scored 0.831 on the
+board, so holdout plus about 0.023 is the conversion. This model holds out 0.8276, which
+projects to roughly **0.851** as a single fold, or perhaps 0.86 to 0.87 once five folds vote
+together. The competitor in `discussion/735304` reports **0.887 with a single DINOv2 model**.
+
+So our properly trained model — five folds, twelve slices, twenty-two epochs, the
+configuration four sweeps agree on — still lands short of what one ordinary competitor gets
+from one model. That is not a tuning gap. It is the architecture, and it is the third
+independent reason the grouping sweep is the right use of the lane this frees.
+
+The folds also split the annotated studies unevenly: fold 0 held out 19 of 58, fold 1 holds
+9. Pooled across five folds every study is covered exactly once, which is what the
+out-of-fold table needs, but no single fold's `annot` number means much on its own.
+
 ## The moment the diversity run ends, the grouping sweep starts
 
-Fold 0 finishes at holdout 0.827 against the 0.8304 four sweeps predicted, so the run is
-behaving. Four folds remain at about 15 minutes each — **roughly an hour**, and then
+Four folds remain at about 15 minutes each. Four folds remain at about 15 minutes each — **roughly an hour**, and then
 `sunnypathca` is the only free Modal lane in the account.
 
 It goes to the grouping sweep, not to anything else:
