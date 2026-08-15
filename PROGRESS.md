@@ -812,7 +812,7 @@ difference is whether the head sees one sampled window per step or all four.
 | 1 | 0.7211 | 0.7353 | **+0.0142** | 143.2 |
 | 2 | 0.7463 | 0.7621 | **+0.0158** | 146.7 |
 | 3 | 0.7760 | 0.7842 | **+0.0082** | 143.1 |
-| 4 | 0.7890 | | | |
+| 4 | 0.7890 | 0.8125 | **+0.0235** | 143.3 |
 | 5 | 0.7937 | | | |
 | 6 | 0.8030 | | | |
 | 7 | 0.8073 | | | |
@@ -826,6 +826,24 @@ that converges higher, and only the last epochs distinguish the two. The flat ar
 The annotated subset moves the other way at epoch 3 — 0.7229 against 0.6926, **+0.0303** —
 but n is 19 there and single-epoch swings on it have already been larger than that in this
 same run, so it is not evidence yet.
+
+**Epoch 4 changes the reading, and the narrowing was noise.** `xs-cross` holds 0.8125 with
+four epochs still to run, and the delta is back to +0.0235. The number that matters is not
+the delta:
+
+```
+xs-flat   epoch 8 (final, plateaued)   holdout 0.8071   annot 0.7133
+xs-cross  epoch 4 (half way)           holdout 0.8125   annot 0.7394
+```
+
+**`xs-cross` has already passed the flat arm's finished score at half the epochs**, and it
+is 0.026 ahead on the annotated subset. `xs-flat` is not going to move — it gained 0.0002
+between its last two epochs and then went backwards.
+
+This does not yet settle the compute question. Four cross-slice epochs cost about what
+thirteen flat ones would, and the flat arm had nothing left to do with them. What it does
+settle is that the two arms converge to different places rather than at different speeds,
+which is what epoch 3 had put in doubt.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
