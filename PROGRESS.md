@@ -4,7 +4,7 @@ Where the score is, what is running, what happens next. Updated 14 Aug 2026, 21:
 
 | | |
 |---|---|
-| Public leaderboard | **0.895** |
+| Public leaderboard | **0.907** |
 | Tenth place | 0.936 |
 | Best public notebook | 0.916 |
 | Final submission | 22 Oct 2026 |
@@ -13,12 +13,17 @@ Where the score is, what is running, what happens next. Updated 14 Aug 2026, 21:
 The calibration that makes local numbers usable: **gold-58 macro + 0.044 ≈ leaderboard**.
 So 0.936 needs a gold-58 of about 0.892, against 0.856 for the public members today.
 
+**But a gold-58 delta is not a leaderboard delta.** The RadImageNet arm was priced at
++0.022 by nested selection on the 58 studies and delivered +0.012. Halve what the harness
+promises before believing it - 58 studies with 9 to 35 positives per label cannot resolve
+better than that, and the honest number was already the conservative one.
+
 ## Running now
 
 | What | Where | State |
 |---|---|---|
 | Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | downloading the corpus |
-| `knee-blend` — the members plus the RadImageNet arm | Kaggle | running |
+| `knee-blend` v6 — members, legacy bundle, RadImageNet arm | Kaggle | submitted, pending |
 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
@@ -42,7 +47,9 @@ ordering pass again.
 | 3 | baseline, `TTA_OVERLAP=False` | 0.888 | 20 members × 4 windows |
 | 4 | baseline, top 5 members | 0.891 | 2.4× faster for the same score |
 | 5 | own model, r336 | 0.831 | one fold, 3 slices, holdout 0.8084 |
-| 6 | 5 members + focal max pooling | **0.895** | free at inference (#30) |
+| 6 | 5 members + focal max pooling | 0.895 | free at inference (#30) |
+| 7 | + RadImageNet arm, per-target weights | **0.907** | +0.012, against +0.022 predicted on gold |
+| 8 | + legacy 4-fold bundle on its four findings | pending | the last public ingredient |
 
 Cutting the ensemble from 20 members to 5 costs nothing — the members differ only by fold
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
