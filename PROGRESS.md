@@ -906,8 +906,39 @@ only in that the first one answers the open question:
 5. `knee-frontier-logit` — version 1 — the same pooling change on alpha v2's 25 members.
    Submit it **after** alpha v2, for the same reason
 
-That is all five, and each of the two new ones is paired with the control directly above it.
-Two pairs and one floor, which is the most information five slots can carry tonight.
+**`knee-blend-clean` moves to tomorrow, and `knee-blend-ttalogit` takes its slot.** The clean
+kernel is an October obligation with two months of runway and a predicted ~0.89 that will not
+move the board tonight. The slot buys more as a third one-change variant:
+
+| # | kernel | one change from | axis |
+|---|---|---|---|
+| 1 | `knee-blend-nolegacy` v4 | — | **control** |
+| 2 | `knee-blend-logit` | v4 | member pooling, 5 voters |
+| 3 | `knee-blend-ttalogit` | v4 | TTA-window pooling |
+| 4 | `knee-frontier-alpha` v2 | — | **control** |
+| 5 | `knee-frontier-logit` | alpha v2 | member pooling, 24 voters |
+
+Three comparisons against two controls, every variant one change from its control. That is
+the most attributable night this project has had — runs 8 and 9 were unattributable by
+construction, and tonight nothing is.
+
+### The third axis: pooling the TTA windows rather than the members
+
+`TTA_POOL` has been a supported constant all along — `predict_member` already branches on
+`pool == "logit"` — so `knee-blend-ttalogit` is **one constant and no new code**. The default
+is `"prob"`, and `aadigupta7686/0-899-let-me-cook`, 80 votes, ships `"logit"`. That notebook
+scores below our base, so this is not an endorsement of it; it is evidence the constant is in
+public use rather than exotic.
+
+The builder matches the assignment **with its value**, because the name also appears as
+`TTA_POOL if pool is None else pool` and substituting that would be nonsense. Verified after
+the build: the logit constant is in and the member rank mean is untouched, so this really is
+one axis away from v4.
+
+**This one cannot be priced offline at all.** `probe.csv` records each member's prediction
+*after* its TTA windows are pooled, so no table on disk holds the quantity that would change.
+Unlike member pooling there is not even a degenerate row to reason from — which makes the
+pairing with v4 the whole experiment rather than a confirmation of one.
 
 Then stop — but **the reason given earlier for stopping was wrong and is worth correcting.**
 This page said "a submission spent on noise is a measurement that cannot be taken tomorrow".
