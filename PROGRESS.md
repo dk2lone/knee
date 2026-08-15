@@ -71,6 +71,7 @@ ordering pass again.
 | 7 | + RadImageNet arm, per-target weights | **0.907** | +0.012, against +0.022 predicted on gold |
 | 8 | + legacy 4-fold bundle on its four findings | 0.904 | **a regression of 0.003** |
 | 9 | three arms + the frontier's TTA pooling map | pending | |
+| 10 | `dk2lone/knee-frontier`, the public frontier unchanged | pending | the floor, and the base to build on |
 
 Run 8 is the cost of a borrowed constant. The legacy bundle's per-target fractions were
 fitted against twenty members with no RadImageNet arm applied; this pool is five members
@@ -86,7 +87,29 @@ ingredients, in order of what they cost to adopt:
 |---|---|---|
 | `mattiaangeli/rsna-knee-radimagenet-foldsv1-heads` | a second RadImageNet head family, mixed 50/50 with the v15 heads inside the same 0.35 vote | one mount — its contract is 224 px, band (0.12, 0.88), 8 slices, 3 slots, which `rad_arm.py` already decodes |
 | a report teacher on Synovitis | 8 checkpoints, `RT_SYN_WEIGHT = 0.75` rank blend on that one label | a third decode pass at 336 px over 7 slices, against a 9 h cap already at 5.5 h + 2 arms |
-| a DINOv3 ViT-S/16 member | one more member in the DINOv2 rank mean | the Modal DINOv3 sweep answers whether this is worth training ourselves |
+| five DINOv3 ViT-S/16 members | `m_f0..f4.pt` inside `mattiaangeli/knee-mri-fold-weights`, `vit_small_patch16_dinov3.lvd1689m`, `pool=xcodex` | the member loader has to accept a second checkpoint format |
+
+The dry run settles what the frontier is made of. Its pool is **25 members** — 20 DINOv2
+from pilkwang plus 5 DINOv3 from mattiaangeli — then the legacy four, then the pooling map,
+then both RadImageNet families. The report-teacher code is in the notebook and **never
+runs**; no stage line for it appears in the log. So the Synovitis blend is not part of the
+public score and can be dropped from the list of things to chase.
+
+DINOv3 members already exist, trained on this competition, in a package anyone can mount.
+The Modal DINOv3 sweep is therefore answering a question about *our* contract, not about
+whether to have DINOv3 at all.
+
+## Which base to build on
+
+This repo's blend runs 5 members. The fork runs 25 plus everything our blend has. Nothing
+we hold beats it, so the fork becomes the base and this repo's work becomes arms bolted on
+to it, the way `rad_arm.py` already bolts on to the members. Three things are ours and are
+not in the fork:
+
+- the per-target RadImageNet alpha map, fitted on the 58 gold studies; the fork votes a
+  uniform 0.35 with two labels excluded
+- members trained at band (0.02, 0.98), the contract no public arm holds
+- the zoom hypothesis, which nobody in the field has tested
 
 Cutting the ensemble from 20 members to 5 costs nothing — the members differ only by fold
 and seed, so votes 6-20 carry nothing. Dropping TTA windows costs more than dropping
