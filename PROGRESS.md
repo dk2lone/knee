@@ -390,6 +390,32 @@ That pushes `dk2lone/knee-members-full-band`. Then add it to `WEIGHT_PACKAGES` i
 v3 cleared v2's log before it was fetched. Nothing of substance was lost - v3 is a superset
 - but the confirmation had to be re-run rather than read.
 
+## The rule transfers between bases. Borrowed constants did not.
+
+Runs 8 and 9 are this project's most expensive lesson: a constant fitted on the frontier's
+pool lost 0.003 and 0.002 on ours. So the measured weight rule was tested the same way,
+against a five-member base instead of the twenty it was fitted on.
+
+```
+20 members  base 0.8564   20-member rule 0.8837   base's own rule 0.8837
+5 spread    base 0.8509   20-member rule 0.8796   base's own rule 0.8805
+```
+
+**Refitting the rule to the smaller base is worth 0.0009.** The one thing that changes is
+PF OA, which the arm wins by 0.005 against twenty members and loses against five — and
+carrying the wrong answer there costs almost nothing, because the margin was noise in the
+first place.
+
+Why this transfers where a fitted constant did not: the rule is a **binary comparison, not
+a magnitude**. Which reader wins a finding is a property of the two readers, and it barely
+moves when the base is thinned; *how much* it should win by is a property of the particular
+pool, and that is what runs 8 and 9 imported and got wrong. The bootstrap already showed
+the numbers do not matter; this shows the base does not either.
+
+So `knee-blend-nolegacy` v4 predicts **0.8796 gold, about 0.915 on the board** — a little
+under `frontier-alpha` because five members start 0.0055 behind twenty, and with five the
+arm carries more of the vote.
+
 ## The tool that prices our members is sound, and it already knew better
 
 `eda/tune_blend.py` was audited before tomorrow depends on it, because two leaks got
