@@ -38,6 +38,8 @@ we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pool
 | Parity run — 5 folds, 22 epochs, 12 slices, DINOv2-small at 8e-6 | Modal `raahncpe`, `fc-01M01K2YRS7K2R52Y90D2F1SHY` | downloading the corpus |
 | `knee-blend` v6 — members, legacy bundle, RadImageNet arm | Kaggle | submitted, pending |
 | Diversity run — same config at band (0.02, 0.98) | Modal `sunnypathca`, `fc-01M01NDX2F2P6JCMQKJ3JYRKQA` | downloading the corpus |
+| DINOv3 sweep — dinov2-small against dinov3, 8e-6, 12 slices | Modal `danielz51666`, `fc-01M01Q43K0V5B3KFFEGFVQ1ZZH` | downloading the corpus |
+| `knee-blend` v7 — three arms + the frontier's TTA pooling map | Kaggle | submitted, pending |
 
 Check them with `cloud/launch.py status <fc-id>` and `kaggle kernels status dk2lone/knee-blend`.
 `modal app logs knee-train` is read-only and safe; **a `modal run` against that app cancels
@@ -216,6 +218,8 @@ public blend.
 | More epochs? | No. 25 did not beat 10 (#31) |
 | More slices? | Yes, modestly. 12 beats 6 by +0.006 (#33) |
 | A second architecture? | Only a strong one. B3 at 0.834 hurt; the RadImageNet arm helps (#29, #35) |
+| Does an arm of our own earn a vote? | Only if it reads different pixels. Three measured, one paid (#37) |
+| Refit the RadImageNet heads on our folds? | Done, and not mounted: +0.0026 against the published arm's +0.0262 (#37) |
 | Is the arm's edge the pixels it samples? | No. Neither the band nor the crop shows a gradient (#36) |
 | Site-grouped folds? | Right, and nearly free. The site probe scores 0.519 (#15) |
 | An uncertainty policy for the weak labels? | No. All five CheXpert policies cross zero |
