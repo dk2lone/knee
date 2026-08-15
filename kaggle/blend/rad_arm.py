@@ -37,13 +37,27 @@ RAD_BAND = (0.12, 0.88)
 TOKEN_DIM = 2048              # official ResNet-50 global-average feature
 HEAD_DIM = 512
 
-# The per-target vote, from `e10_contract.json`: chosen by nested selection on grouped
-# folds and scored on the fold held out of that choice, on both an independent public OOF
-# run and the publisher's own. Baker's and Fracture get no vote at any rung - the arm is
-# 0.05 and 0.09 worse on them - and that zero is the reason the map beats a uniform one.
-RAD_ALPHA = {"ACL": 0.7, "MCL": 0.6, "Medial Meniscus": 0.35, "Lateral Meniscus": 0.7,
-             "Medial OA": 0.7, "Lateral OA": 0.7, "PF OA": 0.7, "Effusion": 0.6,
-             "Synovitis": 0.7, "Baker's": 0.0, "Contusion": 0.7, "Fracture": 0.0}
+# The per-target vote. **Measured here, not borrowed** - see `eda/fit_rad_alpha.py`, which
+# blends two out-of-fold tables that both exist locally: the public members joined to the
+# folds that held each study out, and our refit of this head class on our own folds. Both
+# are honest, so their blend is too, and the whole grid costs one pass over 58 studies.
+#
+# The rule is one binary decision per label rather than a fitted number: 0.7 where the arm
+# beats the members out of fold, 0.3 where it does not, 0 where it has no vote at all. The
+# arm wins on exactly three - Lateral Meniscus, Lateral OA, Contusion - and the same three
+# it wins in the deployed v15 table (0.722 to 0.660, 0.812 to 0.706, 0.901 to 0.870), which
+# is why a rule fitted against our refit transfers to the checkpoint that ships.
+#
+#     none 0.8564   shipped 0.8628   flat 0.35 0.8662   this rule 0.8753   argmax 0.8772
+#
+# The argmax is 0.002 better and is an eight-point grid search on 58 studies, so it is
+# bought with overfitting. This map was previously 0.6 to 0.7 nearly everywhere, taken from
+# `e10_contract.json`; that gave the arm a majority vote on ACL, MCL, PF OA, Medial OA and
+# Synovitis, which are five labels where it is measurably worse - ACL alone lost 0.046.
+# Halve the gold delta before believing it: +0.0125 gold is about +0.006 on the board.
+RAD_ALPHA = {"ACL": 0.3, "MCL": 0.3, "Medial Meniscus": 0.3, "Lateral Meniscus": 0.7,
+             "Medial OA": 0.3, "Lateral OA": 0.7, "PF OA": 0.3, "Effusion": 0.3,
+             "Synovitis": 0.3, "Baker's": 0.0, "Contusion": 0.7, "Fracture": 0.0}
 
 
 # How the arm's own vote splits between its two head families, from the frontier
