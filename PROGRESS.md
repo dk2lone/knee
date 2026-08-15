@@ -119,6 +119,24 @@ same disposal `argmax` got.
 95.2% is the strongest single result of the day, and it is what turns the two logit kernels
 from a hunch into the best-supported change currently queued.
 
+**And logit does not generalise to the arm, which bounds where it belongs.** The obvious
+next step was to blend the RadImageNet arm in logit space too. It loses:
+
+```
+arm blended in rank space    0.8837
+arm blended in logit space   0.8814   -0.0023
+```
+
+Two different jobs that look alike. Pooling **many readers of the same kind** benefits from
+a scale where confidence is expressible, which is what logit gives. Blending **two different
+readers at a fitted weight** does not, because `RAD_ALPHA` was fitted *in rank space* — move
+the blend to logit space and 0.7 no longer means what it was measured to mean. That is the
+borrowed-constant lesson of runs 8 and 9 arriving from a third direction.
+
+**Both queued kernels are on the right side of this line.** They change member pooling only;
+`write_submission` re-ranks afterwards, so the arm still receives ranks and still blends in
+rank space at the alpha it was fitted under. Nothing about the arm moved.
+
 ### No offline harness can check this one, and that is the argument for submitting it
 
 Two independent attempts to verify it before spending a slot, both of which fail for
