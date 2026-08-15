@@ -103,11 +103,22 @@ kaggle kernels status dk2lone/knee-blend      # wait for COMPLETE
 Success is about 0.92. Below 0.90 the arm did not run — read the log for "RadImageNet arm
 skipped", which is the fail-safe reporting itself rather than a bad blend.
 
-### 2. Our own members join the vote — worth about +0.010
+### 2. Our own members join the vote — worth about +0.010, and not guaranteed
 
 The parity run is five folds, 22 epochs, 12 slices, at the configuration four sweeps
 agree on. Its members vote beside the public ones, and they are **site-grouped**, so their
 errors are not the public members' errors.
+
+**Measured, and it is a warning.** `eda/tune_blend.py` was given train-v1's five-fold OOF
+as a third arm beside the public members and the RadImageNet arm. It earned a vote on two
+labels out of twelve - MCL and Medial OA, 0.20 each - and the nested score fell from
+0.8788 to 0.8734. At 0.765 gold, our current model is not decorrelated enough to pay for
+what it costs. The legacy bundle at 0.75-0.79 holdout does earn its place, so weakness
+alone is not disqualifying; being weak *and* correlated is.
+
+The parity members are the same architecture at four times the slices and nearly three
+times the epochs - the sweep put that at 0.8304 holdout against train-v1's 0.8084. Whether
+that is enough is exactly what the harness will say before a submission is spent on it.
 
 ```
 cloud/launch.py status fc-01M01EE15N0Q5BDPJJ86RH11TS
