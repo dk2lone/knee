@@ -141,6 +141,23 @@ the field of view out.
 | 3 | ~0.930 |
 | 4 | 0.94+ |
 
+## Two decisions that come later, recorded now
+
+**The efficiency track may be within reach as a by-product.** Third place there pays the
+same as tenth on the main board, and the host's own standings show the accuracy floor for
+a top-3 efficiency rank is about 0.915. This blend is 5 members at 10 windows plus a
+frozen encoder, against the 20-member ensembles everyone else submits - so if the arm
+lands near 0.92 the entry is both accurate enough and unusually cheap. Read the runtime
+off the scored rerun before assuming it.
+
+**The private split is not confirmed and a shakeup is normal here.** The hosts have not
+answered whether entire sites are held out (discussion/734681), and a competitor who
+checked six past RSNA competitions found shakeups from none to 1,039 places. Our members
+are site-grouped and the public ones are not, which is worth more if whole sites are held
+out than the public leaderboard will ever show. That is an argument for keeping our own
+members in one of the two final submissions even if the public number prefers the pure
+public blend.
+
 ## What is settled, so it is not re-run
 
 | Question | Answer |
