@@ -110,9 +110,23 @@ RAD_NEW = ("\nimport shutil as _snap_shutil\n"
            "_rad_main()")
 
 
-def main():
+# The RadImageNet stage votes half v15 and half `mattiaangeli/rsna-knee-radimagenet-
+# foldsv1-heads`, and the second family is not held out from these 58 studies by anything
+# in the pipeline. The first sweep recovered that stage scoring 0.914 on Lateral Meniscus
+# where the v15 family alone measured 0.722, which is not what a second head family adds -
+# it is what memorising looks like. Giving v15 the whole family weight isolates it.
+#
+# Unmounting the package instead would not work: `_ours_find_head_dir` raises when it is
+# absent, which kills the stage rather than halving it.
+FAMILY_OLD = "_RAD_FAMILY_WEIGHT = 0.50"
+FAMILY_NEW = "_RAD_FAMILY_WEIGHT = 1.00"
+
+
+def main(only_v15=False):
     nb = json.loads(SRC.read_text())
     hits = {"find_root": 0, "COMP": 0, "rad": 0, "bank": 0}
+    if only_v15:
+        hits["family"] = 0
     for cell in nb["cells"]:
         if cell["cell_type"] != "code":
             continue
@@ -129,6 +143,9 @@ def main():
         if BANK_OLD in src:
             src = src.replace(BANK_OLD, BANK_NEW)
             hits["bank"] += 1
+        if only_v15 and FAMILY_OLD in src:
+            src = src.replace(FAMILY_OLD, FAMILY_NEW)
+            hits["family"] = hits.get("family", 0) + 1
         cell["source"] = src.splitlines(keepends=True)
 
     for name, n in hits.items():
@@ -139,16 +156,19 @@ def main():
                            "execution_count": None,
                            "source": SETUP.splitlines(keepends=True)})
 
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "knee-frontier-probe.ipynb").write_text(json.dumps(nb, indent=1))
+    out = Path(f"{OUT}-v15") if only_v15 else OUT
+    stem = "knee-frontier-probe-v15" if only_v15 else "knee-frontier-probe"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{stem}.ipynb").write_text(json.dumps(nb, indent=1))
 
     meta = json.loads((SRC.parent / "kernel-metadata.json").read_text())
-    meta["id"] = "dk2lone/knee-frontier-probe"
-    meta["title"] = "knee frontier probe"
-    meta["code_file"] = "knee-frontier-probe.ipynb"
-    (OUT / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
-    print(f"{OUT}: {len(nb['cells'])} cells, both lookups redirected")
+    meta["id"] = f"dk2lone/{stem}"
+    meta["title"] = stem.replace("-", " ")
+    meta["code_file"] = f"{stem}.ipynb"
+    (out / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
+    print(f"{out}: {len(nb['cells'])} cells, {sorted(hits)}")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(only_v15="--v15" in sys.argv)
