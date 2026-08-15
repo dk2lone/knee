@@ -587,13 +587,26 @@ TTA_POOL = "prob"''',
           '''TTA_OVERLAP = True
 TTA_POOL = "prob"
 
-# Findings taken as the maximum over TTA windows rather than the mean. Focal: they occupy
-# a few slices, so a mean over windows is mostly windows that could not have seen them.
-FOCAL_MAX = ("Fracture", "Contusion", "Lateral Meniscus")''')
+# How each finding is pooled over TTA windows. The default is the mean; these are the
+# exceptions, and they are the public frontier's map rather than this repo's three.
+#
+# Focal findings occupy a few slices, so a mean over ten windows is mostly windows that
+# could not have seen the finding, and the maximum is the window that did. `top2` is the
+# same argument softened: ACL and MCL run the length of several slices, so the single best
+# window is noise where the best two are a reading.
+#
+# Three labels of this map (Fracture, Contusion, Lateral Meniscus) were measured here at
+# +0.004 on the leaderboard. The other four came from the 0.916 notebooks, which is the
+# entire difference in how they read a member - everything else about the member is the
+# same weights this kernel already mounts.
+TTA_TARGET_POOL = {"Fracture": "max", "Contusion": "max", "Medial Meniscus": "max",
+                   "Lateral Meniscus": "max", "Baker's": "max",
+                   "ACL": "top2", "MCL": "top2"}''')
 
     n.sub('''        acc = None
         for st in starts:''',
-          '''        acc = mx = None
+          '''        acc = None
+        per_window = []
         for st in starts:''')
 
     n.sub('''            with torch.autocast("cuda", enabled=dev.type == "cuda"):
@@ -607,16 +620,27 @@ FOCAL_MAX = ("Fracture", "Contusion", "Lateral Meniscus")''')
             p = torch.sigmoid(z)
             v = z if pool == "logit" else p
             acc = v if acc is None else acc + v
-            mx = p if mx is None else torch.maximum(mx, p)
+            per_window.append(p)
         v = acc / len(starts)
         if pool == "logit":
             v = torch.sigmoid(v)
-        # The focal columns take the max; every other column is bit-for-bit the mean it
-        # would have been, so this cannot move a label it was not asked to move.
-        idxs = [TARGETS.index(t) for t in FOCAL_MAX if t in TARGETS]
-        if idxs and len(starts) > 1:
+        # Every column not named in the map is bit-for-bit the mean it would have been,
+        # so this cannot move a label it was not asked to move. The stack is
+        # [window, study, target] and ten windows of eight studies is kilobytes.
+        if len(starts) > 1:
+            probs = torch.stack(per_window)
             v = v.clone()
-            v[:, idxs] = mx[:, idxs]
+            for t, mode in TTA_TARGET_POOL.items():
+                if t not in TARGETS:
+                    continue
+                j = TARGETS.index(t)
+                if mode == "max":
+                    v[:, j] = probs[:, :, j].max(0).values
+                elif mode.startswith("top"):
+                    k = min(int(mode[3:]), probs.shape[0])
+                    v[:, j] = probs[:, :, j].topk(k, dim=0).values.mean(0)
+                else:
+                    raise ValueError(f"unknown TTA pooling mode for {t}: {mode}")
         out.append(v.cpu().numpy())''')
 
     n.sub('''def infer_from_package(path, dev):''',

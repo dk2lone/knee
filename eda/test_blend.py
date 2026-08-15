@@ -63,12 +63,16 @@ def write_package(root, manifest):
 
 
 def test_focal_pooling_touches_only_the_focal_columns():
-    """Max over TTA windows for focal findings, and the mean everywhere else.
+    """A per-target pool over TTA windows, and the plain mean everywhere else.
 
-    The claim in the code is that the other nine columns come out bit-for-bit as they
-    would have without the change. That is what makes this safe to ship untested against
-    a leaderboard: it can only move the three labels it names. A broadcasting slip would
-    move all twelve and be invisible in any shape.
+    The claim in the code is that every column the map does not name comes out
+    bit-for-bit as it would have without the change. That is what makes this safe to ship
+    untested against a leaderboard: it can only move the labels it names. A broadcasting
+    slip would move all twelve and be invisible in any shape.
+
+    `max` must come out at or above the mean. `top2` must land between the two - above
+    the mean of ten windows and at or below the single best one - which is the check that
+    the mode is doing what its name says rather than silently falling through to max.
     """
     nb = json.load(open(NB))
     src = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
@@ -76,12 +80,13 @@ def test_focal_pooling_touches_only_the_focal_columns():
     want = [n for n in tree.body if isinstance(n, ast.FunctionDef)
             and n.name in ("predict_member", "window_starts")]
     consts = [n for n in tree.body if isinstance(n, ast.Assign)
-              and getattr(n.targets[0], "id", "") in ("FOCAL_MAX", "TTA_POOL",
+              and getattr(n.targets[0], "id", "") in ("TTA_TARGET_POOL", "TTA_POOL",
                                                       "TTA_OVERLAP", "GROUP", "EVAL_BATCH")]
     ns = {"torch": torch, "np": np, "TARGETS": TARGETS}
     exec(compile(ast.Module(body=consts + want, type_ignores=[]), NB, "exec"), ns)
-    predict_member, FOCAL_MAX = ns["predict_member"], ns["FOCAL_MAX"]
-    assert set(FOCAL_MAX) <= set(TARGETS), FOCAL_MAX
+    predict_member, POOL = ns["predict_member"], ns["TTA_TARGET_POOL"]
+    assert set(POOL) <= set(TARGETS), POOL
+    assert set(POOL.values()) <= {"max", "top2", "top3"}, POOL
 
     torch.manual_seed(0)
     n_study, n_slot, n_slice, img = 6, 6, 9, 8
@@ -103,24 +108,33 @@ def test_focal_pooling_touches_only_the_focal_columns():
 
     got = predict_member(Stub(), cache, mask, idx, dev, img)
 
-    # Recompute the plain mean by emptying the focal set, which is the documented switch.
-    ns["FOCAL_MAX"] = ()
+    # Recompute the plain mean by emptying the map, which is the documented switch.
+    ns["TTA_TARGET_POOL"] = {}
     exec(compile(ast.Module(body=want, type_ignores=[]), NB, "exec"), ns)
     plain = ns["predict_member"](Stub(), cache, mask, idx, dev, img)
 
-    focal = [TARGETS.index(t) for t in FOCAL_MAX]
-    other = [j for j in range(len(TARGETS)) if j not in focal]
+    named = [TARGETS.index(t) for t in POOL]
+    other = [j for j in range(len(TARGETS)) if j not in named]
     assert np.array_equal(got[:, other], plain[:, other]), \
-        "a non-focal column moved; the assignment is not column-scoped"
-    moved = ~np.isclose(got[:, focal], plain[:, focal])
-    assert moved.any(), "the focal columns did not move, so max is not being applied"
-    assert (got[:, focal] >= plain[:, focal] - 1e-6).all(), "max came out below the mean"
-    print(f"  {len(other)} non-focal columns bit-for-bit identical; "
-          f"{list(FOCAL_MAX)} moved up on {moved.mean():.0%} of cells")
+        "an unnamed column moved; the assignment is not column-scoped"
+    moved = ~np.isclose(got[:, named], plain[:, named])
+    assert moved.any(), "the named columns did not move, so the map is not applied"
+    mx = [TARGETS.index(t) for t, m in POOL.items() if m == "max"]
+    assert (got[:, mx] >= plain[:, mx] - 1e-6).all(), "max came out below the mean"
+    # top2 is the mean of the best two, so it sits between the mean and the max.
+    ns["TTA_TARGET_POOL"] = {t: "max" for t in POOL}
+    exec(compile(ast.Module(body=want, type_ignores=[]), NB, "exec"), ns)
+    allmax = ns["predict_member"](Stub(), cache, mask, idx, dev, img)
+    t2 = [TARGETS.index(t) for t, m in POOL.items() if m == "top2"]
+    assert (got[:, t2] >= plain[:, t2] - 1e-6).all(), "top2 fell below the mean"
+    assert (got[:, t2] <= allmax[:, t2] + 1e-6).all(), "top2 rose above the max"
+    print(f"  {len(other)} unnamed columns bit-for-bit identical; "
+          f"{len(mx)} max and {len(t2)} top2 moved on {moved.mean():.0%} of cells")
 
     # One window means there is nothing to pool over, and the guard must notice.
-    one = predict_member(Stub(), cache, mask, idx, dev, img, starts=[0])
-    ns["FOCAL_MAX"] = FOCAL_MAX
+    ns["TTA_TARGET_POOL"] = POOL
+    exec(compile(ast.Module(body=want, type_ignores=[]), NB, "exec"), ns)
+    one = ns["predict_member"](Stub(), cache, mask, idx, dev, img, starts=[0])
     assert one.shape == (n_study, len(TARGETS))
     print("  a single window returns the plain shape without pooling")
 
