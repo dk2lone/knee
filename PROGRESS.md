@@ -327,6 +327,7 @@ being the same code, and this pair does.
 | What | Where | State |
 |---|---|---|
 | **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **lost its worker at 20:36**, requeued for L40S |
+| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **launched 21:05** `fc-01M041JZHDS4X105R683ASQE3B` |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
@@ -438,6 +439,29 @@ is the same architecture on the one contract nobody else holds, and it kept its 
 L40S capacity, not compute, is what the queue is short of. A sweep arm caches six slices
 where a full run caches twelve, so this is the same memory per slice. A `full` run keeps
 the large box; below 64 GiB the planner gives slices away silently instead of failing.
+
+**Corrected 21:04: `danielz51666` is not spend-limited and never was. There are two lanes.**
+Every workspace was tested by calling `check_import`, which is the cheapest thing that
+actually runs compute:
+
+```
+danielz51666      FileNotFoundError: /tmp/comp has no train.csv; the corpus is not here
+hz-danielzhang    ConflictError: workspace ac-1L6IVGsYqcUU7zRlOgx57K is disabled
+raahncpe          ConflictError: workspace ac-ektOfioS98apkTakFJ4IsZ is disabled
+```
+
+**`danielz51666` ran the function.** It failed on a missing corpus, which is what every
+container says before `fetch_corpus_local`, not on billing. Its DINOv3 sweep died of the
+same `setup` omission that killed the other two — `/vol/models/dinov2-small is missing` —
+and that got written down here as a spend limit. Two of the five are genuinely gone, and
+they are *disabled*, which a billing cycle does not undo.
+
+So the paragraph below, and everything on this page that reasons from "one lane remains",
+was working from a wrong constraint. `SETS["res"]` went out on the second lane at 21:05
+after a deploy and one `setup` call: `fc-01M041JZHDS4X105R683ASQE3B`, `res-336` against
+`res-448` on the 128 GiB box. **The resolution question is being answered tonight rather
+than after `xslice2`**, and the two runs do not compete — different workspaces, different
+capacity pools.
 
 **Modal budget: `sunnypathca` is now spent too, and `daniel21cn2016` is the last lane.**
 `raahncpe`, `hz-danielzhang` and `danielz51666` were already at their billing-cycle spend
