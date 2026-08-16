@@ -327,7 +327,7 @@ being the same code, and this pair does.
 | What | Where | State |
 |---|---|---|
 | **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **queued 60 min** for L40S; give-up rule below |
-| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **downloading 21:09** `fc-01M041S78S02SWTZQKKG7DZ3W8`, 37 MB/s |
+| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **82% downloaded 21:42**; holdouts expected ~22:21 |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
@@ -478,6 +478,22 @@ hour ago, applied in reverse.
 
 The download opened at 37 MB/s and settled at **131 MB/s**, so about 31 minutes rather than
 two hours.
+
+**Expected schedule, so a slow tick reads as normal rather than as a stall.** Decode and
+epoch time both scale with pixels, and 448 is 1.78x of 336 on both:
+
+```
+download done   ~21:51
+ordering        skipped - the cache was carried across
+decode 336       5 min      train res-336   6 min at 45 s/epoch
+decode 448       9 min      train res-448  11 min at 80 s/epoch
+holdouts        ~22:21
+```
+
+Two decodes because the arms have different cache tags — `CACHE_IMG` is part of the tag, so
+`res-448` cannot ride the 336 cache, which is the same property that makes the comparison
+honest. Only one ordering pass, though, and only because the file was uploaded at 21:13:
+without it this run would have ordered twice for 43 minutes.
 
 **The order cache was carried across to the second lane at 21:13, while the download still
 had 31 minutes to run.** `danielz51666`'s volume had no `cache/` at all, so that run was
