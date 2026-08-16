@@ -190,7 +190,9 @@ def build_biomedclip(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=
     p = find_biomedclip()
     if p is None:
         raise FileNotFoundError("BioMedCLIP weights not attached")
-    cfg = json.loads((p / "open_clip_config.json").read_text())["model_cfg"]["vision_cfg"]
+    whole = json.loads((p / "open_clip_config.json").read_text())
+    cfg = whole["model_cfg"]["vision_cfg"]
+    set_norm(whole.get("preprocess_cfg", {}))
     blob = next(f for f in sorted(p.glob("*.bin")))
     sd = torch.load(blob, map_location="cpu", weights_only=False)
     sd = sd.get("state_dict", sd)
@@ -664,7 +666,20 @@ log(f"slice order: {ORDER_SEED or 'none mounted, this run writes one'}")''')
 POOL = "cls_mean"
 # Which backbone. build_model already dispatches on this name; nothing on the platform
 # ever set it, so a Kaggle session trained DINOv2-small whatever weights were attached.
-VARIANT = os.environ.get("RSNA_VARIANT", "small")''')
+VARIANT = os.environ.get("RSNA_VARIANT", "small")
+# The statistics the attached checkpoint was pretrained with. ImageNet is right for
+# DINOv2 and wrong for every other encoder here: BioMedCLIP wants the CLIP std, which is
+# 17-22% larger per channel. Feeding a backbone the wrong scale does not raise - it
+# trains, it converges, and it loses, which reads as "this encoder does not transfer".
+NORM = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
+
+def set_norm(pre):
+    """Adopt a checkpoint's own mean and std, if it published them."""
+    global NORM
+    if pre.get("mean") and pre.get("std"):
+        NORM = (list(pre["mean"]), list(pre["std"]))
+        log(f"normalisation: mean {NORM[0]} std {NORM[1]}, from the checkpoint")''')
 
     n.sub('''    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False,
                  sex=False):
@@ -793,6 +808,11 @@ def xslice_mask(mask):
                 else:
                     g = int(torch.randint(N_GROUP, (1,)).item())
                     imgs = augment(take_group(rows, g))''')
+
+    n.sub('''        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))''',
+          '''        self.register_buffer("mean", torch.tensor(NORM[0]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor(NORM[1]).view(1, 3, 1, 1))''')
 
     n.write("kaggle/train-v2/knee-train-v2.ipynb")
     meta("kaggle/train-v2/kernel-metadata.json", "knee-train-v2", "knee train v2",

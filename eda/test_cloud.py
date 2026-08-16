@@ -287,6 +287,27 @@ def test_the_arm_memo_holds_one_cache_per_tag():
     assert live["train"][1][1].shape == (1, 448)
 
 
+def test_a_foreign_checkpoint_brings_its_own_normalisation():
+    """The buffers read NORM, and build_biomedclip sets NORM before it builds a Model.
+
+    Read the source rather than run it, the same way the sweep tests do. A wrong
+    normalisation raises nothing: it trains, it converges, and it loses, which reads as
+    "this encoder does not transfer". A public competitor drew exactly that conclusion
+    about RAD-DINO before finding the real cause in preprocessor_config.json.
+    """
+    body = GEN.read_text()
+    assert 'torch.tensor(NORM[0])' in body and 'torch.tensor(NORM[1])' in body, \
+        "Model registers hardcoded statistics again"
+    assert '0.229, 0.224, 0.225' in body.split("def set_norm")[0], \
+        "the ImageNet default is gone, so DINOv2 no longer gets its own statistics"
+
+    i, j = body.find("def build_biomedclip"), body.find("return Model", body.find(
+        "def build_biomedclip"))
+    assert 0 < i < j, "build_biomedclip no longer ends in a Model"
+    assert "set_norm(" in body[i:j], \
+        "build_biomedclip builds a Model without adopting the checkpoint's statistics"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

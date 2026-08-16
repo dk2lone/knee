@@ -884,6 +884,19 @@ POOL = "cls_mean"
 # Which backbone. build_model already dispatches on this name; nothing on the platform
 # ever set it, so a Kaggle session trained DINOv2-small whatever weights were attached.
 VARIANT = os.environ.get("RSNA_VARIANT", "small")
+# The statistics the attached checkpoint was pretrained with. ImageNet is right for
+# DINOv2 and wrong for every other encoder here: BioMedCLIP wants the CLIP std, which is
+# 17-22% larger per channel. Feeding a backbone the wrong scale does not raise - it
+# trains, it converges, and it loses, which reads as "this encoder does not transfer".
+NORM = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
+
+def set_norm(pre):
+    """Adopt a checkpoint's own mean and std, if it published them."""
+    global NORM
+    if pre.get("mean") and pre.get("std"):
+        NORM = (list(pre["mean"]), list(pre["std"]))
+        log(f"normalisation: mean {NORM[0]} std {NORM[1]}, from the checkpoint")
 
 # Which slots an imported member's attention is tilted toward, per diagnosis. Indices are
 # into SLOTS. This is a fixed table rather than a learned parameter, so it is part of that
@@ -1846,8 +1859,8 @@ class Model(nn.Module):
         self.xslice = pool.endswith("_xs")
         self.head = SlotHead(dim * POOL_PARTS[pool], N_SLOT, len(TARGETS), prior=prior,
                              sex=sex, n_group=N_GROUP if self.xslice else 1)
-        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
-        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        self.register_buffer("mean", torch.tensor(NORM[0]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor(NORM[1]).view(1, 3, 1, 1))
 
     def forward(self, imgs, mask, img_size=None, sex_idx=None):
         B, S = imgs.shape[:2]
@@ -1999,7 +2012,9 @@ def build_biomedclip(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=
     p = find_biomedclip()
     if p is None:
         raise FileNotFoundError("BioMedCLIP weights not attached")
-    cfg = json.loads((p / "open_clip_config.json").read_text())["model_cfg"]["vision_cfg"]
+    whole = json.loads((p / "open_clip_config.json").read_text())
+    cfg = whole["model_cfg"]["vision_cfg"]
+    set_norm(whole.get("preprocess_cfg", {}))
     blob = next(f for f in sorted(p.glob("*.bin")))
     sd = torch.load(blob, map_location="cpu", weights_only=False)
     sd = sd.get("state_dict", sd)
