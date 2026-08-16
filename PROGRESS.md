@@ -120,6 +120,47 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:05 — 336 px is one gigabyte from silently training on three slices
+
+`plan_cache` run forward for the train-base geometry, to predict the log line before the run
+rather than read it after. It turned up something about the geometry we use *today*.
+
+```
+  img  GiB/slice   budget  affords  groups  slices
+  336      2.782     16.1        5       1       3    avail 26.0 GB
+  336      2.782     18.0        6       2       6    avail 29.0 GB
+  224      1.236     16.1       13       2       6    avail 26.0 GB
+  224      1.236     18.0       14       2       6    avail 29.0 GB
+  224      1.236     18.0       14       4      12    avail 29.0 GB
+```
+
+**At 336 px, six slices needs the session to report about 29 GB available.** The arithmetic is
+`afford = budget // per_slice` and then `groups = afford // GROUP`, so at 26 GB available the
+budget is 16.1, `afford` is 5, and `5 // 3` floors to **one group — three slices**. Not an
+error, not a warning; the run trains on half the input and every other line of the log looks
+ordinary. That is exactly the failure the watch on `knee-train-bmc` is checking for, and it is
+one gigabyte of reported memory away on every 336 px run this project makes.
+
+**At 224 px it cannot happen.** The cache affords 13 to 14 slices against a need of 6, so the
+floor has four times the margin it needs. This is a second argument for `train-base` that 14:20
+did not make: it is not only the bigger encoder, it is the geometry that stops betting the run
+on how much memory Kaggle happens to report that morning.
+
+It also confirms 14:29 from the other side. At 224 px with `N_GROUP_MAX = 4` the cache still
+affords twelve slices at both memory levels — so the cache was never what stopped twelve
+slices. The batch is, exactly as `Model.forward` says.
+
+The prediction for `train-base`, to be checked against its first ten lines:
+
+```
+memory: ~29 GB available, ~18 GB to the cache; sizing for 4407 train + 3 test studies
+        -> 2 group(s) of 3 = 6 slices per slot
+cache layout: 2 groups x 3 slices = 6 per slot
+```
+
+No `(wanted N)` suffix, because `groups` reaches `N_GROUP_MAX`. If that suffix appears, the
+session is smaller than expected and the number is not comparable with `adapt-8e6`.
+
 ### 15:00 — the MRI CORE checkpoint is not MRI CORE, and 14:35 has to be walked back
 
 14:35 called this "the first candidate on the model axis pretrained on the right modality".
