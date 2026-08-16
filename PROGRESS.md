@@ -120,6 +120,62 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:55 — train-base does not fit in eight hours, and 15:05 overstated the memory risk
+
+The one Kaggle training log this project has, `kaggle/train-v1/out/knee-train-v1.log`, answers
+both questions that were being reasoned about rather than measured.
+
+**First, a correction. 15:05 called the 336 px cache "a coin toss dressed as a constant". That
+is too strong.** The log's own first line:
+
+```
+memory: 29.8 GB available, 13.4 GB to the cache; sizing for 4407 train + 1322 test studies
+        -> 1 group(s) of 3 = 3 slices per slot
+```
+
+The session reported the **full 29.8 GB**. It shows 13.4 only because train-v1 ran
+`CACHE_FRACTION = 0.45` and `TEST_SHARE = 0.30`; train-v2 sets 0.62 and 0.0, which is the whole
+reason it affords six slices where v1 afforded three. At 0.62 the budget is 18.48 GB against
+the 16.69 six slices needs — **1.79 GB of headroom, about 11%.** The 26.92 GB threshold at
+15:05 is right, and Kaggle reporting 29.8 is a 2.9 GB margin above it, not a gigabyte. Arming
+the guard is still correct; calling the current runs a coin toss was not.
+
+**Second, and this is the expensive one: `train-base` does not fit an eight-hour session.**
+From the same log, timestamped:
+
+```
+median epoch     179 s      matching the 176 s written at pipeline.py:794
+epoch lines      125        5 folds x 25 epochs
+last timestamp   24,637 s   6.84 h
+```
+
+That 179 s is **three slices at DINOv2-small, 336 px**. Scaling it:
+
+```
+                          per image        vs small@336   epoch      5 folds x 22
+small @336, 3 slices      577 x 384^2         1.00x        179 s        6.1 h
+small @336, 6 slices      (twice the images)  2.00x        358 s       10.9 h
+base  @224, 6 slices      257 x 768^2         3.56x        637 s       19.5 h
+```
+
+Activation memory falls at 224 px because it goes with `tokens x dim`; **compute rises, because
+it goes with `tokens x dim^2`.** Every argument on this page for base at 224 was a memory
+argument, and memory was the wrong axis for the clock.
+
+So `train-base` at `EPOCHS = 22` over five folds is roughly 19 hours of T4. It will not fail —
+line 1777 breaks out on `TIME_BUDGET` and keeps the best state — it will simply return about
+two folds instead of five, and a two-member package is worth much less than a four.
+
+**The calibration is already running.** BioMedCLIP is a ViT-B/16 at 224 px, which is
+`197 x 768^2` against base's `257 x 768^2` — **0.77x**, the closest reference this project will
+ever get. When `knee-train-bmc` completes, its epoch time and its fold count size `train-base`
+directly, with no scaling argument in between. That is now the first thing to read out of it
+after the memory and backbone lines, and it decides whether `train-base` goes out at fewer
+epochs, fewer folds, or both.
+
+The same arithmetic says the six-slice train-v2 geometry is itself a ten-hour run at 22 epochs,
+so bmc breaking out early is expected rather than a fault.
+
 ### 15:50 — the pipeline probe-ours mounts was two days old, and the order for tonight
 
 **`dk2lone/knee-pipeline` was stale.** 132,342 bytes from 15 Aug against 148,563 locally, and
