@@ -10,9 +10,13 @@ Where the score is, what is running, what happens next. Updated 15 Aug 2026, 09:
 | Final submission | 22 Oct 2026 |
 | Submissions | 5 per day, the count resets 20:00 EDT |
 
-The calibration that makes local numbers usable: **gold-58 macro + 0.035 ≈ leaderboard**,
-measured on the public members, who score 0.856 out of fold and 0.891 on the board. So
-0.938 needs a gold-58 of about 0.903.
+The calibration that makes local numbers usable, **refit on three measured points on
+15 Aug**: `board = 0.825 x gold + 0.184`. So **0.938 needs a gold-58 of about 0.913**.
+
+The old rule on this page was `gold + 0.035`, a single point taken from the public members
+at 0.856 gold and 0.891 board. It overpredicted twice by 0.005 — `frontier-alpha` v1 and
+`blend-nolegacy` v4 — because the true slope is 0.83, not 1. A fixed offset fitted at the
+bottom of the range flatters everything above it.
 
 **Checked 20:41: there are two calibration points now and they do not support a fixed
 offset.** The offset shrinks as gold rises.
@@ -44,6 +48,42 @@ rule. What it does establish is a direction: **the fixed offset is optimistic at
 the range**, because the one time it was tested above 0.87 it overpredicted by 0.005. Both
 readings agree on the sign, and every ceiling written today should be read as an upper bound
 rather than an estimate.
+
+### 22:13 — the fit was right and the rule this page has used all along was wrong
+
+The first two scores landed and they settle it:
+
+```
+knee-blend-nolegacy v4   gold 0.8796
+  fixed +0.035 rule                    predicted 0.915
+  two-point fit, board = 0.830g+0.180  predicted 0.9103
+  measured                                      0.910
+```
+
+**The fitted conversion called it to three decimals. The fixed offset missed by 0.005** — the
+same 0.005, in the same direction, that it missed `knee-frontier-alpha` v1 by. That is now
+twice, so it is a slope and not a coincidence, and the rule at the top of this file has been
+quietly overstating every local number it converted.
+
+Refit on all three points:
+
+```
+board = 0.825 x gold + 0.1841        gold needed for 0.938: 0.9134
+```
+
+Every ceiling written today should be read off that line, not off `gold + 0.035`. **0.938
+needs gold 0.9134 against the 0.8817 our best kernel holds** — a gap of 0.032, where the
+fixed rule made it look like 0.022.
+
+**`knee-blend-logit` also scored 0.910, exactly as predicted.** The prediction was "within
+0.001 of v4 at 5 voters", from the voter-scaling curve that measured member-logit pooling at
+0.0000 / −0.0003 / +0.0005 / +0.0021 for 1/2/3/4 voters. Two kernels differing by four lines
+of pooling, identical to three decimals. **The curve is doing real work**, and it means the
+open question is the 24-voter version — `knee-frontier-logit`, still scoring.
+
+**And the runtime experiment is already answering.** Both five-member kernels finished inside
+54 minutes; both twenty-five-member kernels are still running. That is the direction the
+0.067 s per study-window model predicts, from a comparison nothing was designed to make.
 
 **Tonight's five submissions are also a calibration experiment**, and nothing on this page
 said so. `knee-blend-nolegacy` v4 predicts 0.915 from gold 0.8796 and `knee-frontier-alpha`
