@@ -116,6 +116,62 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 09:30 — our own members were never on Kaggle, and BiomedCLIP was already tested
+
+Four things, and the first one retracts a claim this page made at 02:05.
+
+**`enc2` is not the largest untested lever, because it is not untested.** `cloud/exports/`
+holds two paired comparisons, same seed, same fold, same everything but the setting:
+
+| pair | lr | slices | small | biomedclip | Δ |
+|---|---|---|---|---|---|
+| `enc-*` | 3e-5 | 6 | 0.7991 | **0.8113** | +0.0122 |
+| `enc8-*` | 8e-6 | 12 | **0.8304** | 0.8255 | **−0.0049** |
+
+The 02:05 entry says BiomedCLIP *"has never been tried at 8e-6 and 12 slices"*. It has -
+that is `enc8-biomedclip`, it was on disk unscored, and **the advantage reverses**. What
+still justifies the running job is only the normalisation fix: both rows above were trained
+with `Model`'s hardcoded ImageNet buffers against BioMedCLIP's 1.17-1.23x larger std, so
+the encoder was handicapped in each. Read `knee-train-bmc` as the corrected re-test of a
+negative result, not as an untested lever.
+
+**Every submission this project has made ran on other people's weights.** There are no
+`.pt` files under `cloud/exports/` - only manifests and OOF. The members live on Modal
+Volumes, and nobody had checked whether the spend limit blocks reading them. **It does
+not.** `modal volume ls` and `modal volume get` both work with every workspace out of
+budget, because the limit stops compute and not storage. Eighteen runs are retrievable
+across the five workspaces.
+
+Retrieved and pushed:
+
+```
+dk2lone/knee-members-full-band   4 members, 85 MB each, from sunnypathca
+dk2lone/knee-slice-order         48 MB, cache/slice_order.json
+```
+
+`full-band` died in fold 4 before `main()` wrote its manifest, which is why
+`cloud/export.py` had always refused it. `eda/build_fullband_manifest.py` writes the one it
+never reached - every field copied from `enc8-small`, which came off the same pipeline at
+the same 336 px and 12 slices, except the `band` the run is named for.
+
+`kaggle/blend-ours` mounts those four members **and nothing else**, and it is running. It
+answers the question 08:50 raised and no existing kernel can: where does a model we trained
+land on the board, against the 0.915-0.92 three competitors report from a single model.
+
+**And the slice order no longer has to be paid.** `knee-train-bmc` is spending up to 90
+minutes rebuilding an ordering that was already sitting on the Volume. Every future
+training kernel mounts `dk2lone/knee-slice-order` and skips it.
+
+**Local training is not available, and the 08:50 entry was wrong to imply it.** This laptop
+is an **M1 with 8 GB of RAM and 19 GB free**. stevenleehans ran their 67-minute fold on an
+M4 Pro. The 336 px / 6-slice cache is 16.7 GB against 8 GB of RAM, and building any cache
+needs the 570 GB corpus against 19 GB of disk. Kaggle is the only compute this project has.
+
+**The quota numbers disagree and it is not resolved.** The web UI reads *26h 14m available
+of 30h*. `get_accelerator_quota_statistics` returns `totalTimeAllowed: 21600s` (6 h) with
+`timeUsed: 27062s`, and refreshes 22 Aug. Plan against the UI figure until one of them is
+shown to be the weekly GPU budget.
+
 ### 08:50 — the forum says a single model does what our 25-member blend does
 
 Read the Code, Models and Discussion tabs end to end. Three findings, and the first one is
