@@ -500,6 +500,36 @@ slice_order.json` and skip straight to decoding, which is also the first live co
 that the file is portable between workspaces — it is keyed by `SeriesInstanceUID` and file
 count, neither of which is workspace-specific.
 
+### Why `res` is the best-motivated experiment on this page
+
+The argument was already in `cloud/train.py`, next to the `img` override, and nothing on
+this page had picked it up:
+
+> a ViT patch is 14 px whatever the image is, so 336 px over a 130 mm field puts 5.4 mm
+> inside one patch and 448 px puts 4.1 mm. A meniscal tear is 2-5 mm, which is to say it is
+> smaller than the patch that is supposed to represent it.
+
+That is a physical argument rather than a hyperparameter guess, and it points exactly where
+the honest headroom is. **Lateral Meniscus is the single largest model-limited gap** at
++0.218, Medial Meniscus is +0.072, and both are findings whose evidence is smaller than one
+token of the encoder that has to see them. 336 to 448 takes the patch from 5.4 mm to 4.1 mm,
+which does not make a 2 mm tear resolvable but does stop it being a quarter of a token.
+
+Checked for the confound that killed the original zoom arm, and it is clean this time:
+
+- **Slices are held at 12** on both arms, by `cache_budget_gb=72` on a box that fits 59.4 GiB.
+- **`BATCH_STUDIES` is 8 for both** — set once per sweep, and no arm key overrides it. So the
+  two arms take the same number of gradient steps at the same batch, and only the token grid
+  moves.
+- The comparison is fair in **steps, not FLOPs**: 448 costs 1.78x the tokens per step. That
+  is the same fairness question `xs-cross` raised, and the same answer — a win has to be
+  read against its cost before it is worth shipping.
+
+**The failure to watch for is GPU memory**, not host memory. Same batch at 1.78x the tokens
+means 1.78x the activations on a 48 GB L40S. ViT-S is small enough that it should fit, but
+if `res-448` dies where `res-336` ran, that is the reason and the fix is `batch_studies`,
+which would then have to drop for **both** arms to keep the comparison honest.
+
 **Modal budget: `sunnypathca` is now spent too, and `daniel21cn2016` is the last lane.**
 `raahncpe`, `hz-danielzhang` and `danielz51666` were already at their billing-cycle spend
 limits. Launching the grouping sweep on `sunnypathca` returned
