@@ -120,6 +120,39 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 16:20 — one command for what a training run actually did
+
+`eda/read_train_log.py` answers, from a kernel log, the four things that decide whether a
+holdout means anything — in the order they invalidate it:
+
+1. how many slices per slot the cache afforded, since three instead of six is half the input;
+2. which encoder was **built**, because the manifest records what was asked for;
+3. how many epochs each fold got, because one epoch is not a member;
+4. what each fold held out, and what an epoch cost.
+
+The third is the one that needed writing. Members trained before 16:10 carry no `epochs_done`,
+so for `knee-train-bmc` — which is running the pre-fix code right now — the log is the only
+witness that a late fold was not a single epoch dressed as a member.
+
+Checked against the one run whose numbers this page already records elsewhere:
+
+```
+fold  epochs  of   holdout      median epoch 179s over 124 gaps
+   0      25  25    0.8006      a five-fold run at 25 epochs = 6.2 h
+   1      25  25    0.7689      last timestamp 6.84 h
+   2      25  25    0.8007
+   3      25  25    0.7599      fold mean 0.7857
+   4      25  25    0.7986
+```
+
+The fold mean of 0.7857 is the 0.7862 written into `score_oof.py`'s own comment, and the 0.6 h
+between the predicted 6.2 and the observed 6.84 is the corpus decode, which `pipeline.py:794`
+prices at 2,186 s. It also raises the three-slice warning on this run, correctly — train-v1 ran
+`CACHE_FRACTION = 0.45` and `TEST_SHARE = 0.30` and got one group of three.
+
+The `ONE EPOCH` path is the one thing here that no existing log exercises, because train-v1
+never reached its budget. bmc may be the first to.
+
 ### 16:10 — the time budget stopped a fold, not the run, and made members out of one epoch
 
 Checking that `score_oof.py` could read a partial OOF — it can, it groups by `fold` — turned up
