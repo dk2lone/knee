@@ -85,12 +85,15 @@ efficiency leaderboard notebook, updated daily, showing rank only during the com
 standings to `full_leaderboard.csv`, which `kaggle kernels output` will fetch. Pulled 13 Aug
 2026, 1,295 teams, snapshot ending 12 Aug:
 
-| Efficiency rank | lowest public score in it |
-|---|---|
-| top 3 | **0.915** |
-| top 10 | 0.915 |
-| top 25 | 0.901 |
-| top 50 | 0.884 |
+| Efficiency rank | lowest public score in it | 13 Aug |
+|---|---|---|
+| top 3 | **0.926** | 0.915 |
+| top 10 | 0.915 | 0.915 |
+| top 25 | 0.904 | 0.901 |
+| top 50 | 0.881 | 0.884 |
+
+Refreshed 15 Aug from the same notebook, now 1,506 teams. Only the paying rank moved, and it
+moved up 0.011. `dk2lone` sits at efficiency rank 85 on an older 0.895 submission.
 
 **71 teams scored exactly 0.891** — the public baseline, submitted unchanged by a lot of
 people. The best efficiency rank any of them reached is **141**. The best rank reached by

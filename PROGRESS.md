@@ -2294,12 +2294,40 @@ lands near 0.92 the entry is both accurate enough and unusually cheap.
 marginal rate is 0.067 s per study-window, so the cheap entry is about 5x on the part that
 scales, and a 25-member ensemble approaches the 9 h cap where a 5-member one does not.
 
-This deserves promoting out of "decisions that come later". The main-board target is 0.938
-and we are at 0.912, a gap of 0.026 that no measured axis closes. The efficiency floor is
-**0.915**, a gap of 0.003, it pays the same, and `knee-blend-nolegacy` v4 — submitted
-tonight — predicts exactly 0.915 on an entry that is already a fifth of everyone else's
-cost. **The cheaper prize is one submission away and the loop is aimed at the dearer one.**
-Worth raising with Daniel rather than deciding here: the stop condition he set is 0.938.
+**Refreshed 20:28 from the host's own notebook, and the floor has moved.** The table in
+`docs/competition.md` is a 13 Aug pull of 1,295 teams. The current file holds 1,506:
+
+```
+eff rank    lowest public score in it     13 Aug
+top 3                           0.926      0.915   +0.011
+top 10                          0.915      0.915   +0.000
+top 25                          0.904      0.901   +0.003
+top 50                          0.881      0.884   -0.003
+```
+
+**Top 3 now needs 0.926, not 0.915.** Only the paying rank moved, which is what a tightening
+race looks like.
+
+**And we are already on it: `dk2lone`, efficiency rank 85, public 0.895.** That is an older
+submission, not the 0.912.
+
+Two corrections to what this section said an hour ago, both mine:
+
+1. **"One submission away" was wrong.** It is 0.014 away, not 0.003, and against a floor
+   that is still moving.
+2. **The 5x cheapness and the 0.912 belong to different kernels.** Our 0.912 is
+   `knee-frontier-alpha`, which is the **25-member fork** — the expensive one. The cheap
+   5-member entry is `knee-blend-nolegacy`, whose best scored version is 0.907. The
+   efficiency play needs the cheap kernel to reach 0.926, which is +0.019 on it, not +0.014.
+
+The hard number against the whole idea: **the best efficiency rank anyone has reached at
+exactly 0.912 is 63.** Accuracy gates this track before runtime does, which is what
+`docs/competition.md` already says in its own heading — *"The efficiency track is not the
+cheap prize"* — and which the 0.915 floor made easy to forget.
+
+So it stays a by-product and not a redirection. It is still the shorter gap of the two
+(+0.019 on the cheap kernel against +0.026 to tenth) and it still pays the same, so it is
+worth Daniel knowing. It is not worth changing course for on tonight's evidence.
 
 **Two of the three arms carry licence risk, and they are different risks.** The members
 are CC0-1.0 and clean. The RadImageNet encoder and its heads are CC-BY-NC-SA-4.0 (#26).
