@@ -661,7 +661,10 @@ log(f"slice order: {ORDER_SEED or 'none mounted, this run writes one'}")''')
 # What the training loop builds. A module global rather than a build_model argument
 # because a sweep arm overrides it the same way it overrides GROUP - by setting the
 # attribute before main() runs - and the default keeps every existing run identical.
-POOL = "cls_mean"''')
+POOL = "cls_mean"
+# Which backbone. build_model already dispatches on this name; nothing on the platform
+# ever set it, so a Kaggle session trained DINOv2-small whatever weights were attached.
+VARIANT = os.environ.get("RSNA_VARIANT", "small")''')
 
     n.sub('''    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False,
                  sex=False):
@@ -763,7 +766,16 @@ def xslice_mask(mask):
         for g in range(N_GROUP):''')
 
     n.sub('''        model = build_model(UNFREEZE_LAST, sex=True).to(dev)''',
-          '''        model = build_model(UNFREEZE_LAST, sex=True, pool=POOL).to(dev)''')
+          '''        model = build_model(UNFREEZE_LAST, sex=True, pool=POOL,
+                            variant=VARIANT).to(dev)''')
+
+    # The manifest is what the scoring kernel rebuilds from, and it recorded "small"
+    # whatever was trained. A BioMedCLIP member under a "small" manifest builds a DINOv2
+    # and loads BioMedCLIP tensors into it.
+    n.sub('''"config": {"unfreeze_last": UNFREEZE_LAST, "variant": "small",
+                                   "pool": "cls_mean", "prior": False,''',
+          '''"config": {"unfreeze_last": UNFREEZE_LAST, "variant": VARIANT,
+                                   "pool": POOL, "prior": False,''')
 
     n.sub('''                rows = torch.from_numpy(Ctr[sel]).to(dev)
                 g = int(torch.randint(N_GROUP, (1,)).item())
@@ -785,6 +797,24 @@ def xslice_mask(mask):
     n.write("kaggle/train-v2/knee-train-v2.ipynb")
     meta("kaggle/train-v2/kernel-metadata.json", "knee-train-v2", "knee train v2",
          "knee-train-v2.ipynb", ["dk2lone/knee-report-labels-dk"], [])
+    return n
+
+
+# --------------------------------------------------------------- train-bmc --- #
+def build_train_bmc():
+    """train-v2 with BioMedCLIP in place of DINOv2-small, and nothing else changed.
+
+    A separate kernel rather than a flag on train-v2, because Kaggle passes no
+    environment in and the one thing this run must not do is train a second encoder
+    while the manifest and the log both say `small`.
+    """
+    n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
+    n.sub('VARIANT = os.environ.get("RSNA_VARIANT", "small")',
+          'VARIANT = os.environ.get("RSNA_VARIANT", "biomedclip")')
+    n.write("kaggle/train-bmc/knee-train-bmc.ipynb")
+    meta("kaggle/train-bmc/kernel-metadata.json", "knee-train-bmc", "knee train bmc",
+         "knee-train-bmc.ipynb",
+         ["dk2lone/knee-report-labels-dk", "dk2lone/biomedclip-vitb16-224"], [])
     return n
 
 
@@ -1239,15 +1269,17 @@ if __name__ == "__main__":
     import ast
 
     Path("cloud").mkdir(parents=True, exist_ok=True)
-    for d in ("kaggle/train-v2", "kaggle/blend", "kaggle/duo"):
+    for d in ("kaggle/train-v2", "kaggle/train-bmc", "kaggle/blend", "kaggle/duo"):
         Path(d).mkdir(parents=True, exist_ok=True)
     build_train_v2()
+    build_train_bmc()
     build_blend()
     build_duo()
     body = build_cloud_module()
     print(f"cloud/pipeline.py: {body.count(chr(10))} lines, parses")
-    for p in ("kaggle/train-v2/knee-train-v2.ipynb", "kaggle/blend/knee-blend.ipynb",
-              "kaggle/duo/knee-duo.ipynb"):
+    for p in ("kaggle/train-v2/knee-train-v2.ipynb",
+              "kaggle/train-bmc/knee-train-bmc.ipynb",
+              "kaggle/blend/knee-blend.ipynb", "kaggle/duo/knee-duo.ipynb"):
         nb = json.loads(Path(p).read_text())
         ast.parse("\n".join("".join(c["source"]) for c in nb["cells"]
                             if c["cell_type"] == "code"))

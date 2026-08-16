@@ -881,6 +881,9 @@ POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3, "cls_mean_focal_xs": 3,
 # because a sweep arm overrides it the same way it overrides GROUP - by setting the
 # attribute before main() runs - and the default keeps every existing run identical.
 POOL = "cls_mean"
+# Which backbone. build_model already dispatches on this name; nothing on the platform
+# ever set it, so a Kaggle session trained DINOv2-small whatever weights were attached.
+VARIANT = os.environ.get("RSNA_VARIANT", "small")
 
 # Which slots an imported member's attention is tilted toward, per diagnosis. Indices are
 # into SLOTS. This is a fixed table rather than a learned parameter, so it is part of that
@@ -2686,7 +2689,8 @@ def main():
         # held out share an initialisation, and an ensemble of correlated members is a
         # slower way to be one member.
         torch.manual_seed(SEED + fold)
-        model = build_model(UNFREEZE_LAST, sex=True, pool=POOL).to(dev)
+        model = build_model(UNFREEZE_LAST, sex=True, pool=POOL,
+                            variant=VARIANT).to(dev)
         opt = torch.optim.AdamW([
             {"params": [p for p in model.backbone.parameters() if p.requires_grad],
              "lr": LR_BACKBONE},
@@ -2770,8 +2774,8 @@ def main():
                         "holdout": best,
                         "pixel_group": json.dumps(pixel_config(cfg["img"]),
                                                   sort_keys=True),
-                        "config": {"unfreeze_last": UNFREEZE_LAST, "variant": "small",
-                                   "pool": "cls_mean", "prior": False,
+                        "config": {"unfreeze_last": UNFREEZE_LAST, "variant": VARIANT,
+                                   "pool": POOL, "prior": False,
                                    "sex": True}})
         test_preds.append(predict(model, Cte, Mte, np.arange(len(st_te)), dev,
                                   cfg["img"], sex_te))
