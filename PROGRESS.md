@@ -120,6 +120,49 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:25 — our members do add to the public blend, by an amount indistinguishable from zero
+
+The model axis needs a route to the board, and it has never been checked. Our own model scores
+~0.86 and the public blend scores 0.912, so replacing the blend is out of reach; the only route
+is **joining** it as extra voters. **No kernel has ever mounted both** — `blend-ours` votes our
+four alone, every other blend votes public alone.
+
+This did not need a submission. `kaggle/frontier-probe/out/oof_honest.csv` holds the public
+twenty fold-joined honestly, `probe_truth.csv` holds the gold, and our own OOF covers the same
+studies. Nineteen of the fifty-eight overlap — each of our runs trained one fold, so its OOF is
+that fold's held-out set, which is the `annot(n=19)` that appears throughout this page.
+
+```
+ w(ours)    macro    delta
+    0.00   0.8217  +0.0000     the public twenty, fold-joined
+    0.10   0.8239  +0.0022     the peak
+    0.15   0.8235  +0.0018
+    0.20   0.8201  -0.0016
+    0.50   0.7945  -0.0272
+    1.00   0.7730  -0.0488     ours alone
+```
+
+There is a peak, it is at a tenth of the vote, and it is worth **+0.0022**. Bootstrapped over
+the nineteen studies, 4000 resamples:
+
+```
+delta at w=0.10   mean +0.0022   95% [-0.0037, +0.0089]   P(delta > 0) = 0.77
+```
+
+**The interval crosses zero.** At n=19 this cannot separate +0.002 from nothing, and even the
+point estimate is a third of the 0.006 bar. So a `blend` plus `OURS` kernel is not worth a slot
+tonight, and it is better that this was measured for free than discovered for one.
+
+**The number that is robust is the other one: ours alone is 0.0488 below the public pool on the
+same studies.** That is what the model axis actually has to close. `train-base` is not aimed at
+buying +0.002 by joining a vote; it is aimed at that 0.0488, and the joining question only
+becomes interesting again once a run of ours lands near the pool rather than well under it.
+
+Two caveats, stated because the conclusion leans on them. The members measured here are
+`sl12-adapt-8e6`, not the `full-band` four that are actually on Kaggle — same configuration,
+different run. And nineteen studies with twelve labels is a thin base for any of it; that is
+why the bootstrap is quoted rather than the point estimate alone.
+
 ### 15:15 — the guard against a short cache was armed on the platform that cannot trip it
 
 15:05 said a 336 px Kaggle run is one gigabyte from three slices. There is already a guard
