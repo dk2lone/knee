@@ -141,10 +141,30 @@ error, not a warning; the run trains on half the input and every other line of t
 ordinary. That is exactly the failure the watch on `knee-train-bmc` is checking for, and it is
 one gigabyte of reported memory away on every 336 px run this project makes.
 
-**At 224 px it cannot happen.** The cache affords 13 to 14 slices against a need of 6, so the
-floor has four times the margin it needs. This is a second argument for `train-base` that 14:20
-did not make: it is not only the bigger encoder, it is the geometry that stops betting the run
-on how much memory Kaggle happens to report that morning.
+Solving for the threshold rather than sampling it:
+
+```
+  img  per_slice GiB  min budget  min avail GB      (six slices, 4410 studies, 6 slots)
+  336          2.782       16.69         26.92
+  288          2.044       12.26         19.78
+  224          1.236        7.42         11.97
+```
+
+**A 336 px run needs 26.92 GB of a 29.8 GB session still free — 90% of it.** And `plan_cache`
+runs at import, *after* torch, pandas, numpy and transformers are loaded and after `train.csv`
+and `test.csv` are read. Ninety percent free at that moment is not a comfortable margin; it is
+a coin toss dressed as a constant.
+
+**At 224 px the threshold is 11.97 GB, or 40%.** The cache affords 13 to 14 slices against a
+need of 6. This is a second argument for `train-base` that 14:20 did not make: it is not only
+the bigger encoder, it is the geometry that stops betting the run on how much memory Kaggle
+happens to report that morning.
+
+**And none of this has ever been exercised.** `kaggle kernels list` returns exactly one
+training kernel that has ever run here: `knee-train-bmc`, today. There is no `knee-train-v2`
+and never was. Every slice count on this page above three was measured on Modal, where the
+container's memory is declared rather than discovered. The Kaggle training path is unproven,
+and the run in flight is its first test.
 
 It also confirms 14:29 from the other side. At 224 px with `N_GROUP_MAX = 4` the cache still
 affords twelve slices at both memory levels — so the cache was never what stopped twelve
