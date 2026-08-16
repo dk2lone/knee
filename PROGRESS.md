@@ -289,7 +289,7 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **launched 20:09** `fc-01M03YCD30M8494VWCCWGC39CZ` |
+| **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **lost its worker at 20:36**, requeued for L40S |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
@@ -1039,6 +1039,24 @@ network variance and not the box size, so it cannot be planned around, only obse
 
 Revised: download to about 20:45, ordering skipped, decode about 10 minutes, then `xs-cheap`
 at roughly 144 s an epoch and `grp-3-again` at 40. **Holdouts around 21:20.**
+
+**It lost its worker at 20:36, at 68% of the download.** The app shows 0 tasks and the call
+is queued again:
+
+```
+Function 'sweep' (fu-ykMVlJc6sJZ7yKaVoo5Qs6) is waiting to be scheduled on a GPU_L40S
+worker. ... Relaxing requirements (memory=64.8GiB) may lead to faster scheduling
+```
+
+This is the failure already written into `cloud/launch.py`'s own comment — the parity run
+"held a worker, lost it, and went back to waiting ... after a 137-minute download it then
+had to repeat". Twenty-five minutes of download are gone and the 21:20 estimate with them.
+
+**Do not take Modal's suggestion.** Relaxing memory below 64 GiB is exactly what that
+comment warns against: *"below 64 GiB the planner gives slices away silently rather than
+failing"*. A smaller box would schedule sooner and quietly cache 6 slices instead of 12,
+which changes both arms and makes the comparison against `grp-3` meaningless — while the
+log still prints a plausible number. Waiting is the only correct move.
 
 The ordering pass being skipped is the self-heal described above actually happening — the
 volume now holds 20,142 entries instead of the 12 it had this morning, which is 1,282 s this
