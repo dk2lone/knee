@@ -116,6 +116,39 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 01:30 — the decoded cache now persists, and `batch` is one launch too early for it
+
+`wrap_build_cache` has sat written and never called since `6aaec60`. It is wired now, under
+the RAM memo rather than over it:
+
+```python
+pipeline.build_cache = wrap_build_cache(pipeline, cache_dir)   # the Volume
+pipeline.build_cache = memoize_build_cache(pipeline)           # RAM, on top
+```
+
+Within a container a repeated geometry never reaches the disk; across containers a geometry
+decoded once is never decoded again. Two things were wrong with it as written:
+
+- **`mmap_mode="r"`.** The file lives on a network Volume and the training loop reads a
+  random study per step, so a mapped array turns every batch into page faults over the mount
+  and makes epoch time a property of the network. It loads into RAM now, which is what
+  `plan_cache` sized the thing to do.
+- **Nothing bounded it.** Every geometry keeps its own copy — 33.4 GiB at 336/12, 41.7 at
+  15 slices, 59.3 at 448 — so two sweeps of the kind worth running would fill the Volume
+  between them. Over a 200 GiB cap it declines to write and says which file to delete,
+  which costs one decode instead of wedging the workspace.
+
+**`batch` will not populate it.** A running call keeps the code it started with, and `batch`
+was spawned before this. Cancelling to pick it up would delay the experiments by 50 minutes
+to save 90 on a later sweep, and the experiments are the thing that has not moved in two
+days. So `batch` runs as launched, and the sweep after it is the first to skip the decode.
+
+That leaves the larger prize still on the table. Setup is download 36 + extract 17 + order 21
++ decode 14 = about 90 minutes, and this removes only the last 14. Removing the other three
+means not fetching the 247 GB corpus **at all** when every geometry a sweep needs is already
+on the Volume — 90 minutes down to about 3. It is not written yet because it cannot be tested
+until the caches exist, and `batch` is what puts them there.
+
 ### 01:05 — all five slots are in, and every one of them was below the board's resolution
 
 ```
