@@ -327,7 +327,7 @@ being the same code, and this pair does.
 | What | Where | State |
 |---|---|---|
 | **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **queued 60 min** for L40S; give-up rule below |
-| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **82% downloaded 21:42**; holdouts expected ~22:21 |
+| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **extracting 21:49**, downloaded in 39.8 min; holdouts ~22:25 |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
@@ -489,6 +489,13 @@ decode 336       5 min      train res-336   6 min at 45 s/epoch
 decode 448       9 min      train res-448  11 min at 80 s/epoch
 holdouts        ~22:21
 ```
+
+**Download measured: 39.8 minutes**, against the 31 projected from the instantaneous rate at
+15%. The rate wandered between 59 and 137 MB/s over the run, so an ETA read off any single
+tick is optimistic by whatever the fastest stretch happened to be. This corpus has now been
+pulled at an average of 140, 37 and 106 MB/s on three occasions — the useful summary is that
+it is **30 to 130 minutes and cannot be planned to better than that**, which is the whole
+argument for persisting the decoded cache instead.
 
 Two decodes because the arms have different cache tags — `CACHE_IMG` is part of the tag, so
 `res-448` cannot ride the 336 cache, which is the same property that makes the comparison
