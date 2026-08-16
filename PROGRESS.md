@@ -120,6 +120,65 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:35 — the +0.002 was limited by nineteen studies, and forty-nine are reachable
+
+15:25 measured our members adding +0.0022 to the public blend at a tenth of the vote, with the
+interval crossing zero. Per label, the reason that number is small is not that our model is
+uniformly worse:
+
+```
+label              pos   public    ours  ours-pub
+Medial Meniscus      7    0.774   0.595    -0.179
+MCL                  4    0.925   0.750    -0.175
+Synovitis            7    0.750   0.607    -0.143
+Medial OA            2    0.941   0.824    -0.118
+Lateral OA           3    0.406   0.354    -0.052
+ACL                  6    0.897   0.846    -0.051
+PF OA                6    0.769   0.718    -0.051
+Contusion            5    0.921   0.900    -0.021
+Baker's              1    0.944   0.944    +0.000
+Fracture             6    0.949   0.987    +0.038
+Lateral Meniscus     7    0.667   0.750    +0.083
+Effusion            12    0.917   1.000    +0.083
+```
+
+**We beat the public pool on three findings, and one of them is Lateral Meniscus** — the
+largest teacher gap on this page at +0.219, and one of the four model-limited findings. A flat
+weight averages that away against the four labels we lose badly on. A per-label weight does
+not, and this project has already measured that mechanism working: `fit_rad_alpha.py` took the
+RadImageNet arm from **0.8729 flat to 0.8837** per target, **+0.0108 gold**, which is +0.009 on
+the board and over the 0.006 bar.
+
+Its discipline is the part to copy. From its own docstring: *"The output is a rule, not a fit.
+One binary decision per label... The argmax of the grid scores 0.002 higher and is an
+eight-point search on 58 studies, which is a way of buying overfitting with a rounding error."*
+
+**That rule was fitted on 58 studies. We have 19**, because each of our runs trained a single
+fold and its OOF is that fold's held-out set. Twelve weights on nineteen studies with one to
+twelve positives each is fitting noise, so the rule is not fittable today.
+
+It is nearly fittable. The four `full-band` members on Kaggle are folds 0, 1, 2 and 3, and the
+gold studies fall across the fold map as:
+
+```
+fold   0    1   2    3   4
+gold  19    9   8   13   9        folds 0-3 reach 49 of 58
+```
+
+**Forty-nine**, against the fifty-eight `fit_rad_alpha.py` used and the nineteen we have —
+2.6x the base, for no training at all. `kaggle/probe` already does exactly this join for the
+public members, `probe.py` reads whichever package is mounted through `P.find_weights()`, and
+its docstring prices it: *"Costs no submission. Runs on the T4 in about twenty minutes."*
+
+`kaggle/probe-ours` is built — the same notebook with `dk2lone/knee-members-full-band` mounted
+in place of `pilkwang/rsna-knee-weights`. **Not pushed**, because `knee-train-bmc` holds the
+GPU. It is twenty minutes of T4 and no submission slot, and it is the cheapest thing on this
+page that could put a per-label rule within reach.
+
+One thing to hold on to when it lands: the RadImageNet arm was at **parity** with the members
+when its 0.7/0.3 rule was fitted — 0.8543 against 0.8564. Ours is 0.049 behind. The same rule
+shape is right; the same weights almost certainly are not, and the measurement decides.
+
 ### 15:25 — our members do add to the public blend, by an amount indistinguishable from zero
 
 The model axis needs a route to the board, and it has never been checked. Our own model scores
