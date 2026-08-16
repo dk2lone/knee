@@ -965,9 +965,18 @@ a few thousandths. And the second arm prices run-to-run variance, which is the n
 decides whether the grouping sweep's 0.019 and tonight's 0.0013 mean anything at all; no
 result on this page is safe until it exists.
 
-The corpus download is the cost and it is about two hours, so holdouts land around 22:15.
-The ordering pass will be skipped this time — the volume now holds 20,142 entries instead of
-the 12 it had this morning, which is the self-heal described above actually happening.
+The corpus download is the cost. **It is running at 124 MB/s, not the 37 MB/s that made the
+last one take 133 minutes** — 247 GB at that rate is 34 minutes, so the two-hour estimate
+written at launch was an hour too pessimistic. This is the third throughput this corpus has
+been pulled at (140, 37, 124), which confirms what the earlier note guessed: the rate is
+network variance and not the box size, so it cannot be planned around, only observed.
+
+Revised: download to about 20:45, ordering skipped, decode about 10 minutes, then `xs-cheap`
+at roughly 144 s an epoch and `grp-3-again` at 40. **Holdouts around 21:20.**
+
+The ordering pass being skipped is the self-heal described above actually happening — the
+volume now holds 20,142 entries instead of the 12 it had this morning, which is 1,282 s this
+run does not pay.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
