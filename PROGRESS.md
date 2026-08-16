@@ -1480,6 +1480,36 @@ So the honest position is the one this page already took — read the runtime of
 rerun before assuming anything. What the dry runs do establish is that the cheap entry is
 genuinely cheaper on fixed cost too, which is the half that does not scale with the test set.
 
+**Priced at 20:26, and the "cannot be priced at n=3" claim above was too strong.** The
+wall-clock total is dominated by fixed cost at n=3, which is what that paragraph says. But
+the log does not only report a total — it reports **each member's prediction on its own
+line**, which separates the marginal cost from the fixed cost directly:
+
+```
+[   26.0s]   rsna-knee-weights/e5427d6c21 fold 2: predicted 3 studies over 10 window(s) in 22s
+[   28.1s]   rsna-knee-weights/013dc75703 fold 4: predicted 3 studies over 10 window(s) in 2s
+[   30.1s]   rsna-knee-weights/44bc3c6f14 fold 0: predicted 3 studies over 10 window(s) in 2s
+[   32.1s]   rsna-knee-weights/84079fe8cb fold 3: predicted 3 studies over 10 window(s) in 2s
+[   34.1s]   rsna-knee-weights/91f171fe6f fold 1: predicted 3 studies over 10 window(s) in 2s
+```
+
+The first member is 22 s and the other four are 2 s each, so the 20 s is warm-up and the
+marginal rate is **0.067 s per study-window**. That scales:
+
+```
+test  500 studies    5 members 0.46 h    25 members 2.31 h
+test 1000 studies    5 members 0.93 h    25 members 4.63 h
+test 2000 studies    5 members 1.85 h    25 members 9.26 h
+```
+
+**A 25-member ensemble runs out of the 9 h cap somewhere near 2,000 test studies and a
+5-member one is nowhere near it.** Read as an upper bound: at n=3 the GPU batch is mostly
+empty, so the real rate at scale is better than 0.067, and it improves the cheap entry and
+the expensive one equally.
+
+This is the number the efficiency track was waiting on, and it says the cheap entry is
+roughly **5x** on the part that scales.
+
 ### The 0.912 kernel carried the wrong weight on two labels
 
 `eda/build_frontier_alpha.py` held `PF OA: 0.3` and `Synovitis: 0.3`. Those are the two the
@@ -2258,8 +2288,18 @@ the field of view out.
 same as tenth on the main board, and the host's own standings show the accuracy floor for
 a top-3 efficiency rank is about 0.915. This blend is 5 members at 10 windows plus a
 frozen encoder, against the 20-member ensembles everyone else submits - so if the arm
-lands near 0.92 the entry is both accurate enough and unusually cheap. Read the runtime
-off the scored rerun before assuming it.
+lands near 0.92 the entry is both accurate enough and unusually cheap.
+
+**"Read the runtime off the scored rerun" is done — see the efficiency-track section.** The
+marginal rate is 0.067 s per study-window, so the cheap entry is about 5x on the part that
+scales, and a 25-member ensemble approaches the 9 h cap where a 5-member one does not.
+
+This deserves promoting out of "decisions that come later". The main-board target is 0.938
+and we are at 0.912, a gap of 0.026 that no measured axis closes. The efficiency floor is
+**0.915**, a gap of 0.003, it pays the same, and `knee-blend-nolegacy` v4 — submitted
+tonight — predicts exactly 0.915 on an entry that is already a fifth of everyone else's
+cost. **The cheaper prize is one submission away and the loop is aimed at the dearer one.**
+Worth raising with Daniel rather than deciding here: the stop condition he set is 0.938.
 
 **Two of the three arms carry licence risk, and they are different risks.** The members
 are CC0-1.0 and clean. The RadImageNet encoder and its heads are CC-BY-NC-SA-4.0 (#26).
