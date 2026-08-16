@@ -2045,6 +2045,52 @@ Kept because it cost one command to kill and would have cost days to act on. The
 form is worth remembering: **the teacher's confidence tracks how much the report says**, so
 any label lead has to be controlled for report length before it means anything.
 
+### The second label lead — length-controlled from the start, and it bounds the whole axis
+
+Aimed correctly this time. Better labels can only pay on findings where **we have already
+passed the teacher**, because on the rest the model has not yet reached the label it was
+taught from. That is five findings, and Effusion is the widest: us 0.953, teacher 0.877,
+35 positives.
+
+Length was controlled first rather than last. It is not the constraint here — the Effusion
+teacher scores 0.881 on long reports and 0.871 on short. A finding radiologists state
+outright should not sit at 0.88 either way, so the reports themselves were read.
+
+**It is not a reading failure.** The teacher's lowest scores on gold-positive Effusion are
+0.900 to 0.910 — it found every one, in four languages:
+
+```
+0.900  "Minimal amount of right knee effusion is present"        English
+0.910  "Leve derrame articular"                                  Spanish
+0.910  "Manja količina izljeva u zglob"                           Croatian
+0.910  "Geringer Gelenkerguss"                                   German
+```
+
+The failure is at the other end. Gold-**negative** studies score **0.975, 0.925, 0.920,
+0.920**, all with an effusion term in the report — above the true positives. So the teacher
+reads the word correctly every time and **disagrees with the gold annotator about how much
+effusion counts as effusion**. Every quoted positive is hedged: *minimal*, *leve*, *manja
+količina*, *geringer*. That is a threshold mismatch, and no amount of better parsing moves it.
+
+**And then the axis prices itself out.** Fixing it perfectly is worth very little, because we
+already lead the teacher on exactly the findings where labels could pay:
+
+```
+findings where we lead the teacher      room to a perfect 1.000
+  Baker's 0.950   Contusion 0.870   Medial OA 0.966
+  Effusion 0.953  Fracture 0.921
+  all five taken to 1.000              +0.0283 macro -> board 0.919
+```
+
+**A perfect teacher on every finding where a teacher could help is worth 0.919.** That is
+below the model axis's own 0.917-to-0.949 range and nowhere near 0.938. The seven findings
+with real room are the ones where we are *behind* the teacher, and those are model-limited by
+definition — reaching the teacher on all seven is +0.0575, or 0.949.
+
+So the label axis is bounded at about **0.919** and closed. It was the only axis whose
+ceiling had never been measured, and measuring it moves the whole remaining gap onto the
+model. That is what `xslice2` is running to price.
+
 ## What 0.938 costs, per label
 
 The public twenty score **0.856** gold macro under their own fold map and **0.891** on the
