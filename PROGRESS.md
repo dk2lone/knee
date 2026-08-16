@@ -120,6 +120,48 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 14:50 — train-base checked against the upstream configs, not against memory
+
+14:20 priced base at 224 px from arithmetic. Everything in that arithmetic is now measured,
+and one risk it did not mention is closed.
+
+**The mount is what it needs to be.** `metaresearch/dinov2/PyTorch/base/1` ships `config.json`
+— so `find_dinov2` can see it — plus `pytorch_model.bin` at 346 MB, which is 86.6M parameters
+in fp32 to the megabyte.
+
+**The geometry is right.** From the upstream configs:
+
+```
+dinov2-small   hidden 384   layers 12   heads  6   patch 14   image_size 518
+dinov2-base    hidden 768   layers 12   heads 12   patch 14   image_size 518
+```
+
+Both declare 518 and we already feed 336, so the position embeddings are being interpolated
+today. Confirmed rather than assumed, by building each config with random weights and running
+a forward pass:
+
+```
+small @224  tokens  257 (expected 257)  dim 384      base @224  tokens  257  dim 768
+small @336  tokens  577 (expected 577)  dim 384      base @336  tokens  577  dim 768
+```
+
+**The state figures were estimates and are now exact.** 817 MB against 206 MB, so **+611 MB**
+rather than the +639 MB written at 14:20, and that page is corrected:
+
+```
+variant   total M  train M   weights  grad+adam    fixed
+small        22.1     10.7       84M       122M     206M
+base         86.6     42.5      330M       487M     817M
+```
+
+The small row is the check on the whole reconstruction: **10.7M trainable** is exactly what
+`knee-blend-ours` printed in production this morning — `last 6 trainable (10.7M params)`.
+
+**And the normalisation risk does not apply here.** `preprocessor_config.json` for
+dinov2-base publishes `mean [0.485, 0.456, 0.406]`, `std [0.229, 0.224, 0.225]` — identical to
+the `NORM` default. The 1.17x scale error BioMedCLIP carried has no analogue in this run. It
+remains an open question for MRI CORE, which publishes nothing.
+
 ### 14:35 — second sweep of the day, and an MRI foundation model landed this morning
 
 The morning sweep ran `eda/field_sweep.sh`. This one is the CLI half — `kaggle kernels list
@@ -229,17 +271,17 @@ it was written, and `find_dinov2` resolves it by the `base` in its path. The wei
 mounted the whole time.
 
 **336 px is why.** DINOv2 is patch 14, so base at 336 px is 577 tokens by 768 dim — 2.2x
-small's activations, on top of 856 MB of weights, gradients and Adam state. That does not fit
+small's activations, on top of 817 MB of weights, gradients and Adam state. That does not fit
 a T4 at a batch worth running. At 224 px the trade reverses:
 
 ```
                  base @ 224              small @ 336
 activations      257 x 768 x 12 = 2.37M  577 x 384 x 12 = 2.66M   0.89x
 attention        12 x 12 x 257  = 9.5M   12 x 6 x 577   = 24.0M   0.40x
-fixed state      856 MB                  217 MB                   +639 MB
+fixed state      817 MB                  206 MB                   +611 MB
 ```
 
-Base at 224 px is **cheaper per sample** than small at 336 px, and costs 639 MB more in fixed
+Base at 224 px is **cheaper per sample** than small at 336 px, and costs 611 MB more in fixed
 state, which a 16 GB T4 has. The pixel cache falls from 2.780 to 1.236 GiB per slice at the
 same time, so twelve slices fit where six did.
 
@@ -276,7 +318,7 @@ six slices      8 x (6 slots x 2 groups) =  96 imgs   base  @ 224   0.89x
 
 Twelve slices would put this at 1.78x the activation of the only configuration a Kaggle T4 is
 known to survive, and an out-of-memory error costs the whole eight-hour session. Six keeps it
-strictly below that, so the only thing the run risks is the 639 MB of extra state. Every
+strictly below that, so the only thing the run risks is the 611 MB of extra state. Every
 twelve-slice number on this page was measured on Modal, not here.
 
 The comparison is therefore against `adapt-8e6`: small, 336 px, six slices, lr 8e-6, unfreeze

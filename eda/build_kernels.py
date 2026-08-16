@@ -1048,7 +1048,7 @@ def build_train_base():
     Eleven runs are exported and every one of them is 336 px. The encoder sweep tried
     three different backbones - small, BioMedCLIP, RAD-DINO - and never the bigger version
     of the one that won, because 336 px forecloses it: base at 336 px is 577 tokens by 768
-    dim, 2.2x small's activations on top of 856 MB of weights, gradients and Adam state,
+    dim, 2.2x small's activations on top of 817 MB of weights, gradients and Adam state,
     which does not fit a T4 at a batch worth running. Resolution and backbone were priced
     on separate pages, so nothing recorded that the resolution choice was choosing the
     encoder.
@@ -1058,9 +1058,9 @@ def build_train_base():
 
         activations   257 x 768 x 12 = 2.37M   against   577 x 384 x 12 = 2.66M
         attention     12 x 12 x 257  = 9.5M    against   12 x 6 x 577   = 24.0M
-        fixed state   856 MB                   against   217 MB
+        fixed state   817 MB                   against   206 MB
 
-    Base at 224 px is cheaper per sample than small at 336 px and costs 639 MB more in
+    Base at 224 px is cheaper per sample than small at 336 px and costs 611 MB more in
     fixed state, which a 16 GB T4 has. The pixel cache falls from 2.780 to 1.236 GiB per
     slice at the same time, so twelve slices fit where six did.
 
@@ -1078,7 +1078,7 @@ def build_train_base():
 
     Twelve slices would make this 1.78x the activation of the only configuration a Kaggle
     T4 is known to survive, and an out-of-memory error costs the whole session. Six keeps
-    it strictly below that, so the only thing this run risks is the 639 MB of extra state.
+    it strictly below that, so the only thing this run risks is the 611 MB of extra state.
     The twelve-slice numbers on this page were all measured on Modal.
 
     The comparison is therefore against `adapt-8e6`: small, 336 px, six slices, lr 8e-6,
