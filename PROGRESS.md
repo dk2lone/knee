@@ -933,6 +933,34 @@ without a handicap.
 wins, delete if it loses", and the result is neither — it is a confounded win. Porting a
 bundle that ties the cheap baseline would be shipping the handicap along with the fix.
 
+### What the head change is actually for, which this page had not connected
+
+The sweeps read as a hunt for a better single arm, and judged that way a head worth +0.025
+is a curiosity: it moves one sweep arm from 0.81 to 0.835 and the board does not care what
+a sweep arm scores.
+
+It matters because of where 0.81 sits. The diversity run's folds averaged **roughly 0.81**,
+against the public members' **0.8325 to 0.8600** — which is why "our own members join the
+vote" is recorded on this page as a *negative* axis, and why `MEMBERS_ALPHA` is zero. Our
+members are not held out of the blend because the plumbing is missing. They are held out
+because they are worse than what is already in it, and adding a weak voter to a rank mean
+costs score.
+
+Now put +0.025 on it. `grp-3` is 0.8298 and the public floor is 0.8325, so our best arm is
+already within 0.003 of the weakest member the blend carries. A head worth +0.025 does not
+produce a slightly better sweep arm — **it moves our members from below the public floor to
+the middle of the public range**, and that flips the "more voters" axis from negative to
+positive.
+
+That is worth more than the arithmetic on any single arm, because it is the only axis on
+this page that scales: the frontier reaches 0.912 with 25 members and we have 5.
+
+Two caveats, neither fatal. The holdouts are not measured on identical splits — ours is 882
+studies on fold 0, theirs are their own folds — so "within 0.003" is approximate. And the
++0.025 is measured against a handicapped control, which is exactly what `xslice2` is running
+to check. If `xs-cheap` comes back near 0.855 this reading holds. If it comes back near
+`grp-3`, the head was never worth +0.025 and the axis stays shut.
+
 ### `xslice2`, the arm that separates them
 
 Two arms, added to `cloud/launch.py`:
