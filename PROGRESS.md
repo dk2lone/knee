@@ -116,6 +116,71 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 03:55 — every Modal workspace is out of budget, and that stops all cloud training
+
+```
+daniel21cn2016   ResourceExhaustedError: workspace billing cycle spend limit reached
+danielz51666     ResourceExhaustedError: workspace billing cycle spend limit reached
+sunnypathca      ResourceExhaustedError: workspace billing cycle spend limit reached
+hz-danielzhang   ResourceExhaustedError: workspace billing cycle spend limit reached
+raahncpe         ResourceExhaustedError: workspace billing cycle spend limit reached
+```
+
+All five, on a plain `spawn`. Deploys still succeed, so the code is live everywhere; nothing
+will run. **This is a decision for Daniel and not one to work around** — raising a spend
+limit costs money.
+
+It also explains the night in retrospect. The L40S "waiting to be scheduled" that held every
+sweep for the last two hours reads as a capacity shortage and may have been the budget
+tightening instead. It does not explain the two mid-extraction deaths, which happened while
+containers were running.
+
+**What is not blocked.** Kaggle's own GPUs are free and the project already generates a
+notebook that trains there — `kaggle/train-v2/knee-train-v2.ipynb` is built by
+`build_train_v2()` from the same source as `cloud/pipeline.py`. Five submission slots reset
+at 20:00 EDT. Local analysis, blending and the gold harness need nothing but this laptop.
+
+**Everything built tonight is committed and will work the moment budget exists.** The
+`prepare` path was finished and deployed minutes before the limit hit, so the first thing to
+run whenever that happens is:
+
+```
+MODAL_PROFILE=<workspace> .venv/bin/python cloud/launch.py prepare
+```
+
+which decodes all three geometries on a **CPU** box and leaves them on the Volume. Every
+sweep after it skips the download, the extraction and the decode — 110 minutes down to
+minutes — and no longer risks losing 96 minutes of setup to a preempted GPU container.
+
+### 03:40 — the corpus itself can be skipped, and that is where the 110 minutes go
+
+The setup is download 36 + extract ~60 + decode ~14, and all of it has been paid on an L40S
+box that does not need a GPU until the last minute of it. That is the expensive way round
+twice: the card is the scarce resource, and a long setup on a scarce preemptible box is a
+long window in which to lose everything. Two containers proved that tonight.
+
+`main()` needs the corpus for exactly two things — the pixels, and one header pass,
+`annotate(walk(split))`, which feeds `pick_slots`, `lat_of` and `sex_of`. The pixels were
+already persisted at 01:30. `cache_headers` is the other half: one row per series, a few
+thousand rows rather than the 820,000 slice headers the pass reads, pickled to the Volume.
+With both, plus the four CSV tables copied alongside, a sweep needs no corpus at all.
+
+**The gate is a whitelist and it fails closed.** Each arm names its own resolution and slice
+count; the corpus is skipped only when the train and test cache for every one of them is on
+the Volume, along with the header frames and the tables. This matters more than it looks:
+the cached header frames carry file paths into a corpus that will not exist, so a wrong skip
+is a wrong *answer* rather than a slow run. `forbid_decode` sits underneath the disk cache
+whenever the gate fires, so a miss stops with a message naming the fix instead of reading
+through dead paths.
+
+`prepare` is the other side of it — a CPU-only function that pays the setup once and writes
+what the GPU needs. Every geometry in one call, because the corpus is fetched per container:
+three geometries in one container is 138 minutes where three calls would be 330.
+
+`cache_headers` and `forbid_decode` are tested locally against a stub, including that the
+annotations and the per-series file lists survive the pickle round trip, and the gate has a
+source-level check in `eda/test_cloud.py`.
+
 ### 02:50 — two containers have now died mid-extraction, and the log cannot say why
 
 `batch` restarted from zero, the same way `res` did. Two containers, same stage, so this is
@@ -709,7 +774,9 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **`batch`** — `ctl`, `xs-cheap`, `sl-15`, `res-448` | Modal `danielz51666` | **launched 00:52** `fc-01M04DDZKCJ07VBJY215A6F1D6`; first holdout ~02:30 |
+| **everything on Modal** | all five workspaces | **blocked**: billing cycle spend limit reached, see 03:55 |
+| `batch` — `ctl`, `xs-cheap`, `sl-15`, `res-448` | Modal | **cancelled twice, then blocked**; relaunch after `prepare` |
+| `prepare` — three geometries on a CPU box | Modal | **written, deployed, cannot spawn**; first thing to run when budget exists |
 | `xslice2` — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **cancelled**: never scheduled in 100 min; folded into `batch` |
 | `res` — `res-336` against `res-448` | Modal `danielz51666` | **cancelled**: restarted its download, and carried two bugs; folded into `batch` |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |

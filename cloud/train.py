@@ -36,6 +36,10 @@ import modal
 REPO = pathlib.Path(__file__).resolve().parent.parent
 COMP = "rsna-knee-abnormality-detection"
 
+# The label and series tables, kept on the Volume so a run that skips the 247 GB download
+# still has a corpus root `link_inputs` will accept. Megabytes, next to the pixel caches.
+META_DIR = "/vol/tables"
+
 # Modal imports this module inside the container too, where $HOME is /root and holds no
 # credential. Reading at module scope without this guard crashes every container on import
 # and the app retries the crash rather than reporting it - see the same guard in
@@ -198,19 +202,22 @@ def fetch_corpus_local(dest=pathlib.Path("/tmp/comp")):
         print(f"corpus already on local disk at {dest}", flush=True)
         return dest
 
-    import os
-
     def disk(where):
-        """Free space, printed at every step that could exhaust it.
+        """What has been written, printed at every step that could exhaust the disk.
 
         Two containers died mid-extraction on 16 Aug with nothing in the log to say why,
-        and disk was the leading theory that could not be checked after the fact. One line
-        each side of the two big writes turns the next failure into a measurement.
+        and disk was the leading theory that could not be checked after the fact.
+
+        This asks `du` rather than `statvfs`: the first attempt reported "8589934592 GiB
+        free of 8589934592", because the container filesystem is virtual and declares no
+        quota, so free space here is not a number that exists. Bytes written is a real
+        measurement and it is the one actually wanted - how far this corpus expands out of
+        its 247 GB archive has never been recorded anywhere.
         """
-        st = os.statvfs(dest.parent)
-        free = st.f_bavail * st.f_frsize / 1024 ** 3
-        total = st.f_blocks * st.f_frsize / 1024 ** 3
-        print(f"disk {where}: {free:.0f} GiB free of {total:.0f}", flush=True)
+        out = subprocess.run(["du", "-sBG", str(dest.parent)],
+                             text=True, capture_output=True).stdout.split()
+        print(f"disk {where}: {out[0] if out else '?'} written under {dest.parent}",
+              flush=True)
 
     _auth_kaggle()
     dl = pathlib.Path("/tmp/dl")
@@ -796,6 +803,151 @@ def fix_manifest_variant(out, variant, run=None):
 # 64 GiB it would silently give slices away instead - that is the floor, not the target.
 # The CPUs mattered for the 1,784 s ordering pass, and that answer is now cached on the
 # Volume, so eight is no longer the bottleneck it would have been.
+def cache_headers(pipeline, cache_dir):
+    """Serve the DICOM header pass from the Volume, or record it for the next run.
+
+    `main()` needs the corpus for exactly two things: the pixels, and one header pass -
+    `annotate(walk(split))` - which feeds `pick_slots`, `lat_of` and `sex_of`. The pixels
+    are already persisted. This is the other half, and together they are what lets a run
+    skip the 247 GB download entirely.
+
+    One row per series, so it is a few thousand rows rather than the 820,000 slice headers
+    the pass reads. Pickle rather than parquet because the `files` column holds a list per
+    row and this is not worth a schema.
+
+    The paths in `files` point into a corpus that will not exist next time, and that is
+    safe only while `build_cache` is served from disk. `sweep` will not skip the corpus
+    unless every geometry it needs is already cached, and `forbid_decode` turns a miss into
+    a stop rather than a read through a dead path.
+    """
+    import pandas as pd
+
+    frames = {s: cache_dir / f"headers_{s}.pkl" for s in ("train_series", "test_series")}
+    if all(p.is_file() for p in frames.values()):
+        pipeline.walk = lambda split: split
+        pipeline.annotate = lambda split: pd.read_pickle(frames[split])
+        pipeline.log(f"headers: served from {cache_dir} - no DICOM headers read")
+        return True
+
+    orig_walk, orig_annotate = pipeline.walk, pipeline.annotate
+
+    def walk(split):
+        return split
+
+    def annotate(split):
+        df = orig_annotate(orig_walk(split))
+        df.to_pickle(frames[split])
+        pipeline.log(f"headers: saved {frames[split].name} ({len(df)} series)")
+        return df
+
+    pipeline.walk, pipeline.annotate = walk, annotate
+    return False
+
+
+def forbid_decode(pipeline):
+    """Refuse to decode DICOM. Armed only when the corpus was deliberately not fetched.
+
+    Without it a cache miss under a skipped corpus reads through file paths that no longer
+    resolve, which is a silent wrong answer rather than a failure.
+    """
+    def wrapped(slot_map, plane_map, lat_map, tag):
+        raise RuntimeError(
+            f"{tag.strip()}: no cached pixels for this geometry and no corpus on disk. "
+            f"The corpus was skipped because every geometry was believed cached, and that "
+            f"was wrong. Run `prepare` for this geometry, or launch without the skip.")
+
+    pipeline.build_cache = wrapped
+
+
+@app.function(image=image, timeout=23 * 3600, volumes={"/vol": vol},
+              cpu=16.0, memory=131072, ephemeral_disk=2048 * 1024,
+              secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
+def prepare(geometries: list = None,
+            cache_budget_gb: float = 96.0, order_threads: int = 64):
+    """Do the whole 110-minute setup on a CPU box and leave the result on the Volume.
+
+    Setup is download 36 + extract ~60 + decode ~14, and every minute of it has been paid
+    on an L40S container that does not need a GPU until the last of them. That is the
+    expensive way round twice over: the card is the scarce resource, and a long setup on a
+    scarce preemptible box is a long window in which to lose everything. Two containers
+    died mid-extraction on 16 Aug and took their downloads with them.
+
+    So the corpus lands here, on a box with no GPU to compete for, and what the GPU needs -
+    the decoded pixels and the header frames - goes to the Volume. A sweep afterwards skips
+    all three phases and starts training in minutes.
+
+    Every geometry in one call, because the corpus is fetched per container and a second
+    call would pay the 96 minutes again to save the 14-minute decode. Three geometries here
+    is 138 minutes; three calls would be 330.
+
+        [{"img": 336, "group": 3, "n_group": 4}, {"img": 448, "group": 3, "n_group": 4}]
+    """
+    import os
+    import sys
+
+    import shutil
+
+    corpus = fetch_corpus_local()
+    link_inputs("small", corpus=corpus)
+
+    cache_dir = pathlib.Path("/vol/cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # The label and series tables, which are megabytes and live inside the 247 GB archive.
+    # `link_inputs` refuses a corpus root with no train.csv, so a run that skips the
+    # download still needs these four somewhere - this is that somewhere.
+    meta = pathlib.Path(META_DIR)
+    meta.mkdir(parents=True, exist_ok=True)
+    for csv in sorted(corpus.glob("*.csv")):
+        shutil.copy2(csv, meta / csv.name)
+    print(f"copied {len(list(meta.glob('*.csv')))} tables to {meta}", flush=True)
+
+    os.environ["RSNA_ORDER_CACHE"] = str(cache_dir / "slice_order.json")
+
+    sys.path.insert(0, "/root")
+    import pipeline  # noqa: E402
+
+    import pandas as pd
+
+    pipeline.build_cache = wrap_build_cache(pipeline, cache_dir)
+    cache_headers(pipeline, cache_dir)
+    pipeline.ORDER_THREADS = order_threads
+    pipeline.CACHE_FRACTION = 0.62
+    pipeline.CACHE_BUDGET_MAX_GB = cache_budget_gb
+    pipeline.TEST_SHARE = 0.0
+
+    n_tr = len(pd.read_csv(pipeline.ROOT / "train.csv"))
+    n_te = len(pd.read_csv(pipeline.ROOT / "test.csv"))
+    both = pd.concat([pd.read_csv(pipeline.ROOT / "train_series.csv"),
+                      pd.read_csv(pipeline.ROOT / "test_series.csv")])
+    plane_map = dict(zip(both["SeriesInstanceUID"], both["Anatomical_Plane"]))
+
+    # One header pass for every geometry. It does not depend on resolution or slice count,
+    # and it is the pass that reads 820,000 DICOM headers.
+    heads = {split: pipeline.annotate(pipeline.walk(split))
+             for split in ("train_series", "test_series")}
+    vol.commit()
+
+    for geom in (geometries or [{"img": 336, "group": 3, "n_group": 4}]):
+        pipeline.CACHE_IMG = pipeline.IMG = int(geom.get("img", 336))
+        pipeline.GROUP = int(geom.get("group", 3))
+        pipeline.N_GROUP_MAX = int(geom.get("n_group", 4))
+        pipeline.N_GROUP = pipeline.plan_cache(n_tr, n_te)
+        pipeline.CACHE_SLICES = pipeline.GROUP * pipeline.N_GROUP
+        print(f"\n=== preparing {pipeline.IMG}px x {pipeline.CACHE_SLICES} slices ===",
+              flush=True)
+        for split, tag in (("train_series", "train"), ("test_series", "test")):
+            h = heads[split]
+            pipeline.build_cache(pipeline.pick_slots(h, plane_map), plane_map,
+                                 pipeline.lat_of(h, f"{tag} "), tag)
+            vol.commit()
+
+    held = sorted(f"{p.name} {p.stat().st_size / 1024 ** 3:.1f} GiB"
+                  for p in cache_dir.glob("*"))
+    print("volume now holds:\n  " + "\n  ".join(held), flush=True)
+    return held
+
+
 @app.function(image=image, gpu="L40S", timeout=23 * 3600, volumes={"/vol": vol},
               # 2 TiB rather than 1, because the peak is the zip and the corpus at once:
               # `unzip` runs to completion before the 247 GB archive is unlinked, so the
@@ -827,11 +979,37 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
     import sys
     import traceback
 
-    corpus = fetch_corpus_local()
-    link_inputs(variant, corpus=corpus)
-
     cache_dir = pathlib.Path("/vol/cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # Skip the 110-minute setup when `prepare` has already paid it for every geometry these
+    # arms will ask for. The test is deliberately strict and it is a whitelist: each arm
+    # names its own resolution and slice count, and both the train and the test cache have
+    # to be on the Volume for every one of them, along with the header frames. Anything
+    # missing and the corpus is fetched exactly as before.
+    #
+    # Getting this wrong is not a slow run, it is a wrong one - the cached header frames
+    # carry file paths into a corpus that would not exist - so `forbid_decode` arms a stop
+    # behind the gate rather than trusting it.
+    need = set()
+    for arm in arms:
+        a_img = int(arm.get("img", img))
+        a_slices = int(arm.get("group", 3)) * int(arm.get("n_group", n_group_max))
+        for tag in ("train", "test"):
+            need.add(f"{tag}_{a_img}px_{a_slices}sl_130mm_0.20-0.80.npy")
+    have = {p.name for p in cache_dir.glob("*.npy")}
+    headers = all((cache_dir / f"headers_{s}.pkl").is_file()
+                  for s in ("train_series", "test_series"))
+    tables = (pathlib.Path(META_DIR) / "train.csv").is_file()
+    skip = headers and tables and need <= have
+    print(f"cache: {len(need & have)}/{len(need)} pixel caches present, "
+          f"headers {'present' if headers else 'absent'}, "
+          f"tables {'present' if tables else 'absent'} -> "
+          f"{'skipping the corpus' if skip else 'fetching the corpus'}", flush=True)
+
+    corpus = META_DIR if skip else fetch_corpus_local()
+    link_inputs(variant, corpus=corpus)
+
     os.environ["RSNA_ORDER_CACHE"] = str(cache_dir / "slice_order.json")
     print(f"slice order cache: {os.environ['RSNA_ORDER_CACHE']}", flush=True)
 
@@ -855,8 +1033,11 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
     # and this removes the last of the four for any geometry already seen. Removing the
     # other three means not fetching the corpus at all, which is only safe once the caches
     # are known to be on the Volume, so it waits for this sweep to put them there.
+    if skip:
+        forbid_decode(pipeline)         # the bottom of the stack: a miss stops, never reads
     pipeline.build_cache = wrap_build_cache(pipeline, cache_dir)
     pipeline.build_cache = memoize_build_cache(pipeline)
+    cache_headers(pipeline, cache_dir)
     pipeline.ORDER_THREADS = order_threads
     pipeline.N_FOLDS = folds
     pipeline.BATCH_STUDIES = batch_studies

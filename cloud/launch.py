@@ -298,6 +298,12 @@ SETS["enc2"] = ENC2
 # one before decoding the next, so the box has to fit the largest arm rather than the sum.
 BIG_BOX = {"res", "batch"}
 
+# Every geometry any queued set will ask for, decoded once on a CPU box so that no sweep
+# after this one pays the download. 336x12 serves `ctl`, `xs-cheap` and all of `enc2`.
+GEOMETRIES = [{"img": 336, "group": 3, "n_group": 4},
+              {"img": 336, "group": 3, "n_group": 5},
+              {"img": 448, "group": 3, "n_group": 4}]
+
 
 def status(call_id):
     """Alive, queued, or finished - without a connection that could cancel it."""
@@ -318,6 +324,14 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
     not beat 10, so it is not epochs. Running the same arms at 6 and at 12 on two
     workspaces isolates it at every learning rate for the price of one extra extraction.
     """
+    if what == "prepare":
+        # No GPU, so it does not queue behind the L40S shortage that has held every sweep
+        # tonight, and the 96 minutes of download and extraction stop being paid on a card
+        # that sits idle through all of it.
+        call = modal.Function.from_name(APP, "prepare").spawn(GEOMETRIES)
+        print(f"spawned prepare for {len(GEOMETRIES)} geometries: {call.object_id}")
+        return call.object_id
+
     fn = modal.Function.from_name(APP, "sweep" if what in SETS else "train")
     # A sweep gets half the box. L40S capacity is the binding constraint, not compute:
     # the parity run held a worker, lost it, and went back to "waiting to be scheduled on

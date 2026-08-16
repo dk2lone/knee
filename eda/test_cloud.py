@@ -207,6 +207,30 @@ def test_a_sweep_arm_gets_the_slice_count_it_asked_for():
             f"{attr} is overridable per arm but is not restored between arms"
 
 
+def test_the_corpus_is_only_skipped_when_every_geometry_is_cached():
+    """The gate is a whitelist, and a wrong skip is a wrong answer rather than a slow one.
+
+    The cached header frames carry file paths into a corpus that will not exist, so a
+    sweep that skips the download and then misses a pixel cache would decode through dead
+    paths. `forbid_decode` has to sit under the disk cache whenever the gate fired.
+    """
+    src = (Path(__file__).resolve().parent.parent / "cloud" / "train.py").read_text()
+    body = src.split("def sweep(", 1)[1]
+
+    assert "need <= have" in body, "the gate is not a whitelist over the arms' geometries"
+    assert "headers and tables and" in body, \
+        "the gate does not require the header frames and the tables"
+    assert body.index("if skip:") < body.index("wrap_build_cache(pipeline, cache_dir)"), \
+        "forbid_decode must sit UNDER the disk cache, not over it"
+    assert "forbid_decode(pipeline)" in body, "a cache miss behind the gate is not stopped"
+
+    # And every axis the memo keys on has to be in the filename the gate looks for, or a
+    # geometry could be reported present when what is on the Volume was built differently.
+    keyname = src.split("def wrap_build_cache(", 1)[1].split("base = cache_dir", 1)[0]
+    for axis in ("IMG", "CACHE_SLICES", "CROP_MM", "SLICE_BAND"):
+        assert axis in keyname, f"{axis} is not in the persisted cache's filename"
+
+
 def test_the_disk_cache_sits_under_the_ram_memo_and_never_maps():
     """Layer order decides whether the Volume is read once or read every batch."""
     src = (Path(__file__).resolve().parent.parent / "cloud" / "train.py").read_text()
