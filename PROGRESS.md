@@ -120,6 +120,60 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 14:20 — every run this project has made is 336 px, and that chose the encoder
+
+14:10 left the model axis as the only lever. Looking at what has actually been run on it:
+
+```
+adapt-1e4 / 3e5 / 8e6     small       img=336  slices=6
+enc-small                 small       img=336  slices=6
+enc-biomedclip            biomedclip  img=336  slices=6
+enc-raddino               raddino     img=336  slices=6
+sl12-adapt-1e4 / 3e5 / 8e6 small      img=336  slices=12
+enc8-small / enc8-biomedclip          img=336  slices=12
+```
+
+Eleven runs, **every one at 336 px**, and `base` has never been trained. The encoder sweep
+tried three *different* backbones and never the bigger version of the one that won.
+
+`metaresearch/dinov2/PyTorch/base/1` has been in the training kernel's `model_sources` since
+it was written, and `find_dinov2` resolves it by the `base` in its path. The weights were
+mounted the whole time.
+
+**336 px is why.** DINOv2 is patch 14, so base at 336 px is 577 tokens by 768 dim — 2.2x
+small's activations, on top of 856 MB of weights, gradients and Adam state. That does not fit
+a T4 at a batch worth running. At 224 px the trade reverses:
+
+```
+                 base @ 224              small @ 336
+activations      257 x 768 x 12 = 2.37M  577 x 384 x 12 = 2.66M   0.89x
+attention        12 x 12 x 257  = 9.5M   12 x 6 x 577   = 24.0M   0.40x
+fixed state      856 MB                  217 MB                   +639 MB
+```
+
+Base at 224 px is **cheaper per sample** than small at 336 px, and costs 639 MB more in fixed
+state, which a 16 GB T4 has. The pixel cache falls from 2.780 to 1.236 GiB per slice at the
+same time, so twelve slices fit where six did.
+
+**This corrects the 14:05 entry.** That entry priced 224 px as an enabler of *slices*, put
+336-over-224 at +0.017 board against +0.003 for 6-to-12 slices, and concluded the straight
+swap loses 0.014. It then said "some other part of his pipeline dominates both terms" and left
+the term unnamed. The unnamed term is the backbone. Resolution and backbone were priced on
+separate pages, so nothing recorded that **the resolution choice was choosing the encoder** —
+and it has been choosing a 22M-parameter one for eleven runs while an 87M one sat mounted.
+
+`kaggle/train-base` is built: `VARIANT=base`, `CACHE_IMG=224`, `N_GROUP_MAX=4`. Three subs on
+train-v2, no new mounts. **Not pushed** — `knee-train-bmc` holds the GPU.
+
+The comparison is against `sl12-adapt-8e6`: small, 336 px, twelve slices, holdout 0.8295 to
+0.8304. Slices are held at twelve, so the two runs differ by backbone and resolution together.
+That bundle is what can actually be bought, since base does not fit at 336 px, so it is the
+honest unit. Pricing resolution alone needs small at 224 px, which is a second run.
+
+No prediction is recorded for the size of the gain, because this project has no measurement of
+small against base on any task. What is recorded is that it is the largest untried change
+available, and that it costs three subs and one session.
+
 ### 14:10 — the pooling axis is spent, and nothing built clears 0.912 tonight
 
 Last night's five slots are scored. Read together they say one thing, and it is not the

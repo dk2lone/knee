@@ -916,6 +916,51 @@ def build_train_head():
     return n
 
 
+# -------------------------------------------------------------- train-base --- #
+def build_train_base():
+    """train-v2 with DINOv2-base at 224 px and twelve slices.
+
+    Eleven runs are exported and every one of them is 336 px. The encoder sweep tried
+    three different backbones - small, BioMedCLIP, RAD-DINO - and never the bigger version
+    of the one that won, because 336 px forecloses it: base at 336 px is 577 tokens by 768
+    dim, 2.2x small's activations on top of 856 MB of weights, gradients and Adam state,
+    which does not fit a T4 at a batch worth running. Resolution and backbone were priced
+    on separate pages, so nothing recorded that the resolution choice was choosing the
+    encoder.
+
+    At 224 px the trade reverses. DINOv2 is patch 14, so base sees 257 tokens against
+    small's 577 at 336 px:
+
+        activations   257 x 768 x 12 = 2.37M   against   577 x 384 x 12 = 2.66M
+        attention     12 x 12 x 257  = 9.5M    against   12 x 6 x 577   = 24.0M
+        fixed state   856 MB                   against   217 MB
+
+    Base at 224 px is cheaper per sample than small at 336 px and costs 639 MB more in
+    fixed state, which a 16 GB T4 has. The pixel cache falls from 2.780 to 1.236 GiB per
+    slice at the same time, so twelve slices fit where six did.
+
+    `metaresearch/dinov2/PyTorch/base/1` has been mounted on the training kernel since it
+    was written, and `find_dinov2` resolves it by the `base` in its path, so this run
+    needs no new weights.
+
+    The comparison is against `sl12-adapt-8e6`: small, 336 px, twelve slices, holdout
+    0.8295 to 0.8304. Slices are held at twelve so the two runs differ by backbone and
+    resolution together. That bundle is what can actually be bought - base does not fit at
+    336 px - so it is the honest unit to measure. Pricing resolution on its own needs
+    small at 224 px, which is a second run and not this one.
+    """
+    n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
+    n.sub('VARIANT = os.environ.get("RSNA_VARIANT", "small")',
+          'VARIANT = os.environ.get("RSNA_VARIANT", "base")')
+    n.sub("CACHE_IMG = 336", "CACHE_IMG = 224")
+    n.sub("N_GROUP_MAX = 2", "N_GROUP_MAX = 4")
+    Path("kaggle/train-base").mkdir(parents=True, exist_ok=True)
+    n.write("kaggle/train-base/knee-train-base.ipynb")
+    meta("kaggle/train-base/kernel-metadata.json", "knee-train-base", "knee train base",
+         "knee-train-base.ipynb", ["dk2lone/knee-report-labels-dk"], [])
+    return n
+
+
 # --------------------------------------------------------------- train-bmc --- #
 def build_train_bmc():
     """train-v2 with BioMedCLIP in place of DINOv2-small, and nothing else changed.
@@ -1400,6 +1445,7 @@ if __name__ == "__main__":
     build_train_v2()
     build_train_bmc()
     build_train_head()
+    build_train_base()
     build_blend()
     build_duo()
     body = build_cloud_module()
