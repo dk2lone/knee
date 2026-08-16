@@ -345,6 +345,39 @@ def test_a_foreign_checkpoint_brings_its_own_normalisation():
         "build_biomedclip builds a Model without adopting the checkpoint's statistics"
 
 
+def test_the_budget_stops_the_fold_loop_and_not_just_the_epoch_loop():
+    """A budget check inside the epoch loop alone manufactures one-epoch members.
+
+    Reaching TIME_BUDGET mid-fold breaks that fold, saves its best state, and then starts
+    the next fold - which trains a single epoch before the same check fires and saves it
+    too. Those members reach the manifest with a holdout beside the properly trained ones,
+    nothing distinguishes them, and `blend` selects the top five by holdout. So the fold
+    loop needs its own check, and every member needs to say how many epochs it got.
+    """
+    body = GEN.read_text()
+    lines = body.splitlines()
+    start = next(i for i, l in enumerate(lines) if "for fold in range(" in l)
+    ind = len(lines[start]) - len(lines[start].lstrip())
+    end = next(i for i in range(start + 1, len(lines))
+               if lines[i].strip() and (len(lines[i]) - len(lines[i].lstrip())) <= ind)
+
+    checks = [(i, len(lines[i]) - len(lines[i].lstrip()))
+              for i in range(start, end) if "TIME_BUDGET" in lines[i]]
+    at_fold = [i for i, d in checks if d == ind + 4]
+    deeper = [i for i, d in checks if d > ind + 4]
+    assert at_fold, "the fold loop has no budget check; it will manufacture short members"
+    assert deeper, "the epoch loop lost its budget check; a fold can now overrun freely"
+
+    # The fold-level check must come before any training work, not after it.
+    first_model = next((i for i in range(start, end) if "build_model(" in lines[i]), end)
+    assert at_fold[0] < first_model, \
+        "the fold-level budget check runs after the model is built, so it saves nothing"
+
+    member = "\n".join(lines[start:end])
+    for field in ('"epochs_done"', '"best_epoch"'):
+        assert field in member, f"a member no longer records {field}"
+
+
 def test_only_the_training_kernels_refuse_a_short_cache():
     """The slice guard has to be armed on Kaggle and off for a blend, and it splits here.
 

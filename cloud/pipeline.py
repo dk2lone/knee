@@ -2822,6 +2822,10 @@ def main():
     for fold in range(N_FOLDS):
         va = np.array([i for i in keep if fold_of[i] == fold])
         tr = np.array([i for i in keep if fold_of[i] != fold])
+        if time.time() - T0 > TIME_BUDGET:
+            log(f"fold {fold}: the time budget is spent; stopping rather than "
+                f"training one epoch and calling it a member")
+            break
         if len(va) == 0 or len(tr) < BATCH_STUDIES:
             log(f"fold {fold}: {len(tr)} train / {len(va)} holdout - skipped")
             continue
@@ -2853,6 +2857,7 @@ def main():
         scaler = torch.amp.GradScaler("cuda", enabled=dev.type == "cuda")
 
         best, best_state, best_annot, best_pv = -1.0, None, float("nan"), None
+        best_ep, ep = 0, -1
         for ep in range(EPOCHS):
             model.train()
             perm = np.random.permutation(tr)
@@ -2901,6 +2906,7 @@ def main():
             # epochs and it cannot arbitrate between them.
             if d > best:
                 best, best_annot, best_pv = d, g_auc, pv
+                best_ep = ep + 1
                 best_state = {k: v.detach().cpu().clone()
                               for k, v in model.state_dict().items()}
             if time.time() - T0 > TIME_BUDGET:
@@ -2923,6 +2929,7 @@ def main():
                    f"member_{mid}.pt")
         members.append({"id": mid, "file": f"member_{mid}.pt", "fold": fold,
                         "holdout": best,
+                        "epochs_done": ep + 1, "best_epoch": best_ep,
                         "pixel_group": json.dumps(pixel_config(cfg["img"]),
                                                   sort_keys=True),
                         "config": {"unfreeze_last": UNFREEZE_LAST, "variant": VARIANT,

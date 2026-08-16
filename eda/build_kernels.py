@@ -288,6 +288,38 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",'''
     from transformers import AutoModel
     p = source if source is not None else find_dinov2(variant)''')
 
+    # --- do not start a fold the budget cannot finish ------------------------ #
+    #
+    # The only TIME_BUDGET check sits inside the epoch loop, so reaching the budget
+    # mid-fold does not stop the run - it stops that fold, saves its best state, and then
+    # starts the next one, which trains a single epoch before the same check fires and
+    # saves it too. Those members land in the manifest with a holdout beside the properly
+    # trained ones and nothing to tell them apart, and `blend` selects the top five by
+    # holdout. `full-band` came back from a run described as dying in fold 4; with all four
+    # holdouts overwritten by hand there is now no way to know which of them this was.
+    #
+    # Two changes. The fold loop stops rather than starting a fold it cannot finish, and
+    # every member records how many epochs it actually got - the field the public members
+    # already publish as `epochs_done: 60`.
+    n.sub("""        if len(va) == 0 or len(tr) < BATCH_STUDIES:""",
+          """        if time.time() - T0 > TIME_BUDGET:
+            log(f"fold {fold}: the time budget is spent; stopping rather than "
+                f"training one epoch and calling it a member")
+            break
+        if len(va) == 0 or len(tr) < BATCH_STUDIES:""")
+
+    n.sub("""        best, best_state, best_annot, best_pv = -1.0, None, float("nan"), None""",
+          """        best, best_state, best_annot, best_pv = -1.0, None, float("nan"), None
+        best_ep, ep = 0, -1""")
+
+    n.sub("""                best, best_annot, best_pv = d, g_auc, pv""",
+          """                best, best_annot, best_pv = d, g_auc, pv
+                best_ep = ep + 1""")
+
+    n.sub("""                        "holdout": best,""",
+          """                        "holdout": best,
+                        "epochs_done": ep + 1, "best_epoch": best_ep,""")
+
     # --- refuse the wrong encoder rather than train it ----------------------- #
     #
     # `find_dinov2` fell back to the first mounted checkpoint when the requested variant

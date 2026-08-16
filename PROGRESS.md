@@ -120,6 +120,43 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 16:10 — the time budget stopped a fold, not the run, and made members out of one epoch
+
+Checking that `score_oof.py` could read a partial OOF — it can, it groups by `fold` — turned up
+something worse in the run that writes it.
+
+**There was exactly one `TIME_BUDGET` check in the whole fold loop, and it sits inside the epoch
+loop.** So reaching the budget mid-fold does not stop the run:
+
+1. fold k breaks out of its epochs, loads `best_state`, saves a legitimate member;
+2. fold k+1 starts, trains **one epoch**, the same check fires, and it saves that too;
+3. so do k+2 and k+3.
+
+Every one of them appends to `members` with a `holdout` beside it. Nothing in the manifest
+distinguishes a 22-epoch member from a 1-epoch member, and `blend` selects the **top five by
+holdout**. A one-epoch member with a lucky fold gets voted.
+
+This is not hypothetical for this repo. `full-band` is described on this page as having "died in
+fold 4", and `build_fullband_manifest.py` then overwrote all four holdouts with 0.8304 copied
+from `enc8-small`. **Whether that run died or simply ran out of budget is no longer knowable
+from what was kept.**
+
+Two changes, both in `build_train_v2` so every training kernel gets them:
+
+- The fold loop checks the budget **before** it builds a model, and stops rather than starting
+  a fold it cannot finish. `test_the_budget_stops_the_fold_loop_and_not_just_the_epoch_loop`
+  asserts the check exists at fold indent, that the epoch-level one survives, and that the
+  fold-level one precedes `build_model` — a guard that runs after the work saves nothing.
+- Every member records `epochs_done` and `best_epoch`. That is the field the public members
+  already publish as `epochs_done: 60`, and it is what makes a short member visible instead of
+  merely small.
+
+Twenty tests pass.
+
+**None of this reaches `knee-train-bmc`**, which was pushed this morning and is running the old
+code. Its fold count and its per-fold holdouts have to be read with this in mind: a late fold
+with a plausible holdout may have had one epoch, and its log is the only place that can say so.
+
 ### 16:05 — one fold answers a question, five folds ship a package
 
 `train_folds(n, 1)` was applied to `train-base` at 16:00 for a reason that is not specific to
