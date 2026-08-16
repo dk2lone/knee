@@ -120,6 +120,30 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 16:05 — one fold answers a question, five folds ship a package
+
+`train_folds(n, 1)` was applied to `train-base` at 16:00 for a reason that is not specific to
+it. `train-head` and `train-mricore` are measured against the same **0.8261**, and both would
+overrun the same way at five folds and 10.9 hours. All three now train one fold.
+
+The rule this settles, since three kernels now depend on it:
+
+| | folds | why |
+|---|---|---|
+| `train-base`, `train-head`, `train-mricore` | 1 | each answers one question against a one-fold baseline |
+| `train-bmc` | 5 | in flight; re-pushing would restart it, and its five-fold attempt is what calibrates the epoch time |
+| `train-v2`, every blend | 5 | unchanged — v2 is the source every blend is subbed from |
+
+A run that answers a question needs the fold its baseline was measured on and nothing more. A
+run that ships a package for the vote needs four or five, because `probe-ours` showed the fold
+coverage is what decides how much of the gold set can be read honestly — folds 0 to 3 reach 49
+of 58, one fold reaches 19.
+
+So the staging is: one fold to find out whether an encoder is worth having, then five to make
+it into members. Spending eight hours on five folds of something that turns out to lose is the
+mistake this avoids, and it is close to the mistake already made — `full-band` spent a full run
+and came back with four members whose configuration nothing had yet shown to be worth shipping.
+
 ### 16:00 — train-base trains one fold, because 0.8261 is a one-fold number
 
 15:55 priced `train-base` at 19.5 hours against an 8 hour budget. The fix is not fewer epochs.

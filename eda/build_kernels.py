@@ -1086,6 +1086,7 @@ def build_train_head():
     n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
     n.sub("SLOT_DROP = 0.0", "SLOT_DROP = 0.15")
     n.sub("STUDY_LAYERS = 0", "STUDY_LAYERS = 2")
+    train_folds(n, 1)
     require_slices(n)
     n.write("kaggle/train-head/knee-train-head.ipynb")
     meta("kaggle/train-head/kernel-metadata.json", "knee-train-head", "knee train head",
@@ -1171,6 +1172,7 @@ def build_train_mricore():
           'VARIANT = os.environ.get("RSNA_VARIANT", "mricore")')
     n.sub("CACHE_IMG = 336", "CACHE_IMG = 224")
     Path("kaggle/train-mricore").mkdir(parents=True, exist_ok=True)
+    train_folds(n, 1)
     require_slices(n)
     n.write("kaggle/train-mricore/knee-train-mricore.ipynb")
     meta("kaggle/train-mricore/kernel-metadata.json", "knee-train-mricore",
