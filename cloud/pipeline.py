@@ -889,6 +889,15 @@ VARIANT = os.environ.get("RSNA_VARIANT", "small")
 # 17-22% larger per channel. Feeding a backbone the wrong scale does not raise - it
 # trains, it converges, and it loses, which reads as "this encoder does not transfer".
 NORM = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# A study is missing a slot more often than not - the header pass measures slots per study
+# at mean 4.57, min 2, max 6 - so the head is trained on whatever a study has and asked at
+# inference for whatever the test study has. Dropping slots during training is the direct
+# fix for that mismatch. Training-only, so it need not travel to the scoring kernel.
+SLOT_DROP = 0.0
+# Layers of a transformer over the slot tokens, so slots can read each other before the
+# per-diagnosis attention pools them. Zero builds no module at all, which keeps the state
+# dict byte-identical to every member trained before this existed.
+STUDY_LAYERS = 0
 
 
 def set_norm(pre):
@@ -1828,9 +1837,39 @@ class SlotHead(nn.Module):
         self.sex = sex
         if sex:
             self.sex_bias = nn.Parameter(torch.zeros(N_SEX, n_out))
+        self.slot_drop = SLOT_DROP
+        self.study_layers = STUDY_LAYERS
+        if STUDY_LAYERS > 0:
+            layer = nn.TransformerEncoderLayer(
+                d_model=hidden, nhead=8, dim_feedforward=hidden * 4, dropout=p,
+                activation="gelu", batch_first=True, norm_first=True)
+            self.study_encoder = nn.TransformerEncoder(layer, num_layers=STUDY_LAYERS)
+
+    def drop_slots(self, mask):
+        """Drop present slots at random, and never leave a study with none.
+
+        A study whose every slot is masked makes the softmax below divide by zero and the
+        transformer above emit NaN, so the guard is not defensive tidiness - it is what
+        makes the augmentation usable at all. The kept slot is the first present one
+        rather than a random one, because which slot survives is not the variable under
+        test and a second random draw would only add noise to the comparison.
+        """
+        if not self.training or self.slot_drop <= 0:
+            return mask
+        keep = (torch.rand_like(mask) > self.slot_drop).to(mask.dtype)
+        out = mask * keep
+        empty = out.sum(1) < 0.5
+        if empty.any():
+            out = out.clone()
+            first = (mask > 0.5).float().argmax(1)
+            out[empty, first[empty]] = mask[empty, first[empty]]
+        return out
 
     def forward(self, x, mask, sex_idx=None):
+        mask = self.drop_slots(mask)
         h = self.proj(x) + self.slot_emb
+        if self.study_layers > 0:
+            h = self.study_encoder(h, src_key_padding_mask=(mask < 0.5))
         att = torch.einsum("bsh,oh->bos", h, self.query) / self.hidden ** 0.5
         if self.prior:
             att = att + self.slot_prior.unsqueeze(0)
@@ -2336,6 +2375,7 @@ def infer_from_package(path, dev):
             t0 = time.time()
             ck = torch.load(Path(path) / m["file"], map_location="cpu",
                             weights_only=False)
+            globals()["STUDY_LAYERS"] = int(m["config"].get("study_layers", 0))
             model = build_model(int(m["config"]["unfreeze_last"]),
                                 variant=m["config"]["variant"],
                                 pool=m["config"].get("pool", "cls_mean"),
@@ -2790,7 +2830,8 @@ def main():
                         "pixel_group": json.dumps(pixel_config(cfg["img"]),
                                                   sort_keys=True),
                         "config": {"unfreeze_last": UNFREEZE_LAST, "variant": VARIANT,
-                                   "pool": POOL, "prior": False,
+                                   "pool": POOL, "study_layers": STUDY_LAYERS,
+                                   "prior": False,
                                    "sex": True}})
         test_preds.append(predict(model, Cte, Mte, np.arange(len(st_te)), dev,
                                   cfg["img"], sex_te))

@@ -287,6 +287,39 @@ def test_the_arm_memo_holds_one_cache_per_tag():
     assert live["train"][1][1].shape == (1, 448)
 
 
+def test_slot_dropout_never_empties_a_study():
+    """The guard is load-bearing, not tidiness.
+
+    A study with every slot masked makes the per-diagnosis softmax divide by zero and the
+    study transformer emit NaN, so a dropout that can empty a row does not degrade the run,
+    it destroys it. Exercised on the real class rather than a copy, at a drop rate high
+    enough that an unguarded implementation empties a row on nearly every draw.
+    """
+    import torch
+
+    ns = {"nn": torch.nn, "torch": torch, "SLOT_DROP": 0.9, "STUDY_LAYERS": 0,
+          "N_SEX": 3, "SLOTS": list(range(6)), "TARGETS": list(range(12)),
+          "SLOT_PRIOR_TABLE": {}, "SLOT_PRIOR_STRENGTH": 0.55}
+    body = GEN.read_text()
+    i = body.index("class SlotHead")
+    j = body.index("\nclass ", i + 1)
+    exec(compile(body[i:j], "SlotHead", "exec"), ns)
+
+    head = ns["SlotHead"](dim=384, n_slot=6, n_out=12)
+    head.train()
+    # The sparsest study the header pass reports: two slots present of six.
+    mask = torch.zeros(64, 6)
+    mask[:, 0] = 1.0
+    mask[:, 3] = 1.0
+    for _ in range(50):
+        out = head.drop_slots(mask)
+        assert (out.sum(1) >= 1).all(), "a study came back with no slots at all"
+        assert (out <= mask + 1e-6).all(), "dropout switched a slot on that was absent"
+
+    head.eval()
+    assert torch.equal(head.drop_slots(mask), mask), "dropout fired outside training"
+
+
 def test_a_foreign_checkpoint_brings_its_own_normalisation():
     """The buffers read NORM, and build_biomedclip sets NORM before it builds a Model.
 

@@ -388,6 +388,49 @@ N_SEX = 4                  # M, F, O, and not recorded
 
     def forward(self, x, mask, sex_idx=None):''')
 
+    # The two head changes, both off unless a kernel sets the globals. Read as globals
+    # rather than passed, the same way `n_group` above reads N_GROUP: a variant overrides
+    # the attribute before main() runs, and the default keeps every existing run identical.
+    n.sub('''        self.sex = sex
+        if sex:
+            self.sex_bias = nn.Parameter(torch.zeros(N_SEX, n_out))''',
+          '''        self.sex = sex
+        if sex:
+            self.sex_bias = nn.Parameter(torch.zeros(N_SEX, n_out))
+        self.slot_drop = SLOT_DROP
+        self.study_layers = STUDY_LAYERS
+        if STUDY_LAYERS > 0:
+            layer = nn.TransformerEncoderLayer(
+                d_model=hidden, nhead=8, dim_feedforward=hidden * 4, dropout=p,
+                activation="gelu", batch_first=True, norm_first=True)
+            self.study_encoder = nn.TransformerEncoder(layer, num_layers=STUDY_LAYERS)
+
+    def drop_slots(self, mask):
+        """Drop present slots at random, and never leave a study with none.
+
+        A study whose every slot is masked makes the softmax below divide by zero and the
+        transformer above emit NaN, so the guard is not defensive tidiness - it is what
+        makes the augmentation usable at all. The kept slot is the first present one
+        rather than a random one, because which slot survives is not the variable under
+        test and a second random draw would only add noise to the comparison.
+        """
+        if not self.training or self.slot_drop <= 0:
+            return mask
+        keep = (torch.rand_like(mask) > self.slot_drop).to(mask.dtype)
+        out = mask * keep
+        empty = out.sum(1) < 0.5
+        if empty.any():
+            out = out.clone()
+            first = (mask > 0.5).float().argmax(1)
+            out[empty, first[empty]] = mask[empty, first[empty]]
+        return out''')
+
+    n.sub('''        h = self.proj(x) + self.slot_emb''',
+          '''        mask = self.drop_slots(mask)
+        h = self.proj(x) + self.slot_emb
+        if self.study_layers > 0:
+            h = self.study_encoder(h, src_key_padding_mask=(mask < 0.5))''')
+
     n.sub('''        ctx = self.drop(torch.einsum("bos,bsh->boh", att, h))
         return (ctx * self.out.weight.unsqueeze(0)).sum(-1) + self.out.bias''',
           '''        ctx = self.drop(torch.einsum("bos,bsh->boh", att, h))
@@ -677,6 +720,15 @@ VARIANT = os.environ.get("RSNA_VARIANT", "small")
 # 17-22% larger per channel. Feeding a backbone the wrong scale does not raise - it
 # trains, it converges, and it loses, which reads as "this encoder does not transfer".
 NORM = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# A study is missing a slot more often than not - the header pass measures slots per study
+# at mean 4.57, min 2, max 6 - so the head is trained on whatever a study has and asked at
+# inference for whatever the test study has. Dropping slots during training is the direct
+# fix for that mismatch. Training-only, so it need not travel to the scoring kernel.
+SLOT_DROP = 0.0
+# Layers of a transformer over the slot tokens, so slots can read each other before the
+# per-diagnosis attention pools them. Zero builds no module at all, which keeps the state
+# dict byte-identical to every member trained before this existed.
+STUDY_LAYERS = 0
 
 
 def set_norm(pre):
@@ -795,7 +847,16 @@ def xslice_mask(mask):
     n.sub('''"config": {"unfreeze_last": UNFREEZE_LAST, "variant": "small",
                                    "pool": "cls_mean", "prior": False,''',
           '''"config": {"unfreeze_last": UNFREEZE_LAST, "variant": VARIANT,
-                                   "pool": POOL, "prior": False,''')
+                                   "pool": POOL, "study_layers": STUDY_LAYERS,
+                                   "prior": False,''')
+
+    # The scoring kernel builds its head from the manifest, and STUDY_LAYERS is read at
+    # construction. Without this line a member trained with the study transformer would be
+    # rebuilt without it, and the fingerprint check would refuse it after the run had
+    # already paid for the decode.
+    n.sub('''            model = build_model(int(m["config"]["unfreeze_last"]),''',
+          '''            globals()["STUDY_LAYERS"] = int(m["config"].get("study_layers", 0))
+            model = build_model(int(m["config"]["unfreeze_last"]),''')
 
     n.sub('''                rows = torch.from_numpy(Ctr[sel]).to(dev)
                 g = int(torch.randint(N_GROUP, (1,)).item())
@@ -822,6 +883,29 @@ def xslice_mask(mask):
     n.write("kaggle/train-v2/knee-train-v2.ipynb")
     meta("kaggle/train-v2/kernel-metadata.json", "knee-train-v2", "knee train v2",
          "knee-train-v2.ipynb", ["dk2lone/knee-report-labels-dk"], [])
+    return n
+
+
+# -------------------------------------------------------------- train-head --- #
+def build_train_head():
+    """train-v2 with the two head changes on, and the encoder left alone.
+
+    Both are lifted from `mattiaangeli/bend-the-knee-to-dinov3-ensembled`, whose member is
+    sold as a DINOv3 backbone while the Models tab prices DINOv3-ViT-B/16 at 0.771 - the
+    lowest transformer on the page. The gain is in the head. These are the two parts of it
+    that cost no new weights and no research project.
+
+    0.15 rather than their 0.30: a study here holds 4.57 slots on average against the six
+    the head is sized for, so a third of the sequence is already absent before any
+    augmentation, and dropping another third would leave the common study at two slots.
+    """
+    n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
+    n.sub("SLOT_DROP = 0.0", "SLOT_DROP = 0.15")
+    n.sub("STUDY_LAYERS = 0", "STUDY_LAYERS = 2")
+    n.write("kaggle/train-head/knee-train-head.ipynb")
+    meta("kaggle/train-head/kernel-metadata.json", "knee-train-head", "knee train head",
+         "knee-train-head.ipynb",
+         ["dk2lone/knee-report-labels-dk", "dk2lone/knee-slice-order"], [])
     return n
 
 
@@ -1304,16 +1388,18 @@ if __name__ == "__main__":
     import ast
 
     Path("cloud").mkdir(parents=True, exist_ok=True)
-    for d in ("kaggle/train-v2", "kaggle/train-bmc", "kaggle/blend", "kaggle/duo"):
+    for d in ("kaggle/train-v2", "kaggle/train-bmc", "kaggle/train-head", "kaggle/blend", "kaggle/duo"):
         Path(d).mkdir(parents=True, exist_ok=True)
     build_train_v2()
     build_train_bmc()
+    build_train_head()
     build_blend()
     build_duo()
     body = build_cloud_module()
     print(f"cloud/pipeline.py: {body.count(chr(10))} lines, parses")
     for p in ("kaggle/train-v2/knee-train-v2.ipynb",
               "kaggle/train-bmc/knee-train-bmc.ipynb",
+              "kaggle/train-head/knee-train-head.ipynb",
               "kaggle/blend/knee-blend.ipynb", "kaggle/duo/knee-duo.ipynb"):
         nb = json.loads(Path(p).read_text())
         ast.parse("\n".join("".join(c["source"]) for c in nb["cells"]
