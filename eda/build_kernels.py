@@ -943,17 +943,29 @@ def build_train_base():
     was written, and `find_dinov2` resolves it by the `base` in its path, so this run
     needs no new weights.
 
-    The comparison is against `sl12-adapt-8e6`: small, 336 px, twelve slices, holdout
-    0.8295 to 0.8304. Slices are held at twelve so the two runs differ by backbone and
-    resolution together. That bundle is what can actually be bought - base does not fit at
-    336 px - so it is the honest unit to measure. Pricing resolution on its own needs
-    small at 224 px, which is a second run and not this one.
+    Slices stay at six, and the cache is not the reason - at 224 px it affords twelve. The
+    encoder is. `Model.forward` reshapes to `B * S` images in one pass, so a group is a
+    multiplier on the batch, not on the cache:
+
+        Kaggle today   8 x (6 slots x 2 groups) =  96 imgs   small @ 336
+        twelve slices  8 x (6 slots x 4 groups) = 192 imgs   base  @ 224   1.78x
+        six slices     8 x (6 slots x 2 groups) =  96 imgs   base  @ 224   0.89x
+
+    Twelve slices would make this 1.78x the activation of the only configuration a Kaggle
+    T4 is known to survive, and an out-of-memory error costs the whole session. Six keeps
+    it strictly below that, so the only thing this run risks is the 639 MB of extra state.
+    The twelve-slice numbers on this page were all measured on Modal.
+
+    The comparison is therefore against `adapt-8e6`: small, 336 px, six slices, lr 8e-6,
+    unfreeze 6, holdout 0.8261. The two runs differ by backbone and resolution together.
+    That bundle is what can actually be bought - base does not fit at 336 px - so it is
+    the honest unit to measure. Pricing resolution on its own needs small at 224 px, and
+    spending the freed cache on slices needs base to win first. Both are later runs.
     """
     n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
     n.sub('VARIANT = os.environ.get("RSNA_VARIANT", "small")',
           'VARIANT = os.environ.get("RSNA_VARIANT", "base")')
     n.sub("CACHE_IMG = 336", "CACHE_IMG = 224")
-    n.sub("N_GROUP_MAX = 2", "N_GROUP_MAX = 4")
     Path("kaggle/train-base").mkdir(parents=True, exist_ok=True)
     n.write("kaggle/train-base/knee-train-base.ipynb")
     meta("kaggle/train-base/kernel-metadata.json", "knee-train-base", "knee train base",

@@ -162,13 +162,29 @@ the term unnamed. The unnamed term is the backbone. Resolution and backbone were
 separate pages, so nothing recorded that **the resolution choice was choosing the encoder** —
 and it has been choosing a 22M-parameter one for eleven runs while an 87M one sat mounted.
 
-`kaggle/train-base` is built: `VARIANT=base`, `CACHE_IMG=224`, `N_GROUP_MAX=4`. Three subs on
-train-v2, no new mounts. **Not pushed** — `knee-train-bmc` holds the GPU.
+`kaggle/train-base` is built: `VARIANT=base`, `CACHE_IMG=224`. Two subs on train-v2, no new
+mounts. **Not pushed** — `knee-train-bmc` holds the GPU.
 
-The comparison is against `sl12-adapt-8e6`: small, 336 px, twelve slices, holdout 0.8295 to
-0.8304. Slices are held at twelve, so the two runs differ by backbone and resolution together.
-That bundle is what can actually be bought, since base does not fit at 336 px, so it is the
-honest unit. Pricing resolution alone needs small at 224 px, which is a second run.
+**Slices stay at six, and the cache is not why.** At 224 px the cache affords twelve. The
+encoder is the constraint: `Model.forward` reshapes to `B * S` images in one pass, so a group
+multiplies the batch, not the cache.
+
+```
+Kaggle today    8 x (6 slots x 2 groups) =  96 imgs   small @ 336
+twelve slices   8 x (6 slots x 4 groups) = 192 imgs   base  @ 224   1.78x
+six slices      8 x (6 slots x 2 groups) =  96 imgs   base  @ 224   0.89x
+```
+
+Twelve slices would put this at 1.78x the activation of the only configuration a Kaggle T4 is
+known to survive, and an out-of-memory error costs the whole eight-hour session. Six keeps it
+strictly below that, so the only thing the run risks is the 639 MB of extra state. Every
+twelve-slice number on this page was measured on Modal, not here.
+
+The comparison is therefore against `adapt-8e6`: small, 336 px, six slices, lr 8e-6, unfreeze
+6, **holdout 0.8261**. The two runs differ by backbone and resolution together. That bundle is
+what can actually be bought, since base does not fit at 336 px, so it is the honest unit.
+Pricing resolution alone needs small at 224 px; spending the freed cache on slices needs base
+to win first. Both are later runs.
 
 No prediction is recorded for the size of the gain, because this project has no measurement of
 small against base on any task. What is recorded is that it is the largest untried change
