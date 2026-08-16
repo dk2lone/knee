@@ -260,6 +260,24 @@ BATCH = [{"name": "ctl", "lr_backbone": 8e-6, "unfreeze_last": 6,
           "group": 3, "n_group": 4, "img": 448}]
 SETS["batch"] = BATCH
 
+# The encoder, at the settings that actually win.
+#
+# The first encoder comparison ran all three arms at lr 3e-5 and 6 slices, and the
+# adaptation table since measured 3e-5 as worth -0.020 holdout against 8e-6. BiomedCLIP
+# still beat DINOv2-small by +0.012 there - twice the whole 6-to-12 slice effect and six
+# times any pooling change measured here - so it is the largest untested lever left.
+#
+# `enc2-small` is `ctl` again, deliberately. It is one arm to confirm that a result from
+# this container can be set beside a result from `batch`'s, which is a check this page has
+# already needed once.
+ENC2 = [{"name": "enc2-small", "lr_backbone": 8e-6, "unfreeze_last": 6,
+         "group": 3, "n_group": 4},
+        {"name": "enc2-biomedclip", "variant": "biomedclip", "lr_backbone": 8e-6,
+         "unfreeze_last": 6, "group": 3, "n_group": 4},
+        {"name": "enc2-raddino", "variant": "raddino", "lr_backbone": 8e-6,
+         "unfreeze_last": 6, "group": 3, "n_group": 4}]
+SETS["enc2"] = ENC2
+
 # Sets that need the large box but not five folds. `full*` means a real five-fold run and
 # carries both; a resolution comparison wants one fold on a box that fits the cache.
 #

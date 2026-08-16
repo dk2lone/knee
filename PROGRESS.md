@@ -116,6 +116,77 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 02:00 — six adaptation runs and three encoder runs were already on disk, unscored
+
+`batch` is still extracting, so the tick went to `cloud/exports/`, which holds nine finished
+runs nobody had scored. None of them set `group` or `n_group`, so the bug found at 00:40
+does not touch any of them — their slice counts came from the CLI flag and the manifests
+confirm it. These are clean.
+
+**Harder encoder adaptation is closed, and it goes the wrong way.**
+
+| `lr_backbone` | unfreeze | 6 slices | 12 slices |
+|---|---|---|---|
+| **8e-6** (shipped) | 6 | 0.8261 | **0.8317** |
+| 3e-5 | 6 | 0.8058 | 0.8239 |
+| 1e-4 | 12 | 0.6437 | 0.6765 |
+
+Monotonic, at both slice counts, and the top row is the setting already in use. At 1e-4 over
+all twelve blocks the model collapses to 0.68. The published result that motivated this
+axis — *Medial Meniscus +0.171 and ACL +0.113 from fine-tuning harder* — does not reproduce
+here in any direction. The pipeline's own docstring calls 8e-6 "chosen by argument rather
+than measured". It is measured now, and the argument was right.
+
+**And the clean slice-count number falls out of the same table.** Holding everything else
+fixed, 6 slices to 12 is `0.8261 -> 0.8317`, **+0.0056 holdout and +0.0037 gold**. That is a
+doubling. It is the honest version of the number this page has been quoting as "+0.188 on
+Medial Meniscus from 3 to 12", which is one label from a much lower base.
+
+**That prices `sl-15` before it runs, and the price is under the bar.** Doubling the slices
+bought +0.0037 gold; 12 to 15 is a quarter as much change, on a curve that is visibly
+flattening. Call it +0.001 gold, which the conversion turns into +0.0008 on the board.
+`sl-15` is the weakest arm in `batch` and it should be read as a confirmation of the fixed
+`n_group` path rather than as a candidate. It stays because the container is the expensive
+thing and the arm is nearly free.
+
+### 02:05 — the encoder axis is the one lever nobody has tested at the settings that win
+
+Three encoders, all at 6 slices, `lr_backbone` 3e-5, 8 epochs:
+
+| encoder | holdout (n=882) | gold (n=19) |
+|---|---|---|
+| DINOv2-small | 0.8014 | 0.7321 |
+| **BiomedCLIP** | **0.8135** | 0.7489 |
+| RAD-DINO | 0.7926 | **0.7630** |
+
+The two columns disagree about the winner, and the disagreement is not resolvable from these
+runs. The gold intervals are `[0.6524, 0.8059]` and `[0.6662, 0.8286]` — 0.15 wide at n=19,
+so every pair here is a tie by this page's own rule. On the 882-study holdout, which is
+tight, **BiomedCLIP beats DINOv2-small by +0.012** and RAD-DINO trails by 0.009.
+
++0.012 holdout is twice the whole 6→12 slice effect and six times any pooling change ever
+measured here. That makes it the largest untested lever on the board.
+
+**And all three ran at `lr_backbone` 3e-5, which the table above shows is the wrong setting**
+— worth −0.020 holdout at 6 slices. So the encoder comparison was run in a regime that
+handicaps every arm in it, at half the slice count that wins, and BiomedCLIP still came out
+ahead. It has never been tried at 8e-6 and 12 slices, which is where DINOv2-small scores
+0.8317.
+
+**This is the next sweep, and it is cheap.** `sweep`'s own comment says the pixel cache does
+not depend on which encoder reads it, so `enc` arms reuse the geometry `batch` is about to
+persist to the Volume. Queued as:
+
+```
+enc2-small       small        lr 8e-6  unfreeze 6  group 3  n_group 4    (the control)
+enc2-biomedclip  biomedclip   lr 8e-6  unfreeze 6  group 3  n_group 4
+enc2-raddino     raddino      lr 8e-6  unfreeze 6  group 3  n_group 4
+```
+
+`enc2-small` duplicates `batch`'s `ctl` exactly, and it is kept anyway: a cross-container
+replication of the control is the cheapest check that the two sweeps are comparable at all,
+and this page has already been burnt once by comparing arms that were not.
+
 ### 01:30 — the decoded cache now persists, and `batch` is one launch too early for it
 
 `wrap_build_cache` has sat written and never called since `6aaec60`. It is wired now, under
