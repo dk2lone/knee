@@ -1991,7 +1991,9 @@ def build_mricore(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=Fal
     # here says so in its first ten lines.
     log(f"MRI CORE weights from {p.name}; {len(unexpected)} tensor(s) unused "
         f"({', '.join(sorted(unexpected)[:3]) or 'none'})")
-    log("normalisation: MRI CORE publishes none; ImageNet mean and std stand")
+    log("provenance: unconfirmed - this file does not match the SAM-based encoder its "
+        "NOTICE names, so its pretraining corpus is not established")
+    log("normalisation: none published; ImageNet mean and std stand")
 
     for prm in vit.parameters():
         prm.requires_grad = False

@@ -120,6 +120,46 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:00 — the MRI CORE checkpoint is not MRI CORE, and 14:35 has to be walked back
+
+14:35 called this "the first candidate on the model axis pretrained on the right modality".
+That claim came from the file's NOTICE. Checking the NOTICE against the file breaks it.
+
+The NOTICE names `github.com/mazurowski-lab/mri_foundation` and calls the file the official
+`MRI_CORE_vitb.pth`. **That project's encoder is SAM-based at 1024 px.** Its README says so
+outright — "MRI-CORE is based on SAM (a 2D model)", the training command passes
+`--image_size 1024`, and the minimal inference example calls `model.image_encoder` on a
+`(1, 3, 1024, 1024)` tensor.
+
+The file on Kaggle is not that:
+
+```
+rel_pos 0   image_encoder 0   neck 0   mask_decoder 0   prompt_encoder 0
+dino_head.last_layer.weight_v  (65536, 256)      DINO's 65536 prototypes
+backbone.pos_embed             (1, 197, 768)     14x14 at patch 16, so 224 px
+```
+
+Not one SAM marker, and a DINO head. It is a DINO self-distillation checkpoint of a plain
+ViT-B/16 at 224 px. **Whatever it is, it is not what its NOTICE says it is**, so "pretrained on
+MRI" is a claim this repo cannot check — and that was the entire reason to prefer it over
+DINOv2-base. The Apache-2.0 line rests on the same NOTICE, so the clean build should not lean
+on it either.
+
+What survives from 14:35: the loader works, the block remap is tested, and 197 tokens at patch
+16 is genuinely cheaper than base's 257 at patch 14. That is reason to keep `build_mricore`,
+not reason to spend a session on it. `build_model` now logs `provenance: unconfirmed` beside
+the weights, so a run that uses it says so in its first ten lines rather than writing a
+manifest that reads `mricore` and implies more than is known.
+
+**Order is unchanged and now better founded.** `train-base` first: its weights come from Meta
+through Kaggle's model catalogue, its config is public, its normalisation is published and
+matches ours. It is the run where every input is what it claims to be.
+
+One thing did check out. The repo normalises with `mean=[0.485, 0.456, 0.406],
+std=[0.229, 0.224, 0.225]` when `normalize_type` is `sam` or `ours` — ImageNet, which is the
+default `build_mricore` falls back to. The inference at 14:45 was right, on a file whose
+identity is wrong.
+
 ### 14:50 — train-base checked against the upstream configs, not against memory
 
 14:20 priced base at 224 px from arithmetic. Everything in that arithmetic is now measured,

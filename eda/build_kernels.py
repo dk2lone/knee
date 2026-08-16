@@ -293,7 +293,7 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",'''
     #
     # LICENCE: the DINOv3 weights are Meta's DINOv3 licence, not DINOv2's Apache-2.0.
     # That is a third encumbered asset alongside RadImageNet - see #26.
-    # --- MRI CORE, the first encoder pretrained on the right modality -------- #
+    # --- a DINO ViT-B/16 published as MRI CORE, which it is not --------------- #
     #
     # `girishbose/mri-core-vitb-rsna-knee`, published 16 Aug. Read rather than assumed:
     # the checkpoint is a DINO self-distillation dict whose `teacher` holds a `backbone.`
@@ -302,11 +302,22 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",'''
     # missing tensors and `mask_token` left over, which is the iBOT masking token and is
     # not part of the encoder.
     #
-    # Patch 16 makes it cheaper than DINOv2 at the same input: 197 tokens against base's
-    # 257 at patch 14, and against small's 577 at 336 px.
+    # PROVENANCE IS UNCONFIRMED, and the name is the reason to distrust it. Its NOTICE
+    # names github.com/mazurowski-lab/mri_foundation and calls the file the official
+    # `MRI_CORE_vitb.pth`. That project's encoder is SAM-based at 1024 px - its README
+    # runs `--image_size 1024` and calls `model.image_encoder` - and this file carries no
+    # `rel_pos`, no `neck`, no `image_encoder` and no `prompt_encoder`, while carrying a
+    # `dino_head` with DINO's 65536 prototypes. Whatever it is, it is not what its NOTICE
+    # says, so "pretrained on MRI" is a claim this repo cannot check. Treat it as an
+    # unlabelled DINO ViT-B/16 until a run says otherwise.
     #
-    # LICENCE: Apache-2.0, from github.com/mazurowski-lab/mri_foundation. Unlike DINOv3
-    # and RadImageNet this one is not encumbered, so it can go in the clean build (#26).
+    # Patch 16 still makes it cheaper than DINOv2 at the same input: 197 tokens against
+    # base's 257 at patch 14, and against small's 577 at 336 px. That is a real reason to
+    # keep the loader. It is not a reason to run it before `train-base`, whose weights
+    # come from Meta through Kaggle's model catalogue and are what they say they are.
+    #
+    # LICENCE: the NOTICE says Apache-2.0. That claim rests on the same provenance as the
+    # rest of the file, so it is not something the clean build should lean on yet (#26).
     n.sub('''def find_biomedclip():''',
           '''def find_mricore(name="MRI_CORE_vitb"):
     """The mounted MRI CORE checkpoint, or None if it is not attached."""
@@ -363,7 +374,9 @@ def build_mricore(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=Fal
     # here says so in its first ten lines.
     log(f"MRI CORE weights from {p.name}; {len(unexpected)} tensor(s) unused "
         f"({', '.join(sorted(unexpected)[:3]) or 'none'})")
-    log("normalisation: MRI CORE publishes none; ImageNet mean and std stand")
+    log("provenance: unconfirmed - this file does not match the SAM-based encoder its "
+        "NOTICE names, so its pretraining corpus is not established")
+    log("normalisation: none published; ImageNet mean and std stand")
 
     for prm in vit.parameters():
         prm.requires_grad = False
