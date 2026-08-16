@@ -2325,9 +2325,58 @@ exactly 0.912 is 63.** Accuracy gates this track before runtime does, which is w
 `docs/competition.md` already says in its own heading — *"The efficiency track is not the
 cheap prize"* — and which the 0.915 floor made easy to forget.
 
-So it stays a by-product and not a redirection. It is still the shorter gap of the two
-(+0.019 on the cheap kernel against +0.026 to tenth) and it still pays the same, so it is
-worth Daniel knowing. It is not worth changing course for on tonight's evidence.
+### And then the metric was actually computed, which reverses that
+
+"Accuracy gates this track before runtime does" is the conclusion the empirical floors
+suggest. **The formula says the opposite, by a factor of seven.**
+
+```
+Efficiency = AUC / (Benchmark - max AUC) + RuntimeSeconds / 32400     minimise
+```
+
+`Benchmark` is the all-0.5 submission, so the denominator is about |0.5 - 0.95| = 0.45. That
+fixes how much each term can possibly contribute:
+
+```
+accuracy term, across the entire leaderboard 0.891 to 0.950    0.131
+runtime term, from the 9 h cap down to 1 h                     0.889
+```
+
+**Runtime is worth about 7x what accuracy is worth**, because accuracy is bounded in a
+0.06-wide window and runtime is bounded by the whole 9-hour budget. Our 5-member entry
+against a 25-member one at tenth-place accuracy, using the 0.067 s per study-window measured
+off our own scored log:
+
+```
+test  500   ours 0.915 / 5 members -1.982 (0.5 h)   tenth 0.938 / 25 members -1.827 (2.3 h)
+test 1000   ours 0.915 / 5 members -1.930 (0.9 h)   tenth 0.938 / 25 members -1.570 (4.6 h)
+test 2000   ours 0.915 / 5 members -1.827 (1.9 h)   tenth 0.938 / 25 members -1.055 (9.3 h)
+```
+
+**The cheap 0.915 entry beats a 0.938 twenty-five-member entry at every test-set size**, and
+the margin widens as the test set grows. Giving up 0.023 of AUC costs 0.051 on the metric;
+saving 3.7 hours gains 0.411.
+
+Which also explains the empirical floors without contradicting them. Top-3 all score 0.926+
+not because accuracy gates the track, but because **almost nobody submits a fast entry** —
+the field runs the same heavy public notebooks, so among teams that are all slow, accuracy
+is the only thing left to sort them by. The band table shows the exception: in 0.905–0.915,
+where 160 teams sit and the median rank is 647, somebody reached **rank 14**.
+
+Assumptions worth naming, since the conclusion turns on them: max AUC 0.95, benchmark 0.5,
+and our rate measured at n=3 where the GPU batch is nearly empty. The first two move the
+denominator a little and not the ratio. The third is conservative — a fuller batch makes us
+faster, not slower. What is not assumed is the 5x, which is member count and is exact.
+
+**So this is a redirection after all, and the earlier paragraph was wrong.** The cheap kernel
+needs +0.008 to reach 0.915, not +0.019 to reach 0.926, because the 0.926 floor describes a
+field of slow entries and does not bind an entry that is five times faster. That is the
+smallest gap on this page by a wide margin, and it pays what tenth pays.
+
+**Not acting on it unilaterally.** Daniel set the stop condition at 0.938 and two finals get
+selected in October, so this is a choice about what those two are — his call, not one to
+make inside a loop. Tonight's `knee-blend-nolegacy` v4 is the entry it depends on, and it is
+already in the queue, so nothing is lost either way.
 
 **Two of the three arms carry licence risk, and they are different risks.** The members
 are CC0-1.0 and clean. The RadImageNet encoder and its heads are CC-BY-NC-SA-4.0 (#26).
