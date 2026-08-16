@@ -14,6 +14,43 @@ The calibration that makes local numbers usable: **gold-58 macro + 0.035 ≈ lea
 measured on the public members, who score 0.856 out of fold and 0.891 on the board. So
 0.938 needs a gold-58 of about 0.903.
 
+**Checked 20:41: there are two calibration points now and they do not support a fixed
+offset.** The offset shrinks as gold rises.
+
+```
+public 20 members    gold 0.8564   board 0.891   offset +0.0346
+frontier-alpha v1    gold 0.8817   board 0.912   offset +0.0303
+```
+
+A two-point fit gives **board = 0.830 x gold + 0.180**, a slope well under one, and it moves
+every ceiling on this page down:
+
+```
+                                        fixed +0.035    two-point fit
+label axis, five findings perfect             0.920           0.914
+model, strictly significant only              0.918           0.913
+model, positive gaps with >=15 positives      0.933           0.925
+model, every positive teacher gap             0.949           0.939
+gold required for 0.938                      0.9030          0.9130
+```
+
+**0.938 needs a full 0.010 more gold than the fixed rule claims**, and the most optimistic
+model reading lands at 0.939 instead of 0.949 — that is, exactly at tenth rather than
+comfortably past it.
+
+Two points is a weak fit and the slope could be noise; the two also differ in more than
+their gold, being different member pools with different arms. So this is not a replacement
+rule. What it does establish is a direction: **the fixed offset is optimistic at the top of
+the range**, because the one time it was tested above 0.87 it overpredicted by 0.005. Both
+readings agree on the sign, and every ceiling written today should be read as an upper bound
+rather than an estimate.
+
+**Tonight's five submissions are also a calibration experiment**, and nothing on this page
+said so. `knee-blend-nolegacy` v4 predicts 0.915 from gold 0.8796 and `knee-frontier-alpha`
+v2 predicts 0.919 from 0.8837 — two more points in the range where the two rules disagree
+most. The fixed rule and the fitted one differ by 0.006 at v4's gold, which is measurable on
+a three-decimal board. Whichever wins, the conversion stops being a one-point guess.
+
 **But a gold-58 delta is not a leaderboard delta.** The RadImageNet arm was priced at
 +0.022 by nested selection on the 58 studies and delivered +0.012. Halve what the harness
 promises before believing it - 58 studies with 9 to 35 positives per label cannot resolve
