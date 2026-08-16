@@ -326,7 +326,7 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **lost its worker at 20:36**, requeued for L40S |
+| **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **queued 60 min** for L40S; give-up rule below |
 | **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **downloading 21:09** `fc-01M041S78S02SWTZQKKG7DZ3W8`, 37 MB/s |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
@@ -1194,6 +1194,20 @@ arm on a run whose corpus download is two hours.
 
 **Launched 20:09**, `fc-01M03YCD30M8494VWCCWGC39CZ`, after `modal deploy train.py` to carry
 the new `POOL_PARTS` entry into the container.
+
+**Give-up rule, set 21:36 while it is still queued rather than in the moment.** It has waited
+an hour on `daniel21cn2016` for L40S capacity that workspace does not appear to have, while
+`danielz51666` scheduled `res` in seconds. **If it has not started by the time `res`
+finishes, cancel it and fold its two arms into a follow-up sweep on `danielz51666`.**
+
+Not sooner, for one reason: `daniel21cn2016` already holds the 20,142-entry order cache, so
+if it schedules it skips 21 minutes that a fresh lane pays. Waiting is free while another
+experiment is running; it stops being free the moment a lane is idle.
+
+And when it does move, it moves **batched**. `sweep` exists so one 30-minute download feeds
+several arms, and launching `xslice2` alone was the mistake that made tonight's eviction
+expensive. Whatever else is pending then — `xs-cheap`, `grp-3-again`, sixteen slices — goes
+in the same call.
 
 This spends the last lane, so it is worth writing down why it is the right thing to spend it
 on rather than the head change's port or the 16-slice question. The head is the largest
