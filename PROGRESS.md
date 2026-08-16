@@ -116,6 +116,61 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 10:15 — the top notebook's gain is in its head, and our head argues against it
+
+`blend-ours` finished clean and is the first submittable model of our own:
+
+```
+package knee-members-full-band: 4 of 4 member(s), folds ['0','1','2','3']
+decode group 1/1: 336px x 12 slices, crop 130.0 mm -> 4 member(s)
+f0s2026: fingerprint matches within 0.00023        (f1, f2, f3 the same)
+submission.csv = rank mean of 4 member(s); (3, 13); nulls 0
+```
+
+Four fingerprints match, so the reconstructed manifest rebuilds the right architecture. It
+does not verify the band; if `[0.02, 0.98]` is wrong the members read the wrong depths, and
+#36 bounds that whole axis at 0.013.
+
+**Re-scoring every exported run reproduces the adaptation table exactly** and adds nothing:
+0.6437 / 0.8058 / 0.8261 for adapt-1e4/3e5/8e6, 0.6765 / 0.8239 / 0.8317 for their sl12
+twins, 0.8014 / 0.8135 / 0.7926 for enc-small / biomedclip / raddino. Worth noting what the
+re-scoring makes obvious: **every one of these is a single fold over 882 studies with 19 of
+the 58 gold in it.** That is why the gold readings on this page never separate anything.
+
+**The real find is in `mattiaangeli/bend-the-knee-to-dinov3-ensembled`.** Its member is sold
+as a DINOv3 backbone, but the Models tab prices DINOv3-ViT-B/16 at **0.771**, the lowest
+transformer there. The gain is in the head, and the head is nothing like ours:
+
+| | our `SlotHead` | theirs |
+|---|---|---|
+| per slice | none, slices are pooled before the head | 1-layer transformer + slice position embeddings |
+| slice → series | implicit | attention pool with a learned query |
+| slot identity | one embedding per (slot, window) | slot + 0.35 x plane + 0.35 x sequence |
+| across slots | **nothing; slots never interact** | **2-layer transformer, key-padding masked** |
+| label queries | 12, einsum attention | 12 + 0.25 x target-group embedding |
+| output | one shared linear | per-target MLP, fused with the study-global mean |
+| augmentation | none at slot level | **stochastic slot dropout with a keep-one guard** |
+
+Our head's docstring makes the opposite argument in as many words: *"with a study-level
+label there is no signal telling the model which part of a study matters, so extra
+attention parameters below the slot level would have nothing to learn from and would spend
+their capacity fitting noise."* That is a testable claim and the highest-voted notebook in
+the competition contradicts it.
+
+Two of the eight are cheap enough to take without a research project:
+
+1. **Stochastic slot dropout.** About eight lines, no parameters. This run logs *"train
+   slots per study: mean 4.57 min 2 max 6"*, so a study is missing a slot more often than
+   not, and the model is trained on whatever it has and asked at inference for whatever the
+   test study has. Dropping slots during training is the direct fix for that mismatch, and
+   nothing in this repo has ever addressed it.
+2. **A study-level transformer across the slot tokens.** This is the actual cross-series
+   mechanism, and it is the one structural thing they have that we do not.
+
+Both are head-only, so they cost one training run and no new weights. That is the strongest
+candidate for the run after `knee-train-bmc`, and it is a better prior than the encoder
+axis, which 09:30 just priced at −0.0049.
+
 ### 09:30 — our own members were never on Kaggle, and BiomedCLIP was already tested
 
 Four things, and the first one retracts a claim this page made at 02:05.
