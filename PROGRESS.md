@@ -85,6 +85,136 @@ open question is the 24-voter version — `knee-frontier-logit`, still scoring.
 54 minutes; both twenty-five-member kernels are still running. That is the direction the
 0.067 s per study-window model predicts, from a comparison nothing was designed to make.
 
+### 22:32 — slot 3 lands on 0.910 too, and that is the finding
+
+`knee-blend-ttalogit` scored **0.910**. The prediction was "0.000 to +0.002 vs v4" with the
+falsification written in advance: *if slot 3 moves more than 0.002 in either direction, the
+premise is wrong*. It moved 0.000. The premise holds — TTA-window disagreement is noise, and
+pooling it in logit space buys nothing.
+
+But the three-way result says something the individual predictions did not. Three kernels
+scored **exactly 0.910**:
+
+| kernel | what it changes vs the others | gold delta claimed |
+|---|---|---|
+| `knee-blend-nolegacy` v4 | the corrected RadImageNet weight map | baseline |
+| `knee-blend-logit` | members pooled in logit space | +0.0021 |
+| `knee-blend-ttalogit` | TTA windows pooled in logit space | +0.000 to +0.002 |
+
+Two of these were bought with a measured gold gain and one was not, and the board cannot tell
+them apart. **At five voters the board's resolution is coarser than every pooling delta the
+gold-58 harness reports.** The harness is not wrong — it measured +0.0021 and the conversion
+turns that into +0.0017 on the board, which rounds into the same 0.910. It is that a
+three-decimal leaderboard cannot resolve a change worth under 0.0005 after conversion.
+
+The rule this sets for tomorrow: **do not spend a submission slot on a change whose predicted
+gold delta is below 0.006.** Below that the conversion puts it inside one board digit and the
+slot returns nothing. Every pooling variant on this page is under that bar. The model axis
+(0.917-0.949 gold) and the 24-voter frontier are the only two things left that clear it.
+
+Which makes `knee-frontier-logit` the last open question of the night, and its own prediction
+is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
+logit-pooling line of work is closed by measurement rather than by argument.
+
+### 00:40 — an arm's `n_group` has never done anything, and it confounds the grouping result
+
+Both cloud jobs are cancelled and relaunched as one, because reading `sweep` closely to plan
+the batch turned up two faults. The second one invalidates a result this page treats as
+settled.
+
+**`N_GROUP_MAX` has exactly one reader — `plan_cache` — and the arm loop assigns it after
+`plan_cache` has already run.** `N_GROUP` and `CACHE_SLICES` are module globals written once
+at import; nothing in `main()` re-derives them. So every `"n_group"` an arm has ever declared
+was a no-op, and the slice count came from the sweep's CLI flag instead.
+
+On its own that would only mean the flag was doing the work. It is worse than that, because
+`"group"` **is** read, by `take_group`:
+
+```python
+def take_group(cache_rows, g):
+    return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]
+```
+
+and `g` runs over `range(N_GROUP)` — the value the sweep planned, not the value the arm
+asked for. So an arm that changes the packing gets its new packing over the **old** group
+count:
+
+| arm | GROUP | N_GROUP (planned) | slices actually read | cached |
+|---|---|---|---|---|
+| `grp-3` | 3 | 4 | 0–11, **twelve** | 12 |
+| `grp-1` | 1 | 4 | 0–3, **four** | 12 |
+
+`grp-1` declared `"n_group": 12` precisely to hold the slice count at 12, and the comment
+above that line said so: *"an arm that halves GROUP and leaves this alone also thirds the
+slices it sees — and slice count is the single largest effect ever measured here, +0.188 on
+Medial Meniscus from 3 to 12. Without this the arm would answer 'fewer slices is worse',
+which is known."* The comment describes the bug it was written to prevent.
+
+**So `grp-3` beat `grp-1` by 0.019 while also seeing three times as many slices**, and this
+page's reading of that — *"mixing three slices before the encoder beats one slice per
+token"* — is not supported by the run. The measured quantity is 12 slices against 4. Given
++0.188 for 3→12 on Medial Meniscus, a 4→12 gap ought to be far larger than 0.019, so the
+honest summary is that **GROUP=1 was probably ahead per slice and lost on slice count**. The
+grouping question is reopened, not answered.
+
+Two consequences beyond the sweep. `RSNA_REQUIRE_SLICES` lives inside `plan_cache`, so the
+guard added yesterday could only ever check the sweep's own request and never an arm's —
+`sl-15` would have run at 12 and reported it as 15. And the row above is why `grp-3-again`
+was never the pointless replica it looked like.
+
+**Fixed by re-planning inside the arm loop**, which is what `train()` already did for the
+single-arm path, plus a restore of every sticky setting at the top of each arm — the
+overrides are assignments onto a module that outlives the arm, so an arm that does not
+mention `img` inherited the previous arm's, and a list meant something different at a
+different order. `eda/test_cloud.py` now reads `sweep`'s source and fails if the loop stops
+re-planning or if a per-arm override loses its restore.
+
+### 00:44 — the arm memo would have killed `res` on its second arm
+
+The other fault, found the same way. `memoize_build_cache` keys on the resolution and never
+evicts, so a sweep that changes resolution holds both caches:
+
+```
+res-336   4407 x 6 x 12 x 336 x 336 = 33.4 GiB   held
+res-448   4407 x 6 x 12 x 448 x 448 = 59.3 GiB   held as well
+                                      92.7 GiB   in a box of 80
+```
+
+The box was sized deliberately, and the comment sizing it says *"448 px at 12 slices is
+59.4 GiB, so 80 GiB leaves 20.6 GiB"* — correct for one cache, and the memo keeps two. The
+container would have been OOM-killed decoding arm 2, which is the arm carrying the question,
+and an OOM kill is not catchable by the `except Exception` that exists to stop one arm losing
+the others.
+
+Now one entry per tag, dropped **before** the next decode rather than after, so the peak is
+one cache. Train and test stay separate tags because those two genuinely overlap.
+
+### 00:52 — one container instead of three
+
+`res` was cancelled rather than left to finish. It had restarted its 247 GB download from
+zero — 39% at 54 minutes, and the rate had fallen from 153 MB/s to 32 — so it was 80 minutes
+from where it had already been, running code with both faults above in it. `xslice2` was
+cancelled too: 100 minutes queued for an L40S it was never going to get while the other lane
+held capacity.
+
+They are one sweep now, `SETS["batch"]`, on `danielz51666`:
+
+| arm | what it asks | slices | cache |
+|---|---|---|---|
+| `ctl` | the control for all three | 12 | 33.4 GiB |
+| `xs-cheap` | cross-slice head on the cheap pool | 12 | reuses `ctl` |
+| `sl-15` | the frontier's slice count, packing held | 15 | 41.7 GiB |
+| `res-448` | 4.1 mm per patch instead of 5.4 | 12 | 59.3 GiB |
+
+Setup is 92 minutes and an arm is 6 to 20, so the container is the expensive thing and the
+arms are nearly free. Three sweeps would have paid 92 minutes each and competed with each
+other for the same scarce card. Arms are ordered cheapest-first because each commits to the
+Volume as it finishes: a container that dies in `res-448`'s 59.3 GiB decode still banks the
+other three.
+
+`res-336` is gone from the list. With `n_group` working it is `ctl` exactly — same learning
+rate, same packing, same resolution — so keeping both would have run one arm twice.
+
 **Tonight's five submissions are also a calibration experiment**, and nothing on this page
 said so. `knee-blend-nolegacy` v4 predicts 0.915 from gold 0.8796 and `knee-frontier-alpha`
 v2 predicts 0.919 from 0.8837 — two more points in the range where the two rules disagree
@@ -366,10 +496,11 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **queued 60 min** for L40S; give-up rule below |
-| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **extracting since 21:49**; import ~22:07, holdouts ~22:38 |
+| **`batch`** — `ctl`, `xs-cheap`, `sl-15`, `res-448` | Modal `danielz51666` | **launched 00:52** `fc-01M04DDZKCJ07VBJY215A6F1D6`; first holdout ~02:30 |
+| `xslice2` — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **cancelled**: never scheduled in 100 min; folded into `batch` |
+| `res` — `res-336` against `res-448` | Modal `danielz51666` | **cancelled**: restarted its download, and carried two bugs; folded into `batch` |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
-| Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
+| Grouping sweep — `grp-3` against `grp-1`, ~~both at 12 slices~~ | Modal `daniel21cn2016` | **done but confounded**: grp-3 0.8298 on 12 slices, grp-1 0.8106 on **4** |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
 | DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | **dead**, crashed; not relaunching |
 | Zoom sweep — control against 448 px and against a 90 mm crop | Modal `daniel21cn2016` | **dead**, crashed; not relaunching |

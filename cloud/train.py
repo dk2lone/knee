@@ -243,20 +243,32 @@ def memoize_build_cache(pipeline):
 
     Keyed on everything that changes what a pixel is. An arm that changes resolution gets
     its own cache rather than silently reusing one built at another.
+
+    One entry per tag, and that is load-bearing rather than tidiness. Keying the dict on
+    the pixel settings too would hold every resolution an arm has ever asked for: a `res`
+    sweep is 33.4 GiB at 336 and 59.3 GiB at 448, and holding both is 92.7 GiB in a box
+    sized at 80 for the larger one alone. Arms run in sequence and never come back to an
+    earlier setting, so the old pixels are dead the moment the new ones are wanted, and
+    dropping them BEFORE the decode means the peak is one cache and not two. Train and
+    test are separate tags because those two do have to be live at the same time.
     """
     orig = pipeline.build_cache
     held = {}
 
     def wrapped(slot_map, plane_map, lat_map, tag):
-        key = (tag.strip(), pipeline.IMG, pipeline.CACHE_SLICES,
+        tag = tag.strip()
+        key = (pipeline.IMG, pipeline.CACHE_SLICES,
                pipeline.CROP_MM, tuple(pipeline.SLICE_BAND))
-        if key in held:
-            s, c, m = held[key]
-            pipeline.log(f"cache: reusing {tag.strip()} {c.shape} from this container "
+        if held.get(tag, (None,))[0] == key:
+            s, c, m = held[tag][1]
+            pipeline.log(f"cache: reusing {tag} {c.shape} from this container "
                          f"- no DICOM decoded")
             return s, c, m
-        held[key] = orig(slot_map, plane_map, lat_map, tag)
-        return held[key]
+        # Free the stale array before allocating the new one, not after.
+        if held.pop(tag, None) is not None:
+            pipeline.log(f"cache: dropped the previous {tag} pixels; settings changed")
+        held[tag] = (key, orig(slot_map, plane_map, lat_map, tag))
+        return held[tag][1]
 
     return wrapped
 
@@ -799,9 +811,9 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
     pipeline.CACHE_BUDGET_MAX_GB = cache_budget_gb
     pipeline.TEST_SHARE = 0.0
     pipeline.CACHE_IMG = pipeline.IMG = img
-    pipeline.N_GROUP = pipeline.plan_cache(
-        len(pd.read_csv(pipeline.ROOT / "train.csv")),
-        len(pd.read_csv(pipeline.ROOT / "test.csv")))
+    n_tr = len(pd.read_csv(pipeline.ROOT / "train.csv"))
+    n_te = len(pd.read_csv(pipeline.ROOT / "test.csv"))
+    pipeline.N_GROUP = pipeline.plan_cache(n_tr, n_te)
     pipeline.CACHE_SLICES = pipeline.GROUP * pipeline.N_GROUP
     print(f"slices={pipeline.CACHE_SLICES} folds={folds} epochs={epochs}", flush=True)
 
@@ -822,8 +834,19 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
             return base_build
         return functools.partial(base_build, variant=v)
 
+    # Every override below is an assignment onto a module that outlives the arm, so an arm
+    # that does not mention a setting inherits the previous arm's rather than the sweep's.
+    # Two arms then differ by whatever the earlier one happened to change, and a batch
+    # stops meaning the same thing at a different order. Restoring the sweep's own values
+    # at the top of each arm makes the list order-independent.
+    base_settings = {"GROUP": pipeline.GROUP, "N_GROUP_MAX": n_group_max,
+                     "CACHE_IMG": img, "IMG": img, "CROP_MM": pipeline.CROP_MM,
+                     "SLICE_BAND": tuple(pipeline.SLICE_BAND)}
+
     done = []
     for arm in arms:
+        for attr, value in base_settings.items():
+            setattr(pipeline, attr, value)
         name = arm["name"]
         arm_variant = arm.get("variant", variant)
         if arm_variant != variant or "variant" in arm:
@@ -863,12 +886,23 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
         # image is a way to lose it.
         if "group" in arm:
             pipeline.GROUP = int(arm["group"])
-        # `plan_cache` sets CACHE_SLICES = GROUP * N_GROUP, so an arm that halves GROUP
-        # and leaves this alone also thirds the slices it sees - and slice count is the
-        # single largest effect ever measured here, +0.188 on Medial Meniscus from 3 to
-        # 12. Without this the arm would answer "fewer slices is worse", which is known.
         if "n_group" in arm:
             pipeline.N_GROUP_MAX = int(arm["n_group"])
+        # Then re-plan, and that line is the whole point of the two above.
+        #
+        # `N_GROUP` and `CACHE_SLICES` are module globals written once, at import, and
+        # nothing in `main()` re-derives them. `N_GROUP_MAX` has exactly one reader -
+        # `plan_cache` - which by this point has already run. So for every sweep before
+        # 16 Aug the assignment above did nothing at all, and an arm that moved GROUP got
+        # a new packing over the OLD group count: `take_group` walks `range(N_GROUP)` and
+        # reads `[g * GROUP:(g + 1) * GROUP]`, so `grp-1` at N_GROUP=4 trained on slices
+        # 0-3 of the 12 cached while `grp-3` trained on all 12. It answered "fewer slices
+        # is worse", which is known, and it is the exact confound the old comment here
+        # claimed to prevent. Re-planning is also what arms `RSNA_REQUIRE_SLICES`: the
+        # guard lives inside `plan_cache`, so before this it could only ever check the
+        # sweep's own request and never an arm's.
+        pipeline.N_GROUP = pipeline.plan_cache(n_tr, n_te)
+        pipeline.CACHE_SLICES = pipeline.GROUP * pipeline.N_GROUP
         # The cross-slice head. GROUP=1 lost to GROUP=3 by 0.019, so mixing slices before
         # the encoder helps; this asks whether mixing them again *inside the head* helps
         # too, by attending over slots x windows in one pass instead of averaging one

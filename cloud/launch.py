@@ -232,9 +232,41 @@ SLICES = [{"name": "sl-12", "lr_backbone": 8e-6, "unfreeze_last": 6,
            "group": 3, "n_group": 5}]
 SETS["slices"] = SLICES
 
+# Both open questions against one control, in one container.
+#
+# Setup is 92 minutes - download, extract, order, decode - and an arm is 6 to 20. So the
+# container is the expensive thing and the arms are nearly free, which is an argument for
+# putting every pending question in one list rather than queueing three sweeps that each
+# pay the 92 minutes and compete with each other for the same scarce L40S.
+#
+# `ctl` is the control for both. It is what `res-336` would have been - GROUP 3, 4 groups,
+# 336 px - so running a separate `res-336` would be running the same arm twice.
+#
+# Every arm names `group` and `n_group` even where they are the module defaults. Until
+# 16 Aug an arm's `n_group` was a no-op and the count came from the sweep's CLI flag, so a
+# set that leaves it implicit is a set whose slice count has to be reconstructed from a
+# launch command nobody wrote down. Naming it puts the number in the file.
+#
+# Order is cheapest-first and that is deliberate: each arm commits to the Volume as it
+# finishes, so a container that dies during the 59.3 GiB decode of `res-448` still leaves
+# the other three banked.
+BATCH = [{"name": "ctl", "lr_backbone": 8e-6, "unfreeze_last": 6,
+          "group": 3, "n_group": 4},
+         {"name": "xs-cheap", "lr_backbone": 8e-6, "unfreeze_last": 6,
+          "pool": "cls_mean_xs", "group": 3, "n_group": 4},
+         {"name": "sl-15", "lr_backbone": 8e-6, "unfreeze_last": 6,
+          "group": 3, "n_group": 5},
+         {"name": "res-448", "lr_backbone": 8e-6, "unfreeze_last": 6,
+          "group": 3, "n_group": 4, "img": 448}]
+SETS["batch"] = BATCH
+
 # Sets that need the large box but not five folds. `full*` means a real five-fold run and
 # carries both; a resolution comparison wants one fold on a box that fits the cache.
-BIG_BOX = {"res"}
+#
+# `batch` is here for `res-448` alone: 12 slices at 448 px is 59.3 GiB where the other
+# three arms are 33.4 and 41.7. The memo holds one cache per tag and drops the previous
+# one before decoding the next, so the box has to fit the largest arm rather than the sum.
+BIG_BOX = {"res", "batch"}
 
 
 def status(call_id):

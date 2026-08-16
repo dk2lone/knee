@@ -166,9 +166,86 @@ def test_the_cross_slice_head_lines_its_two_embeddings_up():
 def test_only_the_new_pool_attends_across_slices():
     """Existing members must keep loading, so `_x` has to be a separate pool name."""
     body = GEN.read_text()
-    assert 'def xslice(pool)' in body, "xslice is gone from the module"
-    assert '"cls_mean_focal_x": 3' in body, "the cross-slice pool is not registered"
+    # The port settled on a suffix rather than a helper: a pool opts in by ending `_xs`,
+    # which is why both registered names carry it and why an existing member's pool name
+    # cannot accidentally acquire the behaviour.
+    assert 'self.xslice = pool.endswith("_xs")' in body, "the cross-slice flag is gone"
+    assert '"cls_mean_focal_xs": 3' in body, "the cross-slice pool is not registered"
+    assert '"cls_mean_xs": 2' in body, "the cheap cross-slice pool is not registered"
     assert 'POOL = "cls_mean"' in body, "the default pool is no longer the shipped one"
+    assert 'def xslice_mask(mask)' in body, "the mask helper is gone"
+
+
+def test_a_sweep_arm_gets_the_slice_count_it_asked_for():
+    """`n_group` on an arm has to reach the training loop, and not leak past its arm.
+
+    Read the source rather than run it: `sweep` needs a 247 GB corpus. What broke before
+    16 Aug is structural and visible in the text - the arm loop assigned `N_GROUP_MAX`,
+    whose only reader is `plan_cache`, and never called `plan_cache` again. So the two
+    things to hold are that the loop re-plans, and that it does so after the settings the
+    plan depends on are applied.
+    """
+    src = (Path(__file__).resolve().parent.parent / "cloud" / "train.py").read_text()
+    loop = src.split("    done = []", 1)[1].split("\n    print(f\"\\nsweep done", 1)[0]
+
+    assert "pipeline.plan_cache(n_tr, n_te)" in loop, \
+        "the arm loop never re-plans, so an arm's n_group is a no-op"
+    assert "pipeline.CACHE_SLICES = pipeline.GROUP * pipeline.N_GROUP" in loop, \
+        "the arm loop re-plans but leaves CACHE_SLICES at the sweep's value"
+
+    # The plan reads IMG and GROUP, so it has to come after both are set for this arm.
+    assert loop.index('pipeline.CACHE_IMG = pipeline.IMG = int(arm["img"])') \
+        < loop.index("pipeline.plan_cache(n_tr, n_te)"), "re-planned before img was set"
+    assert loop.index('pipeline.GROUP = int(arm["group"])') \
+        < loop.index("pipeline.plan_cache(n_tr, n_te)"), "re-planned before group was set"
+
+    # And every sticky setting is restored, or arm N inherits arm N-1.
+    assert "for attr, value in base_settings.items():" in loop, \
+        "arms no longer reset to the sweep's settings"
+    for attr in ("GROUP", "N_GROUP_MAX", "IMG", "CROP_MM", "SLICE_BAND"):
+        assert f'"{attr}"' in src.split("base_settings = {", 1)[1].split("}", 1)[0], \
+            f"{attr} is overridable per arm but is not restored between arms"
+
+
+def test_the_arm_memo_holds_one_cache_per_tag():
+    """Two resolutions in one sweep must not both sit in RAM.
+
+    `res` is 33.4 GiB at 336 and 59.3 GiB at 448 and its box is 80. A memo keyed on the
+    resolution keeps both and the container is killed on the second arm, which is the one
+    carrying the question. Train and test are different tags and do overlap, so the rule
+    is one entry per tag rather than one entry.
+    """
+    import numpy as np
+
+    from train import memoize_build_cache
+
+    class FakePipeline:
+        IMG, CACHE_SLICES, CROP_MM, SLICE_BAND = 336, 12, 130.0, (0.1, 0.9)
+        log = staticmethod(lambda *a: None)
+
+        @staticmethod
+        def build_cache(slot_map, plane_map, lat_map, tag):
+            # The shape is what identifies it, because the resolution is what changes.
+            return [tag.strip()], np.zeros((1, FakePipeline.IMG), np.uint8), "mask"
+
+    p = FakePipeline()
+    p.build_cache = FakePipeline.build_cache
+    memo = memoize_build_cache(p)
+    live = memo.__closure__[0].cell_contents  # the `held` dict
+
+    memo({}, {}, {}, "train")
+    memo({}, {}, {}, "test")
+    assert sorted(live) == ["test", "train"], "train and test must coexist"
+
+    # Same settings again: no decode, and nothing new retained.
+    assert memo({}, {}, {}, "train")[1].shape == (1, 336)
+    assert sorted(live) == ["test", "train"]
+
+    # The next arm raises the resolution. The 336 pixels must be gone, not kept beside.
+    p.IMG = FakePipeline.IMG = 448
+    assert memo({}, {}, {}, "train")[1].shape == (1, 448)
+    assert sorted(live) == ["test", "train"], "a second resolution was retained"
+    assert live["train"][1][1].shape == (1, 448)
 
 
 if __name__ == "__main__":
