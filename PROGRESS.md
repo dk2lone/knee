@@ -1594,10 +1594,45 @@ its predictions move on exactly the two labels its map changed — and `knee-ble
 only one version. **All three are verified at the code level, not the log level**, which is
 the check that runs 8 and 9 exist to demand.
 
+### Submitting is a CLI call after all, and this page was wrong about it all day
+
+**All five went in at 21:19 EDT from the terminal.** "Submissions are a browser button on a
+notebook page, not a CLI call" has sat at the top of this file since the first code-comp
+submission failed, and it is false. The failure was the command, not the API:
+
+```
+kaggle competitions submit -f submission.csv            bare 400
+kaggle competitions submit -k <kernel> -v <version> -f submission.csv -m "..."   works
+```
+
+`-f` for a code competition is **the name of the output file the kernel produced**, not a
+path to a local file. Sent alone it describes nothing, and the 400 was correct. With `-k`
+and `-v` beside it the API takes it:
+
+```
+55540172  v4: five members, fold-spread, corrected RadImageNet weight map   PENDING
+55540175  v4 with members pooled in logit space instead of rank space       PENDING
+55540177  v4 with the ten TTA windows pooled in logit space                 PENDING
+55540180  alpha v2: PF OA and Synovitis corrected to 0.7                    PENDING
+55540182  alpha v2 with the 25 members pooled in logit space                PENDING
+```
+
+Five for five, in the recorded order, at the recorded versions. `0 submissions remaining
+today`.
+
+**What this cost while it was believed.** Every plan on this page was shaped around a human
+being present at 20:00 EDT to click five times, and tonight the window opened at 20:00 and
+the slots sat unspent for 79 minutes. Slots do not carry over, so a night nobody is at the
+keyboard is five measurements that cannot be taken. That constraint is gone: the queue can
+now be spent by whatever is running the loop, at the moment the count resets.
+
+**Verify with `-v`.** The one thing the browser did for free was show which version was being
+submitted. From the CLI it is an argument, so `knee-frontier-alpha -v 2` is the difference
+between the experiment and resubmitting the 0.912 already on the board.
+
 ### The exact 20:00 procedure
 
-Submitting is a button, not a CLI call, so this is the part a person does. Order matters
-only in that the first one answers the open question:
+Order matters only in that the first one answers the open question:
 
 1. `knee-blend-nolegacy` — **version 4** — the dilution test, predicts ~0.915
 2. `knee-frontier-alpha` — **version 2, not version 1** — v1 is the 0.912 already on the
