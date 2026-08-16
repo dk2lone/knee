@@ -116,6 +116,41 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 01:05 — all five slots are in, and every one of them was below the board's resolution
+
+```
+knee-blend-nolegacy v4   corrected RadImageNet weight map      0.910
+knee-blend-logit         members pooled in logit space         0.910
+knee-blend-ttalogit      TTA windows pooled in logit space     0.910
+knee-frontier-alpha v2   corrected weight map, 25 members      0.912
+knee-frontier-logit      25 members pooled in logit space      0.912
+```
+
+**Two values across five submissions, and the best is the 0.912 already held** before the
+night started. Nothing moved.
+
+The predictions were right, which is the only consolation and is worth something. Slot 5 was
+predicted to tie slot 4 and did. Slot 3's falsification condition — *"if it moves more than
+0.002 in either direction, the premise is wrong"* — did not trigger. The 0.006 bar written
+two hours ago called all five in advance.
+
+**The RadImageNet weight-map correction is worth 0.000.** `knee-frontier-alpha` v2 ties v1's
+0.912 exactly, and v2 is v1 with PF OA and Synovitis moved to 0.7. That was the change with
+the clearest offline story of the five, and the board cannot see it.
+
+So the whole 15 Aug programme — three pooling changes and two weight-map corrections — is
+**closed by measurement at 0.000**. What is left is the thing every one of these avoided:
+the model. `board = 0.825 x gold + 0.1841` puts 0.938 at gold 0.9134 against the 0.8817 the
+best kernel holds, and no arrangement of the members already trained closes 0.032. The
+`batch` sweep launched tonight is the first work in two days aimed at that gap rather than
+around it.
+
+**Five slots reset at 20:00 EDT and there is now nothing queued worth spending them on.**
+Every candidate on the decision-rules table is a pooling or weighting variant, which is to
+say every one of them is under the 0.006 bar. The queue should be rebuilt out of whatever
+`batch` returns, and slot 1 stays `knee-blend-clean -v 1` only because it is the one
+untested kernel rather than because it is expected to move.
+
 ### 00:40 — an arm's `n_group` has never done anything, and it confounds the grouping result
 
 Both cloud jobs are cancelled and relaunched as one, because reading `sweep` closely to plan
