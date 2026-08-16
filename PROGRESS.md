@@ -289,7 +289,8 @@ being the same code, and this pair does.
 
 | What | Where | State |
 |---|---|---|
-| **Cross-slice sweep** — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **ordering**, 19:15; holdouts expected 19:50–20:00 |
+| **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **launched 20:09** `fc-01M03YCD30M8494VWCCWGC39CZ` |
+| Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
 | DINOv3 sweep — dinov2-small against dinov3 | Modal `danielz51666` | **dead**, crashed; not relaunching |
@@ -952,6 +953,21 @@ and nobody here has ever measured run-to-run variance on this rig. If `grp-3-aga
 back 0.02 from `grp-3`, then tonight's comparison — and the grouping sweep's 0.019 — were
 both noise, and that is worth knowing more than either result is. It costs one six-minute
 arm on a run whose corpus download is two hours.
+
+**Launched 20:09**, `fc-01M03YCD30M8494VWCCWGC39CZ`, after `modal deploy train.py` to carry
+the new `POOL_PARTS` entry into the container.
+
+This spends the last lane, so it is worth writing down why it is the right thing to spend it
+on rather than the head change's port or the 16-slice question. The head is the largest
+single model effect this project has measured — about +0.025 against its control — and it
+has never run without a −0.023 handicap bolted to it. Every other queued experiment is worth
+a few thousandths. And the second arm prices run-to-run variance, which is the number that
+decides whether the grouping sweep's 0.019 and tonight's 0.0013 mean anything at all; no
+result on this page is safe until it exists.
+
+The corpus download is the cost and it is about two hours, so holdouts land around 22:15.
+The ordering pass will be skipped this time — the volume now holds 20,142 entries instead of
+the 12 it had this morning, which is the self-heal described above actually happening.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
