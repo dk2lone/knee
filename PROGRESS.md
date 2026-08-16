@@ -327,7 +327,7 @@ being the same code, and this pair does.
 | What | Where | State |
 |---|---|---|
 | **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **lost its worker at 20:36**, requeued for L40S |
-| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **launched 21:05** `fc-01M041JZHDS4X105R683ASQE3B` |
+| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **downloading 21:09** `fc-01M041S78S02SWTZQKKG7DZ3W8`, 37 MB/s |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
@@ -458,10 +458,26 @@ they are *disabled*, which a billing cycle does not undo.
 
 So the paragraph below, and everything on this page that reasons from "one lane remains",
 was working from a wrong constraint. `SETS["res"]` went out on the second lane at 21:05
-after a deploy and one `setup` call: `fc-01M041JZHDS4X105R683ASQE3B`, `res-336` against
-`res-448` on the 128 GiB box. **The resolution question is being answered tonight rather
-than after `xslice2`**, and the two runs do not compete — different workspaces, different
-capacity pools.
+after a deploy and one `setup` call. **The resolution question is being answered tonight
+rather than after `xslice2`**, and the two runs do not compete — different workspaces,
+different capacity pools.
+
+**One self-inflicted detour, recorded because the lesson is cheap here and would not be
+elsewhere.** The `res` log tail showed *"waiting to be scheduled on a GPU_L40S worker …
+relaxing requirements (memory=128.8GiB)"*, so the box was resized to what the cache
+actually needs — 448 px at 12 slices is 59.4 GiB, and 80 GiB leaves 20.6 GiB of headroom
+where the declared 128 leaves 68.6 — and the call was cancelled and relaunched.
+
+**The cancelled call had already scheduled and was downloading.** The "waiting" lines were
+older entries in the same tail; further down sat `354M/247G [00:11<1:57:54, 37.4MB/s]`. The
+relaunch scheduled just as fast, so the resize bought no scheduling gain at all. Cost: about
+eleven seconds of download. What survives is a right-sized box, which is worth keeping on
+its own terms. The lesson is to read a log tail for the *latest* state rather than the first
+line that confirms an expectation — the same habit that made the epoch-time check work an
+hour ago, applied in reverse.
+
+The download is running at **37 MB/s**, the slow end of the three rates this corpus has been
+pulled at, so `res` lands its holdouts around 23:30 rather than 22:00.
 
 **Modal budget: `sunnypathca` is now spent too, and `daniel21cn2016` is the last lane.**
 `raahncpe`, `hz-danielzhang` and `danielz51666` were already at their billing-cycle spend

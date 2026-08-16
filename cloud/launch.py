@@ -263,6 +263,14 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
     # is a separate guarantee from this number.
     if what in SETS and not what.startswith("full") and what not in BIG_BOX:
         fn = fn.with_options(cpu=4.0, memory=65536)
+    elif what in BIG_BOX:
+        # Sized to the cache it must hold, not to the declared box. 448 px at 12 slices is
+        # 59.4 GiB, so 80 GiB leaves 20.6 GiB for the model, activations and the
+        # interpreter, where the function's declared 128 GiB leaves 68.6 - more than double
+        # the need, on the scarcest box Modal has. The slice count does not depend on this
+        # number (cache_budget_gb sets it), so the only thing being traded is OOM headroom
+        # against how long it queues.
+        fn = fn.with_options(cpu=8.0, memory=81920)
     if what in SETS:
         # Five folds for a real run, one for a sweep arm: a sweep is comparing
         # configurations and five folds of each would cost five times as much to answer
