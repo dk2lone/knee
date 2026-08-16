@@ -1389,6 +1389,34 @@ the test path", which changes what `main()` produces. 35.8 GB is well inside wha
 Volume already handles, and the tag already names everything that decides the pixels, so a
 configuration that does not match simply misses and decodes as it does today.
 
+### It is already written, and it has never been called
+
+`cloud/train.py:264`, `wrap_build_cache` — *"Make the pixel cache persist, so the corpus is
+decoded once and never again."* It keys the file on resolution, slice count, crop and band,
+loads it if the name matches and rebuilds it if not, and its docstring makes the same
+argument this page reached independently: *"A Modal Volume cannot hold 570 GB of DICOM …
+but it holds the thing the pipeline actually trains on easily."*
+
+**Nothing calls it.** `sweep` wires `memoize_build_cache` instead, which holds the array in
+RAM for the life of one container and dies with it. `git log -S` gives the reason: both
+functions arrived in `6aaec60`, *"keep the corpus off the volume and sweep in one
+container"* — the commit that abandoned volume caching after issue #32. The corpus part
+genuinely could not work at 570 GB, and **the part that works at 35.8 GB was discarded
+alongside it** and left in the file.
+
+Two things to settle before wiring it, neither of which needs a GPU to think about:
+
+- **It loads with `mmap_mode="r"`.** That is right for a local disk and probably wrong for a
+  network Volume: training indexes the array every batch, and the whole purpose of the RAM
+  cache is that those reads are free. Dropping the mmap costs one 35 GB read at startup and
+  keeps training at RAM speed, which is the trade that matches how it is used.
+- **Volume growth.** Distinct tags each keep a copy — `res-336` is 33.4 GiB and `res-448` is
+  59.4 GiB — so it wants a reuse policy rather than unbounded accumulation. Most arms share
+  a tag (336 px, 12 slices), which is exactly why it pays.
+
+**Wire it after `res` finishes**, not now: `sweep` is the function both live calls are
+running, and redeploying it while `xslice2` sits queued risks the one lane that is waiting.
+
 The ordering pass being skipped is the self-heal described above actually happening — the
 volume now holds 20,142 entries instead of the 12 it had this morning, which is 1,282 s this
 run does not pay.
