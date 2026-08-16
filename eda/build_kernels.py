@@ -624,6 +624,148 @@ log(f"slice order: {ORDER_SEED or 'none mounted, this run writes one'}")''')
             sex=sex_tr[ok]).to_csv(name, index=False)
     log(f"oof.csv and oof_nosex.csv: {int(ok.sum())} studies each")''')
 
+    # --- the cross-slice head ------------------------------------------------ #
+    #
+    # Last, so every `old` below is v2 text rather than v1 text. Five of these nine sites
+    # were already rewritten by the substitutions above - PatientSex adds arguments to
+    # `predict` and to `main`, and the biomedclip work moved `build_model` - so written
+    # any earlier they would have to be reconstructed by hand, which is where a port goes
+    # wrong quietly. `Notebook.sub` asserts exactly one match on each, so a drift in the
+    # source fails the build instead of shipping half a head.
+    #
+    # `POOL` is a module global rather than a `build_model` argument because a sweep arm
+    # overrides it the way it overrides GROUP, by setting the attribute before main() runs.
+    n.sub('''POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3}''',
+          '''POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3, "cls_mean_focal_xs": 3,
+              # The cross-slice head on the cheap pool. `xs-cross` bundled the head with
+              # the focal pool and finished level with `grp-3`, which uses neither, so the
+              # bundle cannot say which half did the work - and the focal pool on its own
+              # measured 0.023 worse. This is the arm that separates them.
+              "cls_mean_xs": 2}
+# What the training loop builds. A module global rather than a build_model argument
+# because a sweep arm overrides it the same way it overrides GROUP - by setting the
+# attribute before main() runs - and the default keeps every existing run identical.
+POOL = "cls_mean"''')
+
+    n.sub('''    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False,
+                 sex=False):
+        super().__init__()
+        self.proj = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, hidden), nn.GELU())
+        self.slot_emb = nn.Parameter(torch.randn(n_slot, hidden) * 0.02)''',
+          '''    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2, prior=False,
+                 sex=False, n_group=1):
+        super().__init__()
+        self.proj = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, hidden), nn.GELU())
+        # `n_group` > 1 is the cross-slice head: the sequence carries one token per
+        # (slot, window) pair rather than per slot, ordered slot-major so that index
+        # s * n_group + g is slot s read through window g. The attention below is already
+        # length-agnostic - einsum("bsh,oh->bos") does not care how long s is - so the
+        # only thing a longer sequence needs is an embedding that tells two windows of the
+        # same slot apart. One free embedding per pair does that and is strictly more
+        # expressive than adding a slot vector to a window vector.
+        self.n_group = n_group
+        self.slot_emb = nn.Parameter(torch.randn(n_slot * n_group, hidden) * 0.02)''')
+
+    n.sub('''                    p_[TARGETS.index(t), list(slots)] = SLOT_PRIOR_STRENGTH
+        self.prior = prior''',
+          '''                    p_[TARGETS.index(t), list(slots)] = SLOT_PRIOR_STRENGTH
+        # Built at slot resolution and then widened, so the anatomy check above still
+        # compares against len(SLOTS). Sizing it at n_slot * n_group directly would fail
+        # that check and leave the prior silently all-zero on the cross-slice head.
+        p_ = p_.repeat_interleave(n_group, dim=1)
+        self.prior = prior''')
+
+    n.sub('''        self.pool = pool
+        self.head = SlotHead(dim * POOL_PARTS[pool], N_SLOT, len(TARGETS), prior=prior,
+                             sex=sex)''',
+          '''        self.pool = pool
+        # The cross-slice head reads every window of every slot in one attention pass, so
+        # its sequence is N_GROUP times longer. N_GROUP is read at construction because it
+        # is fixed by the cache layout for the life of a run.
+        self.xslice = pool.endswith("_xs")
+        self.head = SlotHead(dim * POOL_PARTS[pool], N_SLOT, len(TARGETS), prior=prior,
+                             sex=sex, n_group=N_GROUP if self.xslice else 1)''')
+
+    n.sub('''        if self.pool == "cls_mean_focal":''',
+          '''        if self.pool.startswith("cls_mean_focal"):''')
+
+    # A second edit that had also been made straight into the generated file, found only
+    # because the port was checked by regenerating and diffing rather than by reading.
+    # It documents why GROUP=1 works at all, which is the kind of thing that gets deleted
+    # by accident precisely because nothing fails when it is gone.
+    n.sub('''            x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
+                              align_corners=False)
+        x = (x - self.mean) / self.std''',
+          '''            x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
+                              align_corners=False)
+        # ponytail: GROUP=1 arrives here as (N, 1, H, W) against buffers of (1, 3, 1, 1),
+        # and broadcasting - not an explicit repeat - is what makes it a 3-channel input
+        # the encoder accepts. The one slice lands in all three channels, each offset by
+        # its own ImageNet constant. That is the right behaviour and it is invisible:
+        # reshaping mean/std any other way turns GROUP=1 into a shape error at the first
+        # batch of a run that has already paid two hours for its corpus.
+        x = (x - self.mean) / self.std''')
+
+    n.sub('''    return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]''',
+          '''    return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]
+
+
+def take_all_groups(cache_rows):
+    """Every window of every slot, folded into the slot axis for the cross-slice head.
+
+    (B, S, N_GROUP * GROUP, H, W) -> (B, S * N_GROUP, GROUP, H, W), slot-major, so entry
+    s * N_GROUP + g holds exactly what `take_group(rows, g)[:, s]` holds. That ordering is
+    what `SlotHead`'s per-pair embedding and the repeated mask below both assume.
+    """
+    b, s = cache_rows.shape[:2]
+    hw = cache_rows.shape[-2:]
+    return cache_rows.reshape(b, s, N_GROUP, GROUP, *hw).reshape(b, s * N_GROUP, GROUP, *hw)
+
+
+def xslice_mask(mask):
+    """A slot's mask applies to every window cut from it."""
+    return mask.repeat_interleave(N_GROUP, dim=1)''')
+
+    # `predict` and `predict_member` open with the same three lines, so the match runs on
+    # to the loop header that tells them apart: `predict` iterates groups, `predict_member`
+    # iterates window starts. Matching the shorter block asserts on 2 hits, which is the
+    # check doing its job rather than a inconvenience to work around.
+    n.sub('''        sx = None if sex is None else torch.from_numpy(sex[sel]).to(dev)
+        acc = None
+        for g in range(N_GROUP):''',
+          '''        sx = None if sex is None else torch.from_numpy(sex[sel]).to(dev)
+        if getattr(model, "xslice", False):
+            # One pass, not an average of N_GROUP passes: this head already saw every
+            # window inside its own attention, so averaging over windows here would
+            # average a quantity that no longer varies with g.
+            rows = torch.from_numpy(np.ascontiguousarray(cache[sel])).to(dev)
+            with torch.autocast("cuda", enabled=dev.type == "cuda"):
+                z = model(take_all_groups(rows), xslice_mask(m), img_size, sx).float()
+            out.append(torch.sigmoid(z).cpu().numpy())
+            continue
+        acc = None
+        for g in range(N_GROUP):''')
+
+    n.sub('''        model = build_model(UNFREEZE_LAST, sex=True).to(dev)''',
+          '''        model = build_model(UNFREEZE_LAST, sex=True, pool=POOL).to(dev)''')
+
+    n.sub('''                rows = torch.from_numpy(Ctr[sel]).to(dev)
+                g = int(torch.randint(N_GROUP, (1,)).item())
+                imgs = augment(take_group(rows, g))
+                m = torch.from_numpy(Mtr[sel]).to(dev)''',
+          '''                rows = torch.from_numpy(Ctr[sel]).to(dev)
+                m = torch.from_numpy(Mtr[sel]).to(dev)
+                if getattr(model, "xslice", False):
+                    # Every window in one step, because the whole point of this head is
+                    # that a finding on one slice can be read against its neighbours. The
+                    # single-group draw below is an augmentation along the stack, and it
+                    # would hide exactly the comparison this head exists to make.
+                    imgs = augment(take_all_groups(rows))
+                    m = xslice_mask(m)
+                else:
+                    g = int(torch.randint(N_GROUP, (1,)).item())
+                    imgs = augment(take_group(rows, g))''')
+
     n.write("kaggle/train-v2/knee-train-v2.ipynb")
     meta("kaggle/train-v2/kernel-metadata.json", "knee-train-v2", "knee train v2",
          "knee-train-v2.ipynb", ["dk2lone/knee-report-labels-dk"], [])

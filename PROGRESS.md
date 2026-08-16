@@ -682,6 +682,44 @@ kaggle/train-v1/knee-train-v1.ipynb   the hand-written source
   -> build_cloud_module()             -> cloud/pipeline.py
 ```
 
+### Ported 20:25, and the check found a second edit nobody knew about
+
+The nine substitutions are in `build_train_v2()` and **`eda/build_kernels.py` now regenerates
+`cloud/pipeline.py` byte-identical to the hand-edited file.** The warning below is lifted:
+the build is safe to run.
+
+It was verified by regenerating and diffing rather than by reading, which is what turned up
+the part nobody had recorded. The diff came back with **one hunk left over** — a six-line
+`ponytail:` comment from commit `1effc9e` explaining why `GROUP=1` survives the
+normalisation buffers, also written straight into the generated file and also about to be
+lost. This page had been warning about one unported change for hours. There were two.
+
+Two other things the check caught that reading would not have:
+
+- **`predict` and `predict_member` open with the same three lines**, so the substitution
+  matched twice and `Notebook.sub` refused the build. The fix is to run the match on to the
+  loop header that separates them — `for g in range(N_GROUP):` against `for st in starts:`.
+  That assert is the reason this port is trustworthy at all.
+- **The head change propagates into the four inference kernels** — `blend`, `blend-nolegacy`,
+  `blend-clean` and `duo` — because they derive from train-v2. This page claimed the
+  destination "leaves the Kaggle blend kernel untouched" and **that was wrong.**
+
+The propagation is inert rather than harmful, and that is checked rather than assumed. At
+`n_group=1` the new head is the old head:
+
+```
+slot_emb identical: True      torch.randn(n_slot * 1, h) == torch.randn(n_slot, h)
+RNG stream after  : True      same number of draws, so every later parameter is unchanged
+prior unchanged   : True      repeat_interleave(1) is the identity
+```
+
+`test_existing_head_is_unchanged` covers the same ground and still passes. So every existing
+member checkpoint loads, and `check_fingerprint` sees what it expects.
+
+**But do not `kaggle kernels push` those four tonight.** Their pushed versions are the
+record tonight's five submissions are attributed to, and re-pushing renumbers them. The
+local files may sit ahead of Kaggle until the five are scored.
+
 **The port is scoped, and it is mechanical — checked 19:41, before the result lands.** The
 change is exactly nine hunks, 72 lines, isolated by `git diff 1effc9e 8ab162a --
 cloud/pipeline.py`. Where they go was an open question on this page and now is not:
