@@ -154,6 +154,148 @@ bootstrap interval was [-0.0041, +0.0330]. It crosses zero. On a 430-study surro
 HARD won instead. Expect your gold-58 measurements to be inconclusive, and pre-register what
 you will conclude before you run.
 
+## Pulled 16 Aug 2026 — three things that change the plan
+
+**A single model reaches 0.915–0.92, and the people saying so are ranked above us.**
+`discussion/735304`, "Best single-model score":
+
+| Who | Rank | Claim |
+|---|---|---|
+| Chikuwabu | **15th** | "A single model actually works much better than you'd expect" |
+| Tim Krige | 72nd | single model, **0.92**, "OOF AUC = LB AUC within noise" |
+| Tom Aindow | 105th | single model **0.915**, DINOv2 based |
+
+Tom Aindow's argument against the ensemble reading is checkable: the efficiency leaderboard
+carries high scores at short runtimes, which twenty members cannot produce. His conclusion —
+*"Public notebooks just ensemble early on to try and get a high leaderboard score and
+exposure. Waste of time IMO."* This repo's 0.912 is a 25-member blend. Their 0.915 is one
+model. **Everything the ensemble axis bought is available from one trained model**, and that
+is consistent with the five submissions of 15 Aug returning 0.000.
+
+Tim Krige's second clause is the sharper one. `board = 0.825 x gold + 0.1841` was fitted on
+member pools, and it says gold 0.9134 is needed for 0.938. If OOF tracks LB within noise for a
+good single model, that conversion describes ensembles of weak members and not the thing we
+should be building.
+
+**Encoder capacity is not the binding constraint.** `discussion/735154`, stevenleehans:
+DINOv2-small → base, 22M → 87M params, identical data, seed and folds, moved OOF by
+**+0.0011 against a measured noise floor of 0.0020**. Only 5 of 12 labels favoured base, and
+the whole macro gain sat on MCL, their least reliable label. Compare a crop-geometry fix
+earlier in their log that paid +0.0059 and moved 10 of 12. That is the shape of a real effect.
+Their reading, which matches ours: the gains come from how the images are prepared, not from
+how much model is pointed at them.
+
+**A checkpoint carries its own preprocessing contract, and getting it wrong is silent.**
+Same post. Their RAD-DINO arm lost from epoch 1 and the gap widened every epoch, with *higher*
+training loss, so it was fitting worse rather than overfitting. The cause was not the encoder:
+
+| checkpoint | image_mean | image_std | native px |
+|---|---|---|---|
+| DINOv2-small / base | 0.485, 0.456, 0.406 | 0.229, 0.224, 0.225 | 224 |
+| RAD-DINO | 0.5307 greyscale | 0.2583 | 518 |
+| **BioMedCLIP** | 0.4815, 0.4578, 0.4082 | **0.2686, 0.2613, 0.2758** | 224 |
+
+Their model hardcoded the ImageNet buffers, so RAD-DINO received inputs shifted about 0.2 std
+with a 12% scale error. Left to finish, an 11-hour run would have produced a real number
+supporting a false conclusion about the one hypothesis they most wanted to test.
+
+**This pipeline had the same bug, and worse.** `Model.__init__` registered the ImageNet
+constants. BioMedCLIP's std is **1.17–1.23x** the ImageNet std per channel, so the scale error
+here was larger than the one that sank their run. `cloud/train.py` had recorded the mismatch
+and dismissed it as "within 0.03 on every channel" — true of the mean, false of the std, which
+is the half that matters. `NORM` and `set_norm` now read it off the checkpoint, and
+`test_a_foreign_checkpoint_brings_its_own_normalisation` holds that a builder cannot construct
+a `Model` without adopting it.
+
+**The 500 GB is 11 GiB once decoded, and that puts training on the laptop.** Same post, and it
+is the most valuable item on this page. After slice selection, windowing, crop and resize, the
+entire visual input at 224 px and 9 slices is `4,407 x 6 x 9 x 224 x 224` uint8 = **11.12 GiB**.
+Everything else is decode work thrown away when the kernel ends and paid again next run. Their
+measurements:
+
+| | Kaggle T4, fp16 | Apple M4 Pro, fp32 |
+|---|---|---|
+| per training step | 0.227 s | 0.436 s |
+| cache build | 55 min, every run | 0 |
+| one fold, wall clock | 76 min | **67 min** |
+| GPU quota consumed | 21 min | **0** |
+
+The laptop is 1.9x slower per step and still finishes sooner, because it never rebuilds the
+cache. They ran these with their weekly GPU quota exhausted for five days. Our cache at 336 px
+and 6 slices is 16.7 GiB, which is the same order. **Neither the Modal spend limit nor the
+Kaggle quota is a hard blocker on training.**
+
+Their caveat, and it must be honoured: the same config scored 0.7931 locally against 0.7957 on
+Kaggle, Δ = −0.0026, just outside their floor, and they cannot separate fp32-vs-fp16 numerics
+from a real deficit. Compare against a local control, never across machines. They also warn
+that MPS is non-deterministic — identical config and seed agreed to four decimals for two
+epochs, then diverged.
+
+**Four more ways their measurements lied**, all cheap to hit here:
+
+- **The silent backbone fallback.** Off Kaggle there is no `/kaggle/input`, their lookup
+  returned `None`, and the builder fell back to ResNet-18 — which trains fine and logs a
+  plausible score. *A run that does not print which backbone it loaded is not evidence about
+  that backbone.*
+- **The narrow probe.** Timing training steps predicted 0.64 h per fold; the fold took 1.11 h,
+  because the probe ignored validation, memory-mapped reads and augmentation. Their third
+  consecutive underestimate from a narrow probe. This page made the same mistake with
+  "extraction ~17 min", which was really 60.
+- **Non-deterministic hardware**, as above.
+- **A tool answering the wrong question.** Their comparison script prints its absolute
+  difference under the heading `NOISE FLOOR`, because it was written to compare two seeds of
+  one config. Fed a control and a treatment it reported "floor = 0.0011" for a result sitting
+  under the real floor of 0.0020.
+
+**The two published site-probe floors differ, and it is not a contradiction.** Zhukov's probe
+scores 0.5981 under grouped folds where ours scores exactly 0.5000. His features include TR,
+TE, slice thickness and field strength, which carry protocol signal that survives holding a
+scanner out. Ours is the scanner's own prevalence, which *is* the group key, so under grouping
+it falls to the global prior by construction. Our two-outcome reading of the probe submission
+stands for our probe only.
+
+## What the frontier fork actually is
+
+`sofiaanjenje/rsna-knee-frontier-v46` mounts the same nine datasets we do, plus one thing we
+have no equivalent of: `kernel_sources: ["sofiaanjenje/rsna-knee-e11-train"]`, **a public
+training kernel chained into the inference kernel.** Its configuration, read from the source:
+
+| | e11-train | our train-v2 |
+|---|---|---|
+| `N_GROUP_MAX` | 1, so **3 slices** | 2, so **6 slices** |
+| `TEST_SHARE` | 0.3 | 0.0 |
+| `CACHE_FRACTION` | 0.45 | 0.62 |
+| `TIME_BUDGET` | **8.72 h** | 8.0 h |
+| devices | all visible CUDA, `nn.DataParallel`, batch 192 | `DEVS[0]`, batch 8 studies |
+
+Two things to take. It trains at **3 slices where ours trains at 6**, so the public training
+path is behind ours on the one axis with a measured effect. And it uses **both T4s** — a
+thread per device at inference, `DataParallel` at training with the batch doubled. Our
+kernels take `DEVS[0]` and leave the second card idle.
+
+The added member in `mattiaangeli/bend-the-knee-to-dinov3-ensembled` is a DINOv3 ViT-S/16
+with a genuinely different head: a learned type embedding per series, plane crossed with fat
+suppression, added to all of its tokens; every series in a study concatenated into one
+key/value sequence; and **twelve learned queries, one per finding, cross-attending over it**.
+A finding draws evidence from any series at once rather than from per-series summaries
+combined afterwards. Absent series are removed by the key-padding mask, so nothing is imputed.
+That is the slot architecture replaced, not tuned.
+
+Read the DINOv3 claim against the Models tab, where DINOv3-ViT-B/16 shows **0.771** with one
+user, and against `docs/field.md`'s earlier note of v3 scoring below v2 on the same pipeline.
+The gain in that notebook may be the cross-attention head rather than the backbone, and the
+two are bundled.
+
+**Their E10 RadImageNet correction is a uniform alpha, tuned.** V41 moved it from 0.35 to
+0.60; grouped nested selection chose 0.60 in all five public outer folds and an independent
+OOF source chose 0.70. Our `frontier-alpha` v2 moved two per-label weights and scored 0.000.
+A single global blend weight, selected out of fold, is a different knob from a per-label map.
+
+**Several notebook titles now advertise being "hidden-test-safe"**, and V40's notice states
+that no visible test identifier or prediction is embedded and no test-time weight selection is
+performed. That phrasing only earns a place in a change notice if some public notebooks were
+doing the opposite. Treat public leaderboard scores as partly probe-inflated.
+
 ## Where the field is
 
 Public leaderboard, 12 Aug 2026: **0.946** at the top, five teams within 0.005 of each other.
@@ -176,11 +318,17 @@ Best public score per backbone, from the Models tab:
 
 | Model | Architecture | Users | Best public LB |
 |---|---|---|---|
-| DINOv2-small | ViT-S/14 | 48 | **0.906** |
+| DINOv2-small | ViT-S/14 | 48 → **60** | 0.906 → **0.914** |
 | BioMedCLIP | ViT, medical pretraining | 1 | **0.906** |
-| DINOv2-large | ViT-L/14 | 2 | 0.899 |
-| DINOv2-base | ViT-B/14 | 9 | 0.861 |
+| DINOv2-large | ViT-L/14 | 2 | 0.899 (delisted by 16 Aug) |
+| DINOv2-base | ViT-B/14 | 9 → 10 | 0.861 |
+| DINOv3-ViT-B/16 | ViT-B/16 | 1 | **0.771** |
 | EfficientNet-B3 | CNN | 1 | 0.701 |
+
+Second column pulled 16 Aug 2026. DINOv2-small gained twelve users and eight thousandths;
+DINOv2-large left the tab. **DINOv3 enters at 0.771**, which is the lowest transformer on the
+page, while the top-voted notebook advertises a DINOv3 member — see the note above on the
+backbone and the head being bundled.
 
 **Do not read that table as "transformers beat CNNs".** These are whole-solution scores
 attributed to whichever backbone the solution used, and the EfficientNet-B3 row reflects one

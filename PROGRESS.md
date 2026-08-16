@@ -116,6 +116,68 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 08:50 — the forum says a single model does what our 25-member blend does
+
+Read the Code, Models and Discussion tabs end to end. Three findings, and the first one is
+about strategy rather than a parameter. Full write-up in [docs/field.md](docs/field.md).
+
+**`discussion/735304` — three competitors, all ranked above us, are on single models.**
+Chikuwabu at **15th**: "a single model actually works much better than you'd expect". Tim
+Krige at 72nd: **0.92**, and *"OOF AUC = LB AUC within noise"*. Tom Aindow at 105th: **0.915**,
+DINOv2. Tom's argument is checkable — the efficiency leaderboard carries high scores at short
+runtimes, which twenty members cannot produce — and his conclusion is that public notebooks
+ensemble for votes rather than for score.
+
+Our 0.912 is 25 members. Their 0.915 is one. That is the same reading the five submissions of
+15 Aug produced from the other direction, and it means the fork we adopted as our base is a
+local maximum of a strategy the leaders are not running.
+
+It also puts a question mark on `board = 0.825 x gold + 0.1841`. That line was fitted on
+member pools. If OOF tracks the board within noise for a good single model, the conversion
+describes ensembles of weak members, and every ceiling on this page derived from it is
+answering the wrong question.
+
+**We had the same normalisation bug that nearly cost stevenleehans an 11-hour run, and ours
+was worse.** `discussion/735154`: their RAD-DINO arm lost from epoch 1 with the gap widening
+and *higher* training loss. The cause was `Model` hardcoding the ImageNet statistics while
+RAD-DINO wants greyscale 0.5307/0.2583 — a 12% scale error that raises nothing and produces a
+plausible curve pointing the wrong way.
+
+Ours registered the same buffers, and BioMedCLIP's std is **1.17–1.23x** the ImageNet std per
+channel:
+
+```
+ImageNet   0.229      0.224      0.225
+BioMedCLIP 0.2686     0.2613     0.2758
+ratio      1.173      1.167      1.226
+```
+
+`cloud/train.py` had recorded the mismatch and dismissed it as "within 0.03 on every channel"
+— true of the mean, false of the std, and the std is the half that matters. The docstring's
+own last line was *"the first thing to suspect if this variant underperforms for no other
+visible reason"*, which is exactly what would have happened. `NORM` and `set_norm` read it off
+the checkpoint now, and `test_a_foreign_checkpoint_brings_its_own_normalisation` fails if a
+builder constructs a `Model` without adopting it. `knee-train-bmc` v1 was launched with the
+bug and v2 with the fix.
+
+**The corpus is 11 GiB once decoded, and that dissolves both budget problems.** Same post.
+After slice selection, windowing, crop and resize, the whole visual input at 224 px and 9
+slices is 11.12 GiB. They measured an M4 Pro at 67 min per fold against a Kaggle T4 at 76,
+**at zero GPU quota**, because the laptop never rebuilds the cache — 55 minutes of every
+Kaggle run is decode. They ran it with their weekly quota exhausted for five days.
+
+Our cache at 336 px and 6 slices is 16.7 GiB. Same order, same machine class. So the 03:55
+conclusion — that a Modal spend limit stops all training — is wrong, and so is the reading
+that Kaggle quota is the replacement constraint. Neither is a hard blocker. Their caveat holds
+and must be honoured: compare against a local control, never across machines, because they saw
+a −0.0026 local-vs-Kaggle gap they could not separate from fp16 numerics.
+
+**Two smaller things.** The public training kernel `sofiaanjenje/rsna-knee-e11-train`, chained
+into `frontier-v46`, trains at **3 slices** where ours trains at 6 — the public training path
+is behind ours on the one axis with a measured effect. And it drives **both T4s**, a thread per
+device at inference and `DataParallel` with the batch doubled at training, where every kernel
+of ours takes `DEVS[0]` and leaves the second card idle.
+
 ### 04:10 — decision: training moves to Kaggle's GPUs
 
 Daniel's call, asked and answered: **move training to Kaggle rather than raise the Modal
