@@ -120,6 +120,38 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 16:00 — train-base trains one fold, because 0.8261 is a one-fold number
+
+15:55 priced `train-base` at 19.5 hours against an 8 hour budget. The fix is not fewer epochs.
+
+`for fold in range(N_FOLDS)` is the whole loop, and nothing bounds it but `TIME_BUDGET`. A run
+slower than its budget therefore does not *choose* which folds to drop — it keeps the best
+state and stops wherever it reached. That is why `full-band` came back with four members and
+why bmc is still going at seven hours.
+
+**And five folds were never what this comparison needs.** `enc8-small`'s manifest records
+`folds: 1`. The **0.8261** that `train-base` is measured against is a single-fold number, so
+one fold is not a compromise, it is the like-for-like.
+
+`N_FOLDS` cannot simply be lowered: it is also the width of the split, and at 1 every study
+lands in the same fold and there is no holdout at all. `train_folds(n, k)` adds a separate
+`TRAIN_FOLDS` and bounds the loop with it. Applied to `train-base` only — `train-bmc`,
+`train-head`, `train-mricore`, `blend` and `train-v2` all still read `N_FOLDS`.
+
+```
+1 fold x 22 epochs x 637 s   = 14,014 s   3.89 h
+decode at 224 px             =    971 s   0.27 h
+                                          4.16 h against an 8 h budget
+```
+
+The 637 s is extrapolated, so the margin matters more than the estimate: at 50% slower it is
+6.1 hours and still lands. And a run that fits its budget answers the question cleanly, where
+one that breaks out mid-fold answers it with an asterisk.
+
+Staging follows from that. One fold says whether a bigger encoder closes any of the 0.049 gap.
+Only if it does is a multi-fold package worth eight more hours — and by then bmc's real epoch
+time will have replaced the scaling argument.
+
 ### 15:55 — train-base does not fit in eight hours, and 15:05 overstated the memory risk
 
 The one Kaggle training log this project has, `kaggle/train-v1/out/knee-train-v1.log`, answers

@@ -99,6 +99,23 @@ class Notebook:
         Path(path).write_text(json.dumps(self.nb))
 
 
+def train_folds(n, k):
+    """Train the first `k` folds instead of all five.
+
+    The loop is `for fold in range(N_FOLDS)` and nothing bounds it but `TIME_BUDGET`, so a
+    run that is slower than the budget does not choose which folds to drop - it keeps the
+    best state and stops wherever it got to. `N_FOLDS` cannot be lowered instead, because
+    it is also the width of the fold split: at 1 every study lands in one fold and there
+    is no holdout at all.
+
+    Introduced for `train-base`. `enc8-small` recorded `folds: 1`, so the 0.8261 it is
+    measured against is a single-fold number, and one fold is what makes it comparable.
+    """
+    n.sub("N_FOLDS = 5", f"N_FOLDS = 5\nTRAIN_FOLDS = {k}")
+    n.sub("    for fold in range(N_FOLDS):", "    for fold in range(TRAIN_FOLDS):")
+    return n
+
+
 def require_slices(n):
     """Arm the slice guard, which Kaggle cannot arm through the environment.
 
@@ -1127,6 +1144,7 @@ def build_train_base():
     n.sub('VARIANT = os.environ.get("RSNA_VARIANT", "small")',
           'VARIANT = os.environ.get("RSNA_VARIANT", "base")')
     n.sub("CACHE_IMG = 336", "CACHE_IMG = 224")
+    train_folds(n, 1)
     Path("kaggle/train-base").mkdir(parents=True, exist_ok=True)
     require_slices(n)
     n.write("kaggle/train-base/knee-train-base.ipynb")
