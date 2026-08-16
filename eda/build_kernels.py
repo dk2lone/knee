@@ -895,9 +895,16 @@ def build_train_head():
     lowest transformer on the page. The gain is in the head. These are the two parts of it
     that cost no new weights and no research project.
 
-    0.15 rather than their 0.30: a study here holds 4.57 slots on average against the six
-    the head is sized for, so a third of the sequence is already absent before any
-    augmentation, and dropping another third would leave the common study at two slots.
+    0.15 rather than their 0.30: under RULES_NATIVE a study holds 4.36 slots on average
+    against the six the head is sized for, and only 7.6% hold all six, so a third of the
+    sequence is already absent before any augmentation. Dropping another third would leave
+    the common study at two slots. The sparsest slots are the ones this is aimed at:
+    SAG_T1 is present in 0.425 of studies and SAG_FLUID_NOFS in 0.682, and those are the
+    non-fat-suppressed sequences a meniscus is read on.
+
+    Image size and slice count are deliberately left at train-v2's values. 224 px and
+    twelve slices are a separate axis, and running both at once would leave no way to say
+    which one moved the score.
     """
     n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
     n.sub("SLOT_DROP = 0.0", "SLOT_DROP = 0.15")

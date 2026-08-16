@@ -116,6 +116,65 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 14:30 — the head changes aim at our three worst labels, and the slot table says why
+
+Both changes committed in `c4ddf4b` — `STUDY_LAYERS = 2` and `SLOT_DROP = 0.15` — were argued
+from architecture, not from the label table. Checked against it now. They land on the right
+labels, and the reason is measurable rather than plausible.
+
+**Our own weakest labels.** `score_oof.py` on `sl12-adapt-8e6`, the best OOF we hold:
+
+| | | |
+|---|---:|---|
+| PF OA | 0.729 | model-limited |
+| Lateral OA | 0.748 | too few positives |
+| Lateral Meniscus | 0.754 | model-limited, and the largest teacher gap at +0.219 |
+| ... | | |
+| Fracture | 0.903 | teacher-limited |
+| Baker's | 0.923 | teacher-limited |
+
+The three at the bottom are the cross-plane findings. The two at the top are the ones no
+encoder can move. So our weakness and the model-limited set are the same set, which is what
+"the whole remaining gap sits in the four model-limited findings" predicted but never checked.
+
+**What `STUDY_LAYERS` adds.** Before it, `SlotHead` projects each slot, adds the slot
+embedding, and pools. Slots never see each other, so the head is a weighted sum and a
+conjunction is not expressible. It can say *sagittal reads 0.7 and coronal reads 0.6*; it
+cannot say *the coronal confirms what the sagittal found*. A meniscal tear is read exactly
+that way, and so is patellofemoral cartilage, where the axial defines the finding and the
+sagittal supports it. That is PF OA, both menisci, and ACL — the four model-limited findings,
+and nothing in the teacher-limited five.
+
+**What `SLOT_DROP` adds** is not regularisation, and the slot table is the reason. A slot is
+present in a study far less often than the six-slot design implies:
+
+```
+SAG_FLUID_FS    0.847        6 slots present   336   7.6%
+COR_FLUID_FS    0.870        5 slots          2052  46.6%
+AX_FLUID_FS     0.898        4 slots          1207  27.4%
+SAG_FLUID_NOFS  0.682        3 slots           501  11.4%
+COR_T1          0.641        2 slots           311   7.1%
+SAG_T1          0.425                    mean 4.36 of 6
+```
+
+Only 7.6% of studies hold all six. The two least-present slots are `SAG_T1` at 0.425 and
+`SAG_FLUID_NOFS` at 0.682 — and those are the non-fat-suppressed sequences, which is where a
+meniscus is read: dark meniscus, bright tear. The three fat-suppressed fluid slots, present
+0.85-0.90, carry edema and effusion instead. So the findings that need the least-available
+slots are the menisci, and a head with no dropout is free to lean on a sequence 57% of studies
+do not have. Dropout forces it to read the meniscus off the fat-suppressed slots too.
+
+**The ceiling, priced.** Closing the four model-limited gaps completely is
+(0.219 + 0.072 + 0.096 + 0.075) / 12 = **+0.0385 gold**, or +0.032 board. Half of it is +0.019
+gold and +0.016 board — over the 0.006 bar. That is the ceiling for any better model, though,
+not for a head change; a two-layer transformer over at most six tokens is a small edit and
+should be priced as one. Lateral OA is excluded despite its +0.127 gap, because it sits in the
+too-few-positives bucket and the interval is too wide to act on.
+
+**What this does not touch.** Five of twelve labels are teacher-limited. Neither change reaches
+them, and neither should be expected to. The OOF guard is the thing to watch: 1.6M new head
+parameters against 58 gold studies is where this fails, if it fails.
+
 ### 14:05 — 22nd place runs a single model at 0.934, and at 224 px
 
 `discussion/735304`, posted two hours ago:
