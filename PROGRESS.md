@@ -116,6 +116,41 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 02:50 — two containers have now died mid-extraction, and the log cannot say why
+
+`batch` restarted from zero, the same way `res` did. Two containers, same stage, so this is
+systematic and not capacity churn. The download completes both times — 247 GB written — and
+the death comes during `unzip`, with no Python traceback, which points at the container
+being killed rather than the command failing.
+
+**The log could not be read, and that is its own bug.** The Kaggle CLI's progress bar is
+tqdm writing to a pipe rather than a terminal, so it does not rewrite one line — it emits a
+fresh line per chunk. One download is hundreds of thousands of lines, and by the time a
+failure is noticed the retained log holds nothing but the retry's progress bar. Every
+diagnostic line this project prints had already been pushed out of it. `--quiet` now.
+
+**The leading candidate is disk, because the peak is the archive and the corpus at once.**
+`unzip` runs to completion before the 247 GB zip is unlinked, so the high-water mark is 247
+GiB plus whatever the corpus expands to — a number nobody here has ever measured. The
+container asked for 1 TiB, which leaves about 280 GiB of margin over the 570 GiB the corpus
+is *assumed* to be. If that assumption is wrong the disk fills, and a disk-full kill is
+exactly this: no traceback, container gone, Modal reschedules.
+
+Two changes, and the second is the one that answers the question rather than papering over
+it:
+
+- **`ephemeral_disk` 1 TiB → 2 TiB.** One number, and disk is the cheapest candidate to
+  rule out.
+- **`disk()` prints free space** before the download, after the download, after the extract
+  and after the zip is removed. Whatever kills the next container, the log will carry the
+  four numbers that say whether space was it — including the first real measurement of how
+  far this corpus expands.
+
+`batch` is relaunched as `fc-01M04NBBWC0DVBB4PFK4AYRJ5Z`. That is the third launch of the
+same experiment tonight and the reason is different each time: the first carried two sweep
+bugs, the second was killed by the platform, and this one is the first that can be
+diagnosed if it dies too.
+
 ### 02:25 — extraction is an hour, not seventeen minutes, and that changes the arm count
 
 `batch` has been extracting for 55 minutes and the container is alive, so this is not a

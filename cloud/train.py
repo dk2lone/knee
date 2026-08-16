@@ -198,26 +198,50 @@ def fetch_corpus_local(dest=pathlib.Path("/tmp/comp")):
         print(f"corpus already on local disk at {dest}", flush=True)
         return dest
 
+    import os
+
+    def disk(where):
+        """Free space, printed at every step that could exhaust it.
+
+        Two containers died mid-extraction on 16 Aug with nothing in the log to say why,
+        and disk was the leading theory that could not be checked after the fact. One line
+        each side of the two big writes turns the next failure into a measurement.
+        """
+        st = os.statvfs(dest.parent)
+        free = st.f_bavail * st.f_frsize / 1024 ** 3
+        total = st.f_blocks * st.f_frsize / 1024 ** 3
+        print(f"disk {where}: {free:.0f} GiB free of {total:.0f}", flush=True)
+
     _auth_kaggle()
     dl = pathlib.Path("/tmp/dl")
     dl.mkdir(parents=True, exist_ok=True)
     zips = list(dl.glob("*.zip"))
     if not zips:
         print("downloading the archive to local disk", flush=True)
+        disk("before download")
         t0 = time.time()
+        # `--quiet`, and it is not cosmetic. The Kaggle CLI's progress bar is tqdm writing
+        # to a pipe rather than a terminal, so it emits a fresh line per chunk instead of
+        # rewriting one: a single download is hundreds of thousands of lines and it pushes
+        # every other message out of the retained log. The two mid-extraction deaths could
+        # not be diagnosed because of this - by the time the failure was noticed, the log
+        # held nothing but the retry's progress bar.
         subprocess.run(["kaggle", "competitions", "download", "-c", COMP,
-                        "-p", str(dl)], text=True, check=True)
+                        "-p", str(dl), "--quiet"], text=True, check=True)
         print(f"downloaded in {(time.time() - t0) / 60:.1f} min", flush=True)
         zips = list(dl.glob("*.zip"))
 
     dest.mkdir(parents=True, exist_ok=True)
+    disk("after download")
     print(f"extracting {zips[0].name} to local disk", flush=True)
     t0 = time.time()
     r = subprocess.run(["unzip", "-q", "-n", str(zips[0]), "-d", str(dest)], text=True)
     print(f"unzip returned {r.returncode} in {(time.time() - t0) / 60:.1f} min", flush=True)
+    disk("after extract")
     if r.returncode not in (0, 1):
         raise RuntimeError(f"unzip failed with {r.returncode}")
     zips[0].unlink()                      # reclaim 247 GB of the ephemeral disk
+    disk("after removing the zip")
     n = sum(1 for _ in (dest / "train_series").rglob("*.dcm"))
     print(f"{n} training dcm files on local disk", flush=True)
     return dest
@@ -773,7 +797,14 @@ def fix_manifest_variant(out, variant, run=None):
 # The CPUs mattered for the 1,784 s ordering pass, and that answer is now cached on the
 # Volume, so eight is no longer the bottleneck it would have been.
 @app.function(image=image, gpu="L40S", timeout=23 * 3600, volumes={"/vol": vol},
-              cpu=8.0, memory=131072, ephemeral_disk=1024 * 1024,
+              # 2 TiB rather than 1, because the peak is the zip and the corpus at once:
+              # `unzip` runs to completion before the 247 GB archive is unlinked, so the
+              # high-water mark is 247 plus whatever the corpus expands to. 1 TiB left
+              # about 280 GiB of margin on an expansion nobody had measured, and two
+              # containers then died mid-extraction with no log to say why. Disk is the
+              # cheapest of the candidate causes to rule out, and `disk()` now prints the
+              # numbers that will say whether this was it.
+              cpu=8.0, memory=131072, ephemeral_disk=2048 * 1024,
               secrets=[modal.Secret.from_dict({"KAGGLE_ACCESS_TOKEN": TOKEN})])
 def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
           n_group_max: int = 2, img: int = 336, batch_studies: int = 8,
