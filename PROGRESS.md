@@ -120,6 +120,77 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 14:35 — second sweep of the day, and an MRI foundation model landed this morning
+
+The morning sweep ran `eda/field_sweep.sh`. This one is the CLI half — `kaggle kernels list
+--sort-by dateRun` and `kaggle datasets list --sort-by updated` — which needs no browser and
+can run inside the loop. It does not cover Discussion; that still needs `field_sweep.sh`.
+
+**`girishbose/mri-core-vitb-rsna-knee`, posted 08:35 today.** `MRI_CORE_vitb.pth`, 435 MB.
+Pulled and read rather than guessed at:
+
+```
+backbone.patch_embed.proj.weight   (768, 3, 16, 16)   patch 16
+backbone.pos_embed                 (1, 197, 768)      196 + 1, a 14x14 grid, native 224 px
+backbone.cls_token                 (1, 1, 768)        dim 768
+blocks chunked 4 x 3                                  12 layers, DINOv2 block_chunks=4
+prefixes                           backbone, dino_head
+```
+
+It is a **DINOv2-architecture ViT-B/16, DINO-pretrained on MRI, native at 224 px** — from
+`github.com/mazurowski-lab/mri_foundation`, **Apache-2.0**.
+
+Three things follow, and each is independently useful.
+
+**It is the cheapest of the three encoders, not the dearest.** Patch 16 buys fewer tokens than
+DINOv2's patch 14 at the same input size:
+
+```
+                          tokens  dim   activation   attention
+small  @ 336  (today)        577  384      221k        1998k
+base/14 @ 224 (train-base)   257  768      197k         793k     0.89x / 0.40x
+MRI CORE/16 @ 224            197  768      151k         466k     0.68x / 0.23x
+```
+
+**Its pretraining is the right modality.** BioMedCLIP is medical but not MRI, and it lost
+0.0049 against small. DINOv2 is neither medical nor MRI. This is the first candidate that is
+both bigger than small and trained on MRI.
+
+**Apache-2.0 survives the October ruling.** `blend-clean` exists because RadImageNet is
+CC-BY-NC-SA and the legacy bundle's licence field reads `unknown`. A licence-clean encoder is
+worth something to that build on its own.
+
+It is still not a drop-in. It ships as a bare `.pth` with a `backbone.` prefix and chunked
+blocks, so `find_dinov2` cannot see it and `AutoModel.from_pretrained` cannot read it; it needs
+its own branch beside `build_biomedclip`. Its normalisation is not published in the file, which
+is exactly what `set_norm` at f89ad34 exists to handle — and exactly what would otherwise cost
+the run silently.
+
+**Order: `train-base` still goes first.** It is two subs, already built, tests passing, and it
+isolates backbone size against a pretraining we have a baseline for. MRI CORE changes size and
+pretraining together and needs a loader that can fail quietly. Building that loader is the next
+piece of work, not the next run.
+
+**`ranjithragavan07/rsna-knee-dinov2-0-93` is not what its title suggests.** It mounts
+`metaresearch/dinov2/PyTorch/small/1` and eight public packages — another fork of the same
+frontier ensemble on the same small encoder. It is not evidence about base. Against
+`frontier-alpha` it shares six mounts, adds two, and lacks three:
+
+```
+they add    prvsiyan/rsna-knee-v52-radimagenet-heads-20260812
+            pilkwang/pilkwang-public-dataset-for-notebooks-figures
+we add      antoinegg1/rsna-knee-e9-radimagenet-heads-v15
+            lixin73/rsna-knee-llm-report-labels-sol56
+            tonylica/rsna2026-models
+```
+
+The v52 RadImageNet heads are real — 63 MB, dated 12 Aug, against the v15 family we mount. But
+swapping one head family for another is the weighting axis, and 14:10 measured that axis at
+five submissions for a tie. **It is logged, not queued.**
+
+Also seen and not pursued: `xxxx0314/rsna-knee-omnirad-train-features` is 6 MB of features
+rather than weights, and `zaidaliiq1000/rsna-knee-ft3-weights` is 255 MB with no description.
+
 ### 14:20 — every run this project has made is 336 px, and that chose the encoder
 
 14:10 left the model axis as the only lever. Looking at what has actually been run on it:
