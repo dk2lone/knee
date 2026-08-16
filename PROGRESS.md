@@ -476,8 +476,29 @@ its own terms. The lesson is to read a log tail for the *latest* state rather th
 line that confirms an expectation — the same habit that made the epoch-time check work an
 hour ago, applied in reverse.
 
-The download is running at **37 MB/s**, the slow end of the three rates this corpus has been
-pulled at, so `res` lands its holdouts around 23:30 rather than 22:00.
+The download opened at 37 MB/s and settled at **131 MB/s**, so about 31 minutes rather than
+two hours.
+
+**The order cache was carried across to the second lane at 21:13, while the download still
+had 31 minutes to run.** `danielz51666`'s volume had no `cache/` at all, so that run was
+about to pay the 1,282 s ordering pass — and pay it **twice**, because `res-336` and
+`res-448` have different cache tags and `ORDER_SEED` is resolved once at import, which on a
+fresh workspace resolves to nothing for the whole process. That is the same clobber
+described in "The order cache clobbers itself on a workspace's first run", biting a second
+time in a way that costs 43 minutes instead of 21.
+
+The window existed because `pipeline` is imported *after* `fetch_corpus_local` returns, so
+anything on the volume before the download finishes is found:
+
+```
+modal volume get  knee-data cache/slice_order.json   (daniel21cn2016)   20,142 entries
+modal volume put  knee-data cache/slice_order.json   (danielz51666)     50.8 MB
+```
+
+Both lanes now share one ordering. `res` should log `20142 slot-series ordered from
+slice_order.json` and skip straight to decoding, which is also the first live confirmation
+that the file is portable between workspaces — it is keyed by `SeriesInstanceUID` and file
+count, neither of which is workspace-specific.
 
 **Modal budget: `sunnypathca` is now spent too, and `daniel21cn2016` is the last lane.**
 `raahncpe`, `hz-danielzhang` and `danielz51666` were already at their billing-cycle spend
