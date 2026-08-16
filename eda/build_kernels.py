@@ -624,6 +624,22 @@ log(f"slice order: {ORDER_SEED or 'none mounted, this run writes one'}")''')
             sex=sex_tr[ok]).to_csv(name, index=False)
     log(f"oof.csv and oof_nosex.csv: {int(ok.sum())} studies each")''')
 
+    # --- a short cache is fatal when an arm asked for a specific one --------- #
+    #
+    # The planner already logs "(wanted N)" when memory forces fewer slices, so this is not
+    # silent - it is one line in a three-thousand-line log, and the run then trains happily
+    # and reports a holdout that cannot be compared with anything. That is worse than a
+    # crash for a sweep, whose entire product is a comparison. On Kaggle the reduction is
+    # legitimate and must stay allowed, so this is opt-in and `cloud/train.py` sets it.
+    n.sub('''        + (f" (wanted {N_GROUP_MAX})" if groups < N_GROUP_MAX else ""))''',
+          '''        + (f" (wanted {N_GROUP_MAX})" if groups < N_GROUP_MAX else ""))
+    if groups < N_GROUP_MAX and os.environ.get("RSNA_REQUIRE_SLICES"):
+        raise MemoryError(
+            f"asked for {N_GROUP_MAX} group(s) of {GROUP} = {N_GROUP_MAX * GROUP} slices "
+            f"and only {groups * GROUP} fit in {budget:.1f} GB. A sweep arm that quietly "
+            f"trains on fewer slices is not comparable with the arm it is meant to be "
+            f"compared against, so this stops rather than producing a number.")''')
+
     # --- the cross-slice head ------------------------------------------------ #
     #
     # Last, so every `old` below is v2 text rather than v1 text. Five of these nine sites

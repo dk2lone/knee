@@ -1090,6 +1090,12 @@ def plan_cache(n_study, n_test=0):
         f"sizing for {n_study} train + {n_total - n_study} test studies "
         f"-> {groups} group(s) of {GROUP} = {groups * GROUP} slices per slot"
         + (f" (wanted {N_GROUP_MAX})" if groups < N_GROUP_MAX else ""))
+    if groups < N_GROUP_MAX and os.environ.get("RSNA_REQUIRE_SLICES"):
+        raise MemoryError(
+            f"asked for {N_GROUP_MAX} group(s) of {GROUP} = {N_GROUP_MAX * GROUP} slices "
+            f"and only {groups * GROUP} fit in {budget:.1f} GB. A sweep arm that quietly "
+            f"trains on fewer slices is not comparable with the arm it is meant to be "
+            f"compared against, so this stops rather than producing a number.")
     return groups
 
 

@@ -776,6 +776,13 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
     os.environ["RSNA_ORDER_CACHE"] = str(cache_dir / "slice_order.json")
     print(f"slice order cache: {os.environ['RSNA_ORDER_CACHE']}", flush=True)
 
+    # A sweep's product is a comparison, so an arm that gets fewer slices than it asked for
+    # is worse than an arm that fails: it trains, holds out a plausible number, and that
+    # number cannot be set beside any other. The planner logs the shortfall either way;
+    # this turns the log line into a stop. Kaggle never sets it, where the reduction is
+    # legitimate and the alternative is a kernel that will not run at all.
+    os.environ["RSNA_REQUIRE_SLICES"] = "1"
+
     sys.path.insert(0, "/root")
     import pipeline  # noqa: E402
     print(f"pipeline imported; root={pipeline.ROOT}", flush=True)

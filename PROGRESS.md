@@ -1095,6 +1095,34 @@ failing"*. A smaller box would schedule sooner and quietly cache 6 slices instea
 which changes both arms and makes the comparison against `grp-3` meaningless — while the
 log still prints a plausible number. Waiting is the only correct move.
 
+**"Silently" was not quite right, and the fix is now in.** The planner does report it:
+
+```
+memory: 19.4 GB available, 12.0 GB to the cache; sizing for 4407 train + 3 test
+studies -> 1 group(s) of 3 = 3 slices per slot (wanted 2)
+```
+
+One line in a three-thousand-line log, and then the run trains happily and reports a holdout
+that cannot be set beside anything. For a sweep, whose entire product is a comparison, that
+is worse than a crash. `RSNA_REQUIRE_SLICES` turns the log line into a stop, and
+`cloud/train.py` sets it for every sweep:
+
+```
+MemoryError: asked for 2 group(s) of 3 = 6 slices and only 3 fit in 12.0 GB. A sweep arm
+that quietly trains on fewer slices is not comparable with the arm it is meant to be
+compared against, so this stops rather than producing a number.
+```
+
+Opt-in, because on Kaggle the reduction is legitimate and the alternative is a kernel that
+will not run at all. Verified both ways on this laptop, whose 19.4 GB affords one group and
+so triggers it for real rather than through a mock: guard off, all six `test_xslice.py`
+checks pass and the planner reduces as before; guard on, it raises.
+
+**Not deployed.** The queued call runs the code deployed at 20:08, and `modal deploy` while
+a call is queued is a risk taken for no gain — the queued call would not pick it up. This
+goes out with the next launch, and with it the memory request becomes safe to relax, because
+a short cache can no longer masquerade as a result.
+
 **The repeated download is now 162 minutes across two runs, and the obvious fix is closed.**
 `fetch_corpus_local` already says why: *"A Volume cannot hold 570 GB of DICOM (issue #32):
 unzip exits 50 partway through, and afterwards even a 90 MB write fails."* So caching the
