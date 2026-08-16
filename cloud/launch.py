@@ -216,6 +216,22 @@ RES = [{"name": "res-336", "lr_backbone": 8e-6, "unfreeze_last": 6},
        {"name": "res-448", "lr_backbone": 8e-6, "unfreeze_last": 6, "img": 448}]
 SETS["res"] = RES
 
+# More slices per slot, at constant packing. The frontier's members hold 16 where ours hold
+# 12, and that contract difference has never been tested here.
+#
+# The obvious arm is `group: 4, n_group: 4` for exactly 16, and it is wrong: GROUP is the
+# packing, and `grp-3` beat `grp-1` by 0.019, so moving it confounds slice count with the
+# one thing already known to matter. Holding GROUP at 3 and adding a group gives 15 slices,
+# which is the same question without the confound.
+#
+# 15 slices is 41.7 GiB against the sweep's 48 GiB budget and 12 is 33.4, so both fit and
+# RSNA_REQUIRE_SLICES stops either if it does not.
+SLICES = [{"name": "sl-12", "lr_backbone": 8e-6, "unfreeze_last": 6,
+           "group": 3, "n_group": 4},
+          {"name": "sl-15", "lr_backbone": 8e-6, "unfreeze_last": 6,
+           "group": 3, "n_group": 5}]
+SETS["slices"] = SLICES
+
 # Sets that need the large box but not five folds. `full*` means a real five-fold run and
 # carries both; a resolution comparison wants one fold on a box that fits the cache.
 BIG_BOX = {"res"}

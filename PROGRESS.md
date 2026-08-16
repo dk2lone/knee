@@ -1206,8 +1206,25 @@ experiment is running; it stops being free the moment a lane is idle.
 
 And when it does move, it moves **batched**. `sweep` exists so one 30-minute download feeds
 several arms, and launching `xslice2` alone was the mistake that made tonight's eviction
-expensive. Whatever else is pending then — `xs-cheap`, `grp-3-again`, sixteen slices — goes
-in the same call.
+expensive. Whatever else is pending then — `xs-cheap`, `grp-3-again`, more slices — goes in
+the same call.
+
+**`SETS["slices"]` is built for that, and the obvious version of it is wrong.** The frontier's
+members hold 16 slices where ours hold 12, so the arm suggests itself as
+`group: 4, n_group: 4` = exactly 16. That confounds the experiment: GROUP *is* the packing,
+and `grp-3` beat `grp-1` by 0.019, so moving it changes the one thing already known to
+matter. Holding GROUP at 3 and adding a group asks the same question cleanly:
+
+```
+sl-12  GROUP=3 N_GROUP=4 -> 12 slices, 33.4 GiB
+sl-15  GROUP=3 N_GROUP=5 -> 15 slices, 41.7 GiB
+```
+
+Fifteen rather than sixteen is the price of not confounding it, and both fit the 48 GiB
+budget so `RSNA_REQUIRE_SLICES` passes. Three of tonight's four experiment designs have now
+turned on the same distinction — packing against count, resolution against field of view,
+slices against everything — and every one of them was a confound that would have produced a
+publishable-looking number.
 
 This spends the last lane, so it is worth writing down why it is the right thing to spend it
 on rather than the head change's port or the 16-slice question. The head is the largest
