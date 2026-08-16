@@ -606,16 +606,40 @@ better than that, and the honest number was already the conservative one.
 
 ## Before anything else, every session
 
+**All three tabs. Code, Models, Discussion. Every day, no exceptions, before any other
+work.** One command does the sweep:
+
 ```
-kaggle kernels list --competition rsna-knee-abnormality-detection --sort-by scoreDescending --page-size 25
-kaggle kernels pull -p nb/new/<name> -m <owner>/<kernel>
+bash eda/field_sweep.sh
 ```
 
-Diff the top notebook's `dataset_sources` against `WEIGHT_PACKAGES`, `RAD_ARM` and
-`LEGACY_ARM` in `eda/build_kernels.py`, and read its aggregation code. A package we do not
-mount is an ingredient we do not have, and the free score hides in how they combine what
-we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pooling.
-**Titles lie**: the notebook called "V40 DINOv3 E10 Hybrid" mounts `metaresearch/dinov2`.
+It lists Code by score and by votes, pulls anything not seen before into `nb/`, prints each
+new kernel's three mount lists, then dumps the Models tab and the whole Discussion list.
+State lives in `eda/.field_seen`; delete it to replay the field from scratch.
+
+This rule is written as a hard one because skipping two of the three tabs is what happened
+until 16 Aug, and Discussion turned out to hold the two findings that mattered most: that a
+single model reaches 0.915-0.92 while we ensemble 25 of them, and the normalisation contract
+that would have made an 8-hour BioMedCLIP run produce a confident wrong answer. Neither is
+reachable from a notebook diff.
+
+What to do with each tab:
+
+1. **Code.** Diff every new `dataset_sources` against `WEIGHT_PACKAGES`, `RAD_ARM` and
+   `LEGACY_ARM` in `eda/build_kernels.py`, and read the aggregation code. A package we do
+   not mount is an ingredient we do not have, and the free score hides in how they combine
+   what we already have - the 0.907 to 0.916 gap turned out to be five lines of TTA pooling.
+   Read `kernel_sources` too: a chained training kernel is somebody's whole pipeline.
+   **Titles lie** - the notebook called "V40 DINOv3 E10 Hybrid" mounts `metaresearch/dinov2`.
+2. **Models.** Read the user count and the best public score per backbone. It is the only
+   place that prices a backbone across everyone who tried it, and it contradicts notebook
+   titles: DINOv3 sits at 0.771 while the top-voted notebook advertises a DINOv3 member.
+3. **Discussion.** Open every thread, including the ones with three votes, and read the
+   comments and not only the post. The single-model finding was four comments deep in a
+   thread with four votes, posted by people ranked 15th, 72nd and 105th.
+
+Do not filter by vote count, and do not decide a thread is irrelevant from its title. Both
+16 Aug findings failed that test.
 
 ### Checked 15 Aug 18:30: a "0.93" notebook, and the one real idea in it
 

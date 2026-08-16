@@ -7,3 +7,4 @@ kaggle/*/out/
 cloud/exports/
 cloud/exports/**/*.pt
 kaggle/*/out-*/
+eda/.field_seen
