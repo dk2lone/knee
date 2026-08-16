@@ -1793,6 +1793,22 @@ If the scores are still `PENDING` at the reset, slot 1 goes anyway and the rest 
 correct submission late is worth more than a guessed one on time, and the count resets
 daily whether or not it was used.
 
+**Slot 1 is ready and its command is exact.** `knee-blend-clean` re-checked COMPLETE at
+21:29, last run 14:26 today, and it has one version:
+
+```
+kaggle competitions submit rsna-knee-abnormality-detection \
+  -k dk2lone/knee-blend-clean -v 1 -f submission.csv \
+  -m "licence-safe floor: CC0 members only, both encumbered arms unmounted"
+```
+
+**The `-v` is the part that goes wrong**, and it now has a second way to go wrong. Running
+`eda/build_kernels.py` tonight regenerated `blend-clean`, `blend-nolegacy`, `blend` and `duo`
+locally with the cross-slice head folded in — inert at `n_group=1`, but a change to the
+file. If any of those is pushed, its version number moves and `-v 1` submits something else,
+or fails. **Do not push them until the five pending scores are in**, because those scores are
+attributed to the versions that are on Kaggle right now.
+
 ### Sixteen slices: the frontier's members hold a contract ours does not
 
 Worth writing down because it is the only *model-side* lever left that costs a flag rather
