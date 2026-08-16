@@ -815,6 +815,7 @@ difference is whether the head sees one sampled window per step or all four.
 | 4 | 0.7890 | 0.8125 | **+0.0235** | 143.3 |
 | 5 | 0.7937 | 0.8186 | **+0.0249** | 144.1 |
 | 6 | 0.8030 | 0.8268 | **+0.0238** | 143.5 |
+| 7 | 0.8073 | 0.8306 | **+0.0233** | 143.9 |
 | 5 | 0.7937 | | | |
 | 6 | 0.8030 | | | |
 | 7 | 0.8073 | | | |
@@ -879,6 +880,26 @@ compute — which is the least convenient result available, because it makes the
 experiment mandatory rather than optional. `cls_mean_xs` separates the two changes, and
 until it runs a win here cannot be attributed to the cross-slice head rather than to the
 focal pool it is bundled with.
+
+**Epoch 7 crossed the bar and the crossing is worthless.** It went to 0.8306 against
+`grp-3`'s 0.8298 — **+0.0008**, which is nothing, and the climb slowed from 0.008 an epoch
+to 0.0038, so the projection of 0.835 was too generous.
+
+The annotated subset is the part that matters and it says the opposite:
+
+```
+                  holdout             annot(n=19)      cost
+grp-3             0.8298              0.7733           ~40 s/epoch
+xs-cross ep 7     0.8306   +0.0008    0.7662  -0.0071  ~144 s/epoch
+```
+
+**`xs-cross` is level with `grp-3` on the holdout and behind it on the annotated studies,
+at 3.6x the compute.** The annotated subset is the one scored against real labels rather
+than against the teacher, and it is the one that tracks the leaderboard.
+
+One epoch remains and it will not change this: 0.0038 of climb would have to become 0.007
+of climb while the curve is flattening. Write the conclusion now so the last epoch cannot
+be read into.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
