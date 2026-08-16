@@ -814,6 +814,7 @@ difference is whether the head sees one sampled window per step or all four.
 | 3 | 0.7760 | 0.7842 | **+0.0082** | 143.1 |
 | 4 | 0.7890 | 0.8125 | **+0.0235** | 143.3 |
 | 5 | 0.7937 | 0.8186 | **+0.0249** | 144.1 |
+| 6 | 0.8030 | 0.8268 | **+0.0238** | 143.5 |
 | 5 | 0.7937 | | | |
 | 6 | 0.8030 | | | |
 | 7 | 0.8073 | | | |
@@ -868,6 +869,16 @@ The honest form of the decision is therefore not "did cross-slice beat flat" but
 cannot answer that, because it never ran the cross head against the cheap pool. If
 `xs-cross` finishes near 0.836 the next arm to run is obvious and it is one line:
 `cls_mean_xs`, the cross head on the cheap pool.
+
+**Epoch 6 puts it 0.003 short of the bar with two epochs left.** 0.8268 against `grp-3`'s
+0.8298, climbing 0.008 an epoch and not yet flattening. On that trend it passes `grp-3` at
+epoch 7 and finishes near 0.835.
+
+So the likely outcome is a real but small win over the best known arm, bought at 3.6x the
+compute — which is the least convenient result available, because it makes the next
+experiment mandatory rather than optional. `cls_mean_xs` separates the two changes, and
+until it runs a win here cannot be attributed to the cross-slice head rather than to the
+focal pool it is bundled with.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-
