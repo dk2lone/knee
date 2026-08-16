@@ -1095,6 +1095,26 @@ failing"*. A smaller box would schedule sooner and quietly cache 6 slices instea
 which changes both arms and makes the comparison against `grp-3` meaningless — while the
 log still prints a plausible number. Waiting is the only correct move.
 
+**The repeated download is now 162 minutes across two runs, and the obvious fix is closed.**
+`fetch_corpus_local` already says why: *"A Volume cannot hold 570 GB of DICOM (issue #32):
+unzip exits 50 partway through, and afterwards even a 90 MB write fails."* So caching the
+corpus is not an option that went untried — it was tried and it broke the Volume.
+
+**What is untried is caching the *decoded* array, and the failure above does not apply to
+it.** The train cache is `(4407, 6, 12, 336, 336)` uint8 = **33.4 GB**, seventeen times
+smaller than the corpus, and the same Volume already carries the encoder weights and a
+20,142-entry `slice_order.json` without trouble. Keyed by `cache_tag`, which already names
+everything that decides the pixels, a run that matches the tag would skip the download, the
+ordering and the decode together — about 55 minutes — and a lost worker would cost minutes
+instead of restarting from zero.
+
+Not built tonight, for two reasons rather than one. It cannot be tested without a Modal run,
+and the only lane is queued; and the queued call would not pick it up anyway, so building it
+now buys nothing this run. The honest blocker is the test path: `main()` also builds a
+three-study test cache and `pipeline` resolves `ROOT` from the corpus at import, so
+"skip the download" is not one flag. **Recorded as the next engineering step**, ahead of any
+further sweep, because every future arm pays that 55 minutes and pays it again on eviction.
+
 The ordering pass being skipped is the self-heal described above actually happening — the
 volume now holds 20,142 entries instead of the 12 it had this morning, which is 1,282 s this
 run does not pay.
