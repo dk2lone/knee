@@ -1110,10 +1110,30 @@ instead of restarting from zero.
 
 Not built tonight, for two reasons rather than one. It cannot be tested without a Modal run,
 and the only lane is queued; and the queued call would not pick it up anyway, so building it
-now buys nothing this run. The honest blocker is the test path: `main()` also builds a
-three-study test cache and `pipeline` resolves `ROOT` from the corpus at import, so
-"skip the download" is not one flag. **Recorded as the next engineering step**, ahead of any
-further sweep, because every future arm pays that 55 minutes and pays it again on eviction.
+now buys nothing this run. **Recorded as the next engineering step**, ahead of any further
+sweep, because every future arm pays that 55 minutes and pays it again on eviction.
+
+**Scoped 20:46, and the blocker is real but small.** `main()` genuinely needs the test
+corpus — it reads `test.csv` and `test_series.csv`, walks `test_series`, builds a cache and
+writes `submission.csv`. That submission is worthless on a training sweep (three stub
+studies) but it is woven through `main()`, so it is not one flag.
+
+It does not have to be. Everything `main()` reads off the corpus is either a small CSV or a
+decodable cache, and all of it fits:
+
+```
+train cache  (4407, 6, 12, 336, 336) uint8    35.8 GB
+test cache      (3, 6, 12, 336, 336) uint8    24.4 MB
+train.csv                                      5.7 MB
+test.csv, train_series.csv, test_series.csv   small
+                                       total  35.8 GB   against a 247 GB download
+```
+
+So the design is **persist both decoded caches and the four CSVs, keyed by `cache_tag`, and
+skip the corpus entirely** — not "cache the corpus", which issue #32 closed, and not "skip
+the test path", which changes what `main()` produces. 35.8 GB is well inside what this
+Volume already handles, and the tag already names everything that decides the pixels, so a
+configuration that does not match simply misses and decodes as it does today.
 
 The ordering pass being skipped is the self-heal described above actually happening — the
 volume now holds 20,142 entries instead of the 12 it had this morning, which is 1,282 s this
