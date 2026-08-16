@@ -370,6 +370,32 @@ this file has already closed:
 - the **zoom sweep** tests 448 px and a 90 mm crop, which is the field-of-view question that
   #36 ruled out offline — no gradient in either the band or the crop, which is why step 3
   is struck through. It was queued before that measurement landed and nobody withdrew it.
+
+  **Revisited 20:55, and this reason is wrong — but the arm was broken anyway.** #36 ruled
+  out the band and the crop, which are field of view. **448 px is not field of view**; it is
+  sampling density at a fixed field, and `docs/field.md` recommends it in as many words —
+  *"Fine-tune first; raise resolution second."* Cancelling it on the crop result conflated
+  two different questions.
+
+  The arm was still not worth running, for a reason nobody wrote down. `cloud/train.py:851`
+  sets `CACHE_IMG = IMG` from the arm, so a 448 arm decodes its own cache rather than
+  upsampling — which is correct, and which is what breaks it:
+
+  ```
+  336px x 12 slices = 35.8 GB
+  448px x 12 slices = 63.7 GB   <- the sweep's cache budget is 48 GB
+  448px x  9 slices = 47.8 GB
+  ```
+
+  So `zoom-448` would have fitted 9 slices where `zoom-control` fitted 12, and **the sweep
+  would have measured resolution confounded with slice count** — with slices already known
+  to be worth +0.188 on Medial Meniscus from 3 to 12. It would have reported a plausible
+  holdout either way.
+
+  That is exactly the failure `RSNA_REQUIRE_SLICES` now stops, and it is the first concrete
+  case of it. **Resolution is still an untested lever**, and testing it honestly needs the
+  full box rather than the sweep's half: a 64 GB cache budget and about 104 GB of memory to
+  hold 12 slices at 448.
 - the **DINOv3 sweep** asks whether DINOv3 helps, and the fork's own decomposition already
   answered it from the leaderboard: five DINOv3 members, the legacy four and the pooling map
   are worth **0.001 between them**.
