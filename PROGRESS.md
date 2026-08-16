@@ -116,6 +116,45 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 02:25 — extraction is an hour, not seventeen minutes, and that changes the arm count
+
+`batch` has been extracting for 55 minutes and the container is alive, so this is not a
+hang. `unzip -q -n` is single-threaded and it is writing about 820,000 small DICOM files;
+the cost is file creation, not bytes. Every "extraction ~17 min" on this page was a guess
+read off a partial observation, and the real setup is:
+
+```
+download    36 min
+extract     ~60 min      <- was recorded as 17
+order        0 min       (cached on the Volume)
+decode      ~14 min
+            ~110 min
+```
+
+**So an arm is 6 to 20 minutes and the container costs 110.** A three-arm sweep spends 110
+minutes of setup on 30 minutes of work. That ratio is the argument for filling a container,
+and `enc2` was built too small — it is five arms now rather than three.
+
+The extra two are the second learning rate for each new encoder. Giving all three arms one
+learning rate is precisely how the first encoder comparison went wrong: it used 3e-5, which
+the adaptation table has since shown is the wrong setting **for DINOv2**. Whether it is also
+wrong for a backbone pretrained on medical images was never asked, and it is not obvious —
+an encoder that already knows what an MRI looks like may want less adaptation, or more. The
+two `small` cells are left out because both are already measured at 12 slices.
+
+It also raises the value of the corpus skip above everything else in the infrastructure
+queue. Persisting the decoded cache removes the 14-minute decode. Not fetching the corpus at
+all removes 96 minutes of the 110. That is the difference between a sweep costing two hours
+and costing five minutes, and it is now the single largest lever on the rate of work.
+
+**It is not written yet, and the reason is worth recording rather than forgetting.** The
+pipeline builds `slot_map` by walking the DICOM tree, and it does that *before* calling
+`build_cache`, so a cached array alone does not remove the need for the corpus. Skipping the
+fetch means caching `slot_map` too, and stashing `train.csv` and `test.csv` on the Volume.
+None of it can be tested until a sweep has written a cache, and `batch` predates the wiring,
+so `enc2` is the first run that can. Writing it before then would put untested code on the
+one path every sweep runs through.
+
 ### 02:00 — six adaptation runs and three encoder runs were already on disk, unscored
 
 `batch` is still extracting, so the tick went to `cloud/exports/`, which holds nine finished

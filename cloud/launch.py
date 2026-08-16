@@ -270,11 +270,23 @@ SETS["batch"] = BATCH
 # `enc2-small` is `ctl` again, deliberately. It is one arm to confirm that a result from
 # this container can be set beside a result from `batch`'s, which is a check this page has
 # already needed once.
+# Each new encoder gets both learning rates, because testing one is how the first
+# comparison went wrong. It gave all three arms 3e-5, and the adaptation table since showed
+# 3e-5 is the wrong setting *for DINOv2*. Whether it is also wrong for an encoder pretrained
+# on medical images is exactly what was never asked - a backbone that already knows what an
+# MRI looks like may want less adaptation, or more.
+#
+# The two `small` cells are omitted because both are already measured at 12 slices:
+# 8e-6 -> 0.8317 and 3e-5 -> 0.8239. `enc2-small` repeats only the first, as the control.
 ENC2 = [{"name": "enc2-small", "lr_backbone": 8e-6, "unfreeze_last": 6,
          "group": 3, "n_group": 4},
         {"name": "enc2-biomedclip", "variant": "biomedclip", "lr_backbone": 8e-6,
          "unfreeze_last": 6, "group": 3, "n_group": 4},
+        {"name": "enc2-biomedclip-3e5", "variant": "biomedclip", "lr_backbone": 3e-5,
+         "unfreeze_last": 6, "group": 3, "n_group": 4},
         {"name": "enc2-raddino", "variant": "raddino", "lr_backbone": 8e-6,
+         "unfreeze_last": 6, "group": 3, "n_group": 4},
+        {"name": "enc2-raddino-3e5", "variant": "raddino", "lr_backbone": 3e-5,
          "unfreeze_last": 6, "group": 3, "n_group": 4}]
 SETS["enc2"] = ENC2
 
