@@ -1162,6 +1162,33 @@ will not run at all. Verified both ways on this laptop, whose 19.4 GB affords on
 so triggers it for real rather than through a mock: guard off, all six `test_xslice.py`
 checks pass and the planner reduces as before; guard on, it raises.
 
+**And the reason for refusing to relax memory was wrong all along.** `launch.py` carried
+*"below 64 GiB the planner gives slices away silently rather than failing"*, which is what I
+repeated for six ticks while the run sat queued. The first sweep's own log says otherwise:
+
+```
+memory: 742.0 GB available, 48.0 GB to the cache ... -> 4 group(s) of 3 = 12 slices
+```
+
+`plan_cache` reads the **host's** free memory — 742 GB, whatever the container asked for —
+and then caps it with `cache_budget_gb`, which `launch.py` passes as 48. So the slice count
+is set by that argument and **the memory request never touched it**:
+
+```
+budget = min(0.62 * 742, 48) = 48 GiB      cache at 12 slices = 33.4 GiB
+memory=48 GiB  ->  headroom 14.6 GiB
+memory=64 GiB  ->  headroom 30.6 GiB
+```
+
+What the request actually controls is whether the container is OOM-killed holding that
+33.4 GiB. **48 GiB is safe and schedules more easily than 64**; below about 40 GiB the cache
+no longer fits and the kill is immediate rather than silent. The comment is corrected in
+`cloud/launch.py` so the next person is not stopped by it.
+
+Not acting on it tonight: cancelling to relaunch trades a 23-minute queue position for a
+speculative scheduling gain, and 64 GiB was already chosen as the size that schedules. It is
+now a known-safe lever rather than a forbidden one.
+
 **Not deployed.** The queued call runs the code deployed at 20:08, and `modal deploy` while
 a call is queued is a risk taken for no gain — the queued call would not pick it up. This
 goes out with the next launch, and with it the memory request becomes safe to relax, because

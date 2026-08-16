@@ -246,8 +246,21 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
     # a GPU_L40S worker ... relaxing requirements (memory=128.8GiB) may lead to faster
     # scheduling" after a 137-minute download it then had to repeat. A sweep arm caches
     # six slices where a full run caches twelve, so 64 GiB is the same cache per slice and
-    # a box that actually schedules. A `full` run keeps the large box - below 64 GiB the
-    # planner gives slices away silently rather than failing.
+    # a box that actually schedules. A `full` run keeps the large box.
+    #
+    # The line that used to sit here - "below 64 GiB the planner gives slices away silently
+    # rather than failing" - was wrong, and it is why nobody relaxed this while a run sat
+    # queued for 23 minutes on 15 Aug. `plan_cache` reads the *host's* free memory, which a
+    # sweep log reports as 742 GB whatever this asks for, and then caps it with
+    # `cache_budget_gb`. So the slice count is set by that argument, not by this request:
+    #
+    #   budget = min(0.62 * 742 GB, 48 GB) = 48 GB      cache at 12 slices = 33.4 GiB
+    #
+    # What this request actually controls is whether the container gets OOM-killed holding
+    # that 33.4 GiB. 64 GiB leaves 30 GiB of headroom and 48 GiB leaves 14.6, so 48 is safe
+    # and schedules more easily; below about 40 GiB the cache no longer fits and the kill is
+    # immediate rather than silent. Slices are protected by RSNA_REQUIRE_SLICES now, which
+    # is a separate guarantee from this number.
     if what in SETS and not what.startswith("full") and what not in BIG_BOX:
         fn = fn.with_options(cpu=4.0, memory=65536)
     if what in SETS:
