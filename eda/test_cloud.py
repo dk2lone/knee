@@ -15,6 +15,7 @@ import ast
 import json
 import os
 import pathlib
+import re
 import sys
 import types
 from pathlib import Path
@@ -342,6 +343,38 @@ def test_a_foreign_checkpoint_brings_its_own_normalisation():
     assert 0 < i < j, "build_biomedclip no longer ends in a Model"
     assert "set_norm(" in body[i:j], \
         "build_biomedclip builds a Model without adopting the checkpoint's statistics"
+
+
+def test_mri_core_block_chunks_keep_their_global_index():
+    """Dropping the chunk index is the whole remap, and it is off-by-three if reversed.
+
+    MRI CORE stores DINOv2 block chunks: `blocks.1.3` is chunk 1 holding global block 3,
+    not chunk 1's own block 3. Reading the inner index as chunk-local renumbers nine of
+    twelve blocks, and every tensor still loads - the encoder is simply wired in the wrong
+    order, which no shape check catches. Run against the regex in the generated file
+    rather than a copy of it, so editing one without the other fails here.
+    """
+    body = GEN.read_text()
+    node = next(n for n in ast.parse(body).body
+                if isinstance(n, ast.FunctionDef) and n.name == "build_mricore")
+    src = "\n".join(body.splitlines()[node.lineno - 1:node.end_lineno])
+    line = next(l for l in src.splitlines() if "re.sub" in l)
+    pat, rep = re.findall(r'r"([^"]*)"', line)[:2]
+
+    # The layout the checkpoint actually has: chunk c holds global blocks 3c to 3c+2.
+    for c in range(4):
+        for i in range(3 * c, 3 * c + 3):
+            got = re.sub(pat, rep, f"blocks.{c}.{i}.attn.qkv.weight")
+            assert got == f"blocks.{i}.attn.qkv.weight", \
+                f"blocks.{c}.{i} remapped to {got}, losing its global position"
+
+    # Everything outside the block stack is passed through untouched.
+    for k in ("cls_token", "pos_embed", "patch_embed.proj.weight", "norm.weight"):
+        assert re.sub(pat, rep, k) == k, f"{k} was rewritten and should not be"
+
+    assert 'variant == "mricore"' in body, "build_model cannot reach build_mricore"
+    assert "img_size != 224" in src, \
+        "the 224 px guard is gone, so pos_embed would load against the wrong grid"
 
 
 def test_an_absent_encoder_variant_stops_the_run():

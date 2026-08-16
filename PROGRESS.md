@@ -160,16 +160,33 @@ both bigger than small and trained on MRI.
 CC-BY-NC-SA and the legacy bundle's licence field reads `unknown`. A licence-clean encoder is
 worth something to that build on its own.
 
-It is still not a drop-in. It ships as a bare `.pth` with a `backbone.` prefix and chunked
-blocks, so `find_dinov2` cannot see it and `AutoModel.from_pretrained` cannot read it; it needs
-its own branch beside `build_biomedclip`. Its normalisation is not published in the file, which
-is exactly what `set_norm` at f89ad34 exists to handle — and exactly what would otherwise cost
-the run silently.
+**The loader is built and verified against the real weights.** `find_mricore` and
+`build_mricore` sit beside `build_biomedclip`, and `build_model` dispatches on
+`variant == "mricore"`. Loading into `timm.create_model("vit_base_patch16_224")` gives **zero
+missing tensors** and one unexpected — `mask_token`, the iBOT masking token, which is not part
+of the encoder. `forward_features` returns `(1, 197, 768)` on 85.8M parameters.
 
-**Order: `train-base` still goes first.** It is two subs, already built, tests passing, and it
-isolates backbone size against a pretraining we have a baseline for. MRI CORE changes size and
-pretraining together and needs a loader that can fail quietly. Building that loader is the next
-piece of work, not the next run.
+The one piece of real logic is the block remap, and it is the kind that fails silently. The
+checkpoint stores DINOv2 block chunks as `blocks.<chunk>.<i>`, where **the inner index is
+already global**: chunk 1 holds blocks 3 to 5, not 0 to 2. Read it as chunk-local and nine of
+twelve blocks are renumbered, every tensor still loads, and the encoder is simply wired in the
+wrong order with no shape check to catch it. `test_mri_core_block_chunks_keep_their_global_index`
+pins the mapping against the regex in the generated file, so editing one without the other
+fails. Eighteen tests pass.
+
+Two guards went in with it. `img_size != 224` raises rather than loading 197 position
+embeddings against a different grid. And the log says outright that MRI CORE publishes no
+statistics, so `set_norm` has nothing to adopt and the ImageNet defaults stand — that is the
+inference its DINOv2 lineage supports, not a published contract, and it is the same class of
+mistake that cost BioMedCLIP a 1.17x error on std.
+
+`kaggle/train-mricore` is built, mounting `girishbose/mri-core-vitb-rsna-knee` as a dataset
+since MRI CORE is not in Kaggle's model catalogue. Slices stay at six for the reason 14:20
+gives; at 197 tokens it is cheaper than base, so if base fits, this does.
+
+**Order: `train-base` still goes first.** It isolates backbone size against a pretraining we
+have a baseline for. MRI CORE moves size and pretraining together, and its normalisation is an
+inference — so it is the second run, read against the first.
 
 **`ranjithragavan07/rsna-knee-dinov2-0-93` is not what its title suggests.** It mounts
 `metaresearch/dinov2/PyTorch/small/1` and eight public packages — another fork of the same

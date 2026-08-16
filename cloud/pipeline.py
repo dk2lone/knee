@@ -1936,6 +1936,92 @@ class Model(nn.Module):
         feat = torch.cat(parts, dim=1).reshape(B, S, -1)
         return self.head(feat, mask, sex_idx)
 
+def find_mricore(name="MRI_CORE_vitb"):
+    """The mounted MRI CORE checkpoint, or None if it is not attached."""
+    base = Path("/kaggle/input")
+    if not base.is_dir():
+        return None
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
+        for f in files:
+            if name in f and f.endswith((".pth", ".pt")):
+                return Path(root) / f
+    return None
+
+
+def build_mricore(unfreeze_last, img_size, pool="cls_mean", prior=False, sex=False):
+    """MRI CORE ViT-B/16 behind the four names the rest of this file reads.
+
+    The checkpoint stores DINOv2 block chunks, so `blocks.<chunk>.<i>` has to lose its
+    chunk index before timm will take it. The inner index is already global - chunk 1
+    holds blocks 3 to 5, not 0 to 2 - so dropping the chunk is the whole remap.
+    """
+    import timm
+    p = find_mricore()
+    if p is None:
+        raise WeightsError("MRI CORE weights not attached")
+    if img_size != 224:
+        # pos_embed is 197 positions and this loader does not resample it. Failing here
+        # beats loading 196 patch embeddings against a different grid and training on it.
+        raise WeightsError(
+            f"MRI CORE is native 224 px and this run is {img_size}; resample pos_embed "
+            f"first or hold the geometry at 224")
+
+    raw = torch.load(p, map_location="cpu", weights_only=False)
+    sd = raw.get("teacher", raw.get("student", raw))
+    out = {}
+    for k, v in sd.items():
+        if not k.startswith("backbone."):
+            continue
+        out[re.sub(r"^blocks\.\d+\.(\d+)\.", r"blocks.\1.", k[len("backbone."):])] = v
+    if not out:
+        raise WeightsError(f"{p.name} holds no `backbone.` tensors")
+
+    vit = timm.create_model("vit_base_patch16_224", pretrained=False, num_classes=0)
+    missing, unexpected = vit.load_state_dict(out, strict=False)
+    hard = [k for k in missing if not k.startswith("head")]
+    if hard:
+        raise WeightsError(f"MRI CORE is missing {len(hard)} tensors: {hard[:4]}")
+
+    # The checkpoint publishes no statistics, so `set_norm` has nothing to adopt and the
+    # ImageNet defaults stand. That is the inference MRI CORE's own lineage supports - it
+    # is built on the DINOv2 codebase, which normalises with ImageNet mean and std - but
+    # it is an inference, not a published contract, and it is the same class of mistake
+    # that cost BioMedCLIP a 1.17x scale error on std. Logged so a run that goes wrong
+    # here says so in its first ten lines.
+    log(f"MRI CORE weights from {p.name}; {len(unexpected)} tensor(s) unused "
+        f"({', '.join(sorted(unexpected)[:3]) or 'none'})")
+    log("normalisation: MRI CORE publishes none; ImageNet mean and std stand")
+
+    for prm in vit.parameters():
+        prm.requires_grad = False
+    for blk in vit.blocks[max(0, len(vit.blocks) - unfreeze_last):]:
+        for prm in blk.parameters():
+            prm.requires_grad = True
+    for prm in vit.norm.parameters():
+        prm.requires_grad = True
+
+    class _MRC(nn.Module):
+        def __init__(self, trunk):
+            super().__init__()
+            self.trunk = trunk
+            self.encoder = types.SimpleNamespace(layer=trunk.blocks)
+            self.layernorm = trunk.norm
+            self.config = types.SimpleNamespace(hidden_size=trunk.embed_dim)
+
+        def forward(self, pixel_values=None, **_):
+            return types.SimpleNamespace(
+                last_hidden_state=self.trunk.forward_features(pixel_values))
+
+    bb = _MRC(vit)
+    dim = vit.embed_dim
+    trainable = sum(q.numel() for q in vit.parameters() if q.requires_grad)
+    log(f"backbone: MRI CORE ViT-B/16 at {img_size}px, {len(vit.blocks)} blocks, last "
+        f"{unfreeze_last} trainable ({trainable / 1e6:.1f}M params), feature dim "
+        f"{dim * POOL_PARTS[pool]}")
+    return Model(bb, dim, pool=pool, prior=prior, sex=sex)
+
+
 def find_dinov3(name="vit_small_patch16_dinov3"):
     """The mounted DINOv3 checkpoint, or None to let timm fetch it.
 
@@ -2123,6 +2209,8 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",
         return build_biomedclip(unfreeze_last, IMG, pool=pool, prior=prior, sex=sex)
     if variant == "dinov3":
         return build_dinov3(unfreeze_last, IMG, pool=pool, prior=prior, sex=sex)
+    if variant == "mricore":
+        return build_mricore(unfreeze_last, IMG, pool=pool, prior=prior, sex=sex)
     from transformers import AutoModel
     p = source if source is not None else find_dinov2(variant)
     if p is None:
