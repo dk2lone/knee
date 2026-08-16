@@ -1766,6 +1766,33 @@ guessing. What follows depends on which axis moved:
 4. **The head change**, if the cross-slice sweep earns it.
 5. **Sixteen slices instead of twelve** — the one contract difference nobody here has tested.
 
+### The rules that pick tomorrow's five, written 21:23 before any of tonight's scores land
+
+Submitting is a CLI call now, so the loop can spend the queue itself at the 20:00 reset with
+nobody present. That makes it worth fixing the *rules* before the results arrive, so the
+queue follows from them rather than being fitted to them — the same reason predictions go on
+this page before the slot is spent.
+
+Slot 1 is unconditional. Slots 2 to 5 are decided by tonight's five and the two sweeps:
+
+| condition | what takes the slot |
+|---|---|
+| always | `knee-blend-clean` — the October licence obligation, unaffected by any result |
+| `blend-logit` > v4 **and** `frontier-logit` > alpha v2 | member-logit on both bases is confirmed; stack it with whichever TTA result won |
+| `blend-ttalogit` moves more than 0.002 either way | the premise that TTA disagreement is noise is wrong — put TTA-logit on the fork, where 25 members disagree more |
+| both logit pairs land inside 0.001 | pooling is exhausted; the slot goes to five-against-twenty members at the fold spread |
+| `xs-cheap` > `grp-3-again` by more than the run-to-run spread | the head change earns a five-fold run, and the *next* night's queue carries its members |
+| `res-448` > `res-336` | resolution beats the head; 448 is a contract change and goes to a five-fold run first |
+| both sweeps land inside the spread | neither is real, and sixteen slices is the last untested contract difference |
+
+Two of those conditions need a number that does not exist yet: **the run-to-run spread**.
+That is what `grp-3-again` is for, and until it lands, "better" on any sweep means better by
+more than an unmeasured quantity. No slot gets spent on a sweep result that is inside it.
+
+If the scores are still `PENDING` at the reset, slot 1 goes anyway and the rest wait — a
+correct submission late is worth more than a guessed one on time, and the count resets
+daily whether or not it was used.
+
 ### Sixteen slices: the frontier's members hold a contract ours does not
 
 Worth writing down because it is the only *model-side* lever left that costs a flag rather
