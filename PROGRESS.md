@@ -120,6 +120,41 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:40 — probe-ours needs its own joiner, and the joiner is checked before the GPU is
+
+Two things would have gone wrong with `kaggle/probe-ours` as it stood.
+
+**`probe_gold.py` cannot be reused.** It reads `data/weights/pilkwang_manifest.json` by name,
+and its middle section exists to *recover* a fold map that package never published — it tries a
+report hash and `folds.csv` and keeps whichever reproduces the manifest's own `annot` per fold.
+
+**And our manifest could not answer that check anyway.** `build_fullband_manifest.py` wrote
+`annot: None` on all four members and `run: None`, because the run died in fold 4 before
+`main()` measured one. A check against a field that is absent passes by accident, which is
+worse than no check.
+
+Neither matters, because we do not need the recovery. Our fold map is `folds.csv`
+`fold_grouped` — the map training itself uses — so the join is direct: member k trained on
+every fold but k, so a study in fold k is read honestly by member k and by nobody else.
+
+`eda/probe_ours.py` does that join and nothing else. `probe.py` needs no change; it only reads
+`m["fold"]`.
+
+**The join is checked against a number measured another way, before any GPU is spent.**
+`sl12-adapt-8e6` trained fold 0 alone and scores 0.7730 over the 19 gold studies fold 0 holds —
+that is the 15:25 figure, obtained by intersecting its OOF with the gold truth directly, with
+no fold join in it. Shaping the same table like `probe.csv`, and adding a second member on a
+fold that did not hold those studies out, must reproduce it exactly. The decoys carry a
+constant 0.5, so one surviving row collapses the macro rather than nudging it:
+
+```
+.venv/bin/python eda/probe_ours.py --check
+ok  19 studies, macro 0.7730
+```
+
+Nine gold studies live in fold 4 and `full-band` has no fold-4 member, so they have no honest
+reader and the joiner drops them and says how many. That is the 49 of 58.
+
 ### 15:35 — the +0.002 was limited by nineteen studies, and forty-nine are reachable
 
 15:25 measured our members adding +0.0022 to the public blend at a tenth of the vote, with the
