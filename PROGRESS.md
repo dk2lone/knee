@@ -2677,6 +2677,32 @@ the field of view out.
 
 ## Two decisions that come later, recorded now
 
+### The five submissions are also a runtime experiment, and nothing was designed for it
+
+The efficiency case rests on one extrapolated number — 0.067 s per study-window, measured
+from a **three-study** dry run where the GPU batch is nearly empty. Everything downstream of
+it (the 5x ratio, the "cheap 0.915 beats a heavy 0.938" table) inherits that assumption.
+
+Tonight's queue happens to test it directly, and it was not put together for that. A code
+competition re-runs the kernel against the hidden test set, so a submission's time from
+`PENDING` to `COMPLETE` **is** its scored runtime. The queue contains both shapes, submitted
+32 seconds apart against the same test set on the same day:
+
+```
+55540172  knee-blend-nolegacy v4     5 members    01:19:09 UTC
+55540180  knee-frontier-alpha  v2   25 members    01:19:39 UTC
+```
+
+If the extrapolation holds, alpha v2 takes about **five times** as long as v4 on the member
+stage. Confounds worth naming before the numbers arrive: the two kernels do not share a
+decode (alpha v2 also runs the legacy bundle and a second RadImageNet family), the queue may
+serialise rather than run them in parallel, and fixed cost is common to both — so the ratio
+will read **below** 5x even if the per-member rate is exactly right. A ratio near 1 would
+mean the member stage is not what dominates, and the efficiency argument would need
+rebuilding from whatever is.
+
+Recorded before the timings land so the reading cannot be fitted to them.
+
 **The efficiency track may be within reach as a by-product.** Third place there pays the
 same as tenth on the main board, and the host's own standings show the accuracy floor for
 a top-3 efficiency rank is about 0.915. This blend is 5 members at 10 windows plus a
