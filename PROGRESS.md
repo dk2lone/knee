@@ -816,6 +816,7 @@ difference is whether the head sees one sampled window per step or all four.
 | 5 | 0.7937 | 0.8186 | **+0.0249** | 144.1 |
 | 6 | 0.8030 | 0.8268 | **+0.0238** | 143.5 |
 | 7 | 0.8073 | 0.8306 | **+0.0233** | 143.9 |
+| 8 | **0.8071** | **0.8311** | **+0.0240** | 143.4 |
 | 5 | 0.7937 | | | |
 | 6 | 0.8030 | | | |
 | 7 | 0.8073 | | | |
@@ -900,6 +901,57 @@ than against the teacher, and it is the one that tracks the leaderboard.
 One epoch remains and it will not change this: 0.0038 of climb would have to become 0.007
 of climb while the curve is flattening. Write the conclusion now so the last epoch cannot
 be read into.
+
+### Final, 20:04 — the head works and the bundle does not
+
+```
+                 holdout             annot(n=19)       s/epoch
+xs-flat          0.8071              0.7133            45
+grp-3            0.8298              0.7733            40
+xs-cross         0.8311   +0.0013    0.7692   -0.0041  144
+```
+
+The last epoch added 0.0005, exactly as the paragraph above predicted.
+
+**Two separate conclusions, and mixing them is the error to avoid.**
+
+1. **The cross-slice head works.** Against its own control it won at every one of eight
+   epochs, finishing +0.0240 holdout and +0.0559 annotated. That is not a tie and not noise.
+2. **The arm that carries it is not worth shipping.** Against the best configuration this
+   project has measured it is +0.0013 on the holdout, *behind* on the annotated subset, and
+   3.6x the cost. The annotated subset is the one scored against real labels rather than the
+   teacher, and it is the one that tracks the board.
+
+The two are compatible because `xs-cross` changes **two** things against `grp-3`: the head
+and the pool. The pool was measured alone tonight and it is worth **−0.023**. So the most
+likely reading is a head worth roughly +0.025 dragged back to zero by a pool worth −0.023,
+which would mean the head is the best single change measured here and it has never been run
+without a handicap.
+
+**So the change is neither ported nor deleted.** The recorded rule was "port if `xs-cross`
+wins, delete if it loses", and the result is neither — it is a confounded win. Porting a
+bundle that ties the cheap baseline would be shipping the handicap along with the fix.
+
+### `xslice2`, the arm that separates them
+
+Two arms, added to `cloud/launch.py`:
+
+| arm | pool | head | what it settles |
+|---|---|---|---|
+| `xs-cheap` | `cls_mean_xs` | cross | the head with no focal-pool handicap |
+| `grp-3-again` | `cls_mean` | flat | run-to-run variance, in the same container |
+
+`cls_mean_xs` needed one entry in `POOL_PARTS` and nothing else — `self.xslice` is already
+`pool.endswith("_xs")` and the focal branch is already `startswith("cls_mean_focal")`, so
+the cheap pool with the cross head was reachable without touching either. The six checks in
+`eda/test_xslice.py` still pass.
+
+**The control is a re-run, not the recorded number.** The whole reading above turns on a
+0.0013 difference against a `grp-3` measured in a different container on a different day,
+and nobody here has ever measured run-to-run variance on this rig. If `grp-3-again` comes
+back 0.02 from `grp-3`, then tonight's comparison — and the grouping sweep's 0.019 — were
+both noise, and that is worth knowing more than either result is. It costs one six-minute
+arm on a run whose corpus download is two hours.
 
 What would settle it is the plateau, not the lead. `xs-flat` was flat from epoch 7 to 8
 (0.8073, 0.8071), so it has finished. If `xs-cross` is still climbing at epoch 8 the eight-

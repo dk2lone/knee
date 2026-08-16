@@ -186,6 +186,22 @@ XSLICE = [{"name": "xs-flat", "lr_backbone": 8e-6, "unfreeze_last": 6,
            "pool": "cls_mean_focal_xs", "n_group": 4}]
 SETS["xslice"] = XSLICE
 
+# xs-cross finished 0.8311 holdout against grp-3's 0.8298 and *behind* it on the annotated
+# subset, at 3.6x the compute - so the bundle of cross-slice head plus focal pool is not
+# worth having. Both halves have to be priced separately to know whether either is. This
+# runs the cross head on the cheap pool, against grp-3's exact config as the control, so
+# the only difference from the best arm measured is the head.
+# The control is a re-run of grp-3 rather than its recorded number. grp-3 was measured in a
+# different container on a different day, and the whole reading of xs-cross turns on a
+# 0.0013 holdout difference against it - which is smaller than the run-to-run variance
+# nobody here has measured. Same container, same corpus, same ordering: the difference is
+# then the arms. It costs one 6-minute arm on a run whose corpus download is two hours.
+XSLICE2 = [{"name": "xs-cheap", "lr_backbone": 8e-6, "unfreeze_last": 6,
+            "pool": "cls_mean_xs", "n_group": 4},
+           {"name": "grp-3-again", "lr_backbone": 8e-6, "unfreeze_last": 6,
+            "group": 3, "n_group": 4}]
+SETS["xslice2"] = XSLICE2
+
 
 def status(call_id):
     """Alive, queued, or finished - without a connection that could cancel it."""

@@ -871,7 +871,12 @@ N_SLOT = len(SLOTS)
 # How many 384-wide parts the per-slot feature is built from. The encoder emits one
 # vector per token; a slot feature is a fixed summary of that grid, and the summary an
 # imported member was fitted with carries a third part.
-POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3, "cls_mean_focal_xs": 3}
+POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3, "cls_mean_focal_xs": 3,
+              # The cross-slice head on the cheap pool. `xs-cross` bundled the head with
+              # the focal pool and finished level with `grp-3`, which uses neither, so the
+              # bundle cannot say which half did the work - and the focal pool on its own
+              # measured 0.023 worse. This is the arm that separates them.
+              "cls_mean_xs": 2}
 # What the training loop builds. A module global rather than a build_model argument
 # because a sweep arm overrides it the same way it overrides GROUP - by setting the
 # attribute before main() runs - and the default keeps every existing run identical.
