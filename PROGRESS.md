@@ -120,6 +120,40 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:15 — the guard against a short cache was armed on the platform that cannot trip it
+
+15:05 said a 336 px Kaggle run is one gigabyte from three slices. There is already a guard
+for exactly that, and it is switched on in the wrong place.
+
+```
+cloud/train.py:1021   os.environ["RSNA_REQUIRE_SLICES"] = "1"
+cloud/pipeline.py     if groups < N_GROUP_MAX and os.environ.get("RSNA_REQUIRE_SLICES"):
+```
+
+`cloud/train.py` is the **Modal** driver, and a Modal container is given the memory it asks
+for, so `groups < N_GROUP_MAX` there is close to impossible. **Kaggle discovers its memory and
+passes no environment in** — that is the stated reason `train-bmc` is a separate kernel rather
+than a flag on train-v2 — so the guard can never be armed on the only platform where it can
+fire. Armed where it cannot trip, disarmed where it can.
+
+The comment beside it reads: *"On Kaggle the reduction is legitimate and must stay allowed."*
+That was written when Kaggle ran inference only, and it splits the moment Kaggle trains. A
+blend has to score whatever session it is given, and raising there would cost a submission that
+works. A training run has one product, a number to compare, and a silent halving destroys it
+exactly as it would a Modal sweep arm.
+
+`require_slices` now subs the condition to a bare `if groups < N_GROUP_MAX:` for the four
+training kernels — `train-base`, `train-bmc`, `train-head`, `train-mricore` — and nothing else.
+Every blend keeps the opt-in form. `train-v2` keeps it too, because it is the notebook every
+blend is subbed from and arming it there would reach all of them.
+
+`test_only_the_training_kernels_refuse_a_short_cache` pins the split in both directions: a
+training kernel that stops refusing fails, and a blend that starts raising fails. Kernels older
+than the guard carry neither form and are left alone. Nineteen tests pass.
+
+This does not help `knee-train-bmc`, which was pushed before the change and is running now. Its
+memory line is still the thing to read first when it completes.
+
 ### 15:05 — 336 px is one gigabyte from silently training on three slices
 
 `plan_cache` run forward for the train-base geometry, to predict the log line before the run

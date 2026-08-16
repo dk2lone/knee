@@ -99,6 +99,22 @@ class Notebook:
         Path(path).write_text(json.dumps(self.nb))
 
 
+def require_slices(n):
+    """Arm the slice guard, which Kaggle cannot arm through the environment.
+
+    `cloud/train.py` sets `RSNA_REQUIRE_SLICES` and Modal declares its container memory,
+    so the guard is armed on the platform that can hardly trip it. Kaggle discovers its
+    memory and passes no environment in, so the guard is unreachable exactly where six
+    slices at 336 px needs 26.9 GB of a 29.8 GB session still free. Dropping to three is
+    then one gigabyte away, silent, and worth nothing.
+
+    Applied to the training kernels only. A blend must score whatever session it gets.
+    """
+    n.sub('    if groups < N_GROUP_MAX and os.environ.get("RSNA_REQUIRE_SLICES"):',
+          '    if groups < N_GROUP_MAX:')
+    return n
+
+
 def meta(path, kid, title, code_file, datasets, kernels, models=None):
     Path(path).write_text(json.dumps({
         "id": f"dk2lone/{kid}", "title": title, "code_file": code_file,
@@ -819,6 +835,12 @@ log(f"slice order: {ORDER_SEED or 'none mounted, this run writes one'}")''')
     # and reports a holdout that cannot be compared with anything. That is worse than a
     # crash for a sweep, whose entire product is a comparison. On Kaggle the reduction is
     # legitimate and must stay allowed, so this is opt-in and `cloud/train.py` sets it.
+    #
+    # That reasoning was written when Kaggle only ran inference. It splits once Kaggle
+    # trains: a blend has to score whatever session it is given, so the reduction stays
+    # legitimate there, but a training run whose only product is a comparable number is
+    # ruined by it exactly as a Modal sweep arm is. `require_slices` arms the guard for
+    # the training kernels, which is the half Kaggle cannot reach through the environment.
     n.sub('''        + (f" (wanted {N_GROUP_MAX})" if groups < N_GROUP_MAX else ""))''',
           '''        + (f" (wanted {N_GROUP_MAX})" if groups < N_GROUP_MAX else ""))
     if groups < N_GROUP_MAX and os.environ.get("RSNA_REQUIRE_SLICES"):
@@ -1047,6 +1069,7 @@ def build_train_head():
     n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
     n.sub("SLOT_DROP = 0.0", "SLOT_DROP = 0.15")
     n.sub("STUDY_LAYERS = 0", "STUDY_LAYERS = 2")
+    require_slices(n)
     n.write("kaggle/train-head/knee-train-head.ipynb")
     meta("kaggle/train-head/kernel-metadata.json", "knee-train-head", "knee train head",
          "knee-train-head.ipynb",
@@ -1105,6 +1128,7 @@ def build_train_base():
           'VARIANT = os.environ.get("RSNA_VARIANT", "base")')
     n.sub("CACHE_IMG = 336", "CACHE_IMG = 224")
     Path("kaggle/train-base").mkdir(parents=True, exist_ok=True)
+    require_slices(n)
     n.write("kaggle/train-base/knee-train-base.ipynb")
     meta("kaggle/train-base/kernel-metadata.json", "knee-train-base", "knee train base",
          "knee-train-base.ipynb", ["dk2lone/knee-report-labels-dk"], [])
@@ -1129,6 +1153,7 @@ def build_train_mricore():
           'VARIANT = os.environ.get("RSNA_VARIANT", "mricore")')
     n.sub("CACHE_IMG = 336", "CACHE_IMG = 224")
     Path("kaggle/train-mricore").mkdir(parents=True, exist_ok=True)
+    require_slices(n)
     n.write("kaggle/train-mricore/knee-train-mricore.ipynb")
     meta("kaggle/train-mricore/kernel-metadata.json", "knee-train-mricore",
          "knee train mricore", "knee-train-mricore.ipynb",
@@ -1147,6 +1172,7 @@ def build_train_bmc():
     n = Notebook("kaggle/train-v2/knee-train-v2.ipynb")
     n.sub('VARIANT = os.environ.get("RSNA_VARIANT", "small")',
           'VARIANT = os.environ.get("RSNA_VARIANT", "biomedclip")')
+    require_slices(n)
     n.write("kaggle/train-bmc/knee-train-bmc.ipynb")
     meta("kaggle/train-bmc/kernel-metadata.json", "knee-train-bmc", "knee train bmc",
          "knee-train-bmc.ipynb",

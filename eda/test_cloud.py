@@ -345,6 +345,37 @@ def test_a_foreign_checkpoint_brings_its_own_normalisation():
         "build_biomedclip builds a Model without adopting the checkpoint's statistics"
 
 
+def test_only_the_training_kernels_refuse_a_short_cache():
+    """The slice guard has to be armed on Kaggle and off for a blend, and it splits here.
+
+    `cloud/train.py` sets RSNA_REQUIRE_SLICES, and Modal declares its container memory, so
+    the guard is armed where it can hardly trip. Kaggle discovers its memory and passes no
+    environment in, and six slices at 336 px needs 26.9 GB of a 29.8 GB session still free
+    - so a training run there is one gigabyte from three slices, silently. A blend is the
+    opposite case: it has to score whatever session it is given, and a raise would lose a
+    submission that works. Arming the wrong half either wastes a session or breaks 0.912.
+    """
+    armed = {"train-base", "train-bmc", "train-head", "train-mricore"}
+    # train-v1 and train-v2 are the sources every other kernel is subbed from; arming v2
+    # would reach every blend built from it.
+    seen = set()
+    for p in sorted(Path("kaggle").glob("*/*.ipynb")):
+        src = "".join("".join(c["source"])
+                      for c in json.loads(p.read_text())["cells"])
+        name = p.parent.name
+        seen.add(name)
+        bare = "if groups < N_GROUP_MAX:" in src
+        opt = 'os.environ.get("RSNA_REQUIRE_SLICES")' in src
+        if name in armed:
+            assert bare, f"{name} trains and does not refuse a short cache"
+            assert not opt, f"{name} still reads the environment Kaggle cannot set"
+        else:
+            # Kernels older than the guard carry neither form, and that is left alone.
+            assert not bare, f"{name} would raise on a session it should merely score"
+        del opt
+    assert armed <= seen, f"training kernels missing from kaggle/: {sorted(armed - seen)}"
+
+
 def test_mri_core_block_chunks_keep_their_global_index():
     """Dropping the chunk index is the whole remap, and it is off-by-three if reversed.
 
