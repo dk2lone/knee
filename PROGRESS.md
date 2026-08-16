@@ -396,6 +396,24 @@ this file has already closed:
   case of it. **Resolution is still an untested lever**, and testing it honestly needs the
   full box rather than the sweep's half: a 64 GB cache budget and about 104 GB of memory to
   hold 12 slices at 448.
+
+  **`SETS["res"]` is built and ready**, `res-336` against `res-448`, one change wide. It
+  needed a third box case in `cloud/launch.py`: `full*` means a real five-fold run and
+  carries the large box *and* five folds, while a resolution comparison wants one fold on a
+  box that fits the cache. `BIG_BOX = {"res"}` separates those, giving `res` the 128 GiB box
+  with `cache_budget_gb=72`, where 63.7 GB fits and both arms hold 12 slices. Routing
+  verified without importing modal:
+
+  ```
+  xslice2  half-box=True   cache_budget=48
+  res      half-box=False  cache_budget=72
+  full     half-box=False  cache_budget=default 96
+  ```
+
+  **It will queue longer than xslice2 did, and that is worth knowing before launching it.**
+  `cloud/train.py` already records the large box asking for `cpu=16, memory=192.8GiB` and
+  waiting; the half box has been queued 20 minutes tonight for L40S capacity, and a 128 GiB
+  request is scarcer than a 64 GiB one. This is the correct experiment, not the fast one.
 - the **DINOv3 sweep** asks whether DINOv3 helps, and the fork's own decomposition already
   answered it from the leaderboard: five DINOv3 members, the legacy four and the pooling map
   are worth **0.001 between them**.

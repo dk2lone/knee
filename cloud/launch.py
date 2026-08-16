@@ -202,6 +202,24 @@ XSLICE2 = [{"name": "xs-cheap", "lr_backbone": 8e-6, "unfreeze_last": 6,
             "group": 3, "n_group": 4}]
 SETS["xslice2"] = XSLICE2
 
+# Resolution, which #36 never tested. That issue ruled out the slice band and the crop -
+# both field of view - and `zoom-448` was cancelled alongside them. 448 px is sampling
+# density at a fixed field, which is a different question and the one docs/field.md puts
+# second after fine-tuning.
+#
+# It needs the large box and it needs saying why. At 12 slices the cache is 35.8 GB at 336
+# and 63.7 GB at 448, against the sweep's 48 GB budget - so on the half box the 448 arm
+# would silently fit 9 slices against the control's 12 and measure resolution confounded
+# with slice count. `RSNA_REQUIRE_SLICES` now stops that rather than reporting it, so this
+# set exists to give it a box where both arms actually fit.
+RES = [{"name": "res-336", "lr_backbone": 8e-6, "unfreeze_last": 6},
+       {"name": "res-448", "lr_backbone": 8e-6, "unfreeze_last": 6, "img": 448}]
+SETS["res"] = RES
+
+# Sets that need the large box but not five folds. `full*` means a real five-fold run and
+# carries both; a resolution comparison wants one fold on a box that fits the cache.
+BIG_BOX = {"res"}
+
 
 def status(call_id):
     """Alive, queued, or finished - without a connection that could cancel it."""
@@ -230,7 +248,7 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
     # six slices where a full run caches twelve, so 64 GiB is the same cache per slice and
     # a box that actually schedules. A `full` run keeps the large box - below 64 GiB the
     # planner gives slices away silently rather than failing.
-    if what in SETS and not what.startswith("full"):
+    if what in SETS and not what.startswith("full") and what not in BIG_BOX:
         fn = fn.with_options(cpu=4.0, memory=65536)
     if what in SETS:
         # Five folds for a real run, one for a sweep arm: a sweep is comparing
@@ -240,7 +258,7 @@ def main(what="sweep", variant="small", epochs=8, n_group_max=2, folds=1):
                         n_group_max=n_group_max,
                         folds=5 if what.startswith("full") else folds,
                         **({} if what.startswith("full") else
-                           {"cache_budget_gb": 48.0}))
+                           {"cache_budget_gb": 72.0 if what in BIG_BOX else 48.0}))
     else:
         call = fn.spawn(what, variant=variant, epochs=epochs)
     print(f"spawned {what} on {variant}: {call.object_id}")
