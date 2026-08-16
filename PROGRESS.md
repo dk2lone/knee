@@ -116,6 +116,39 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 14:05 — 22nd place runs a single model at 0.934, and at 224 px
+
+`discussion/735304`, posted two hours ago:
+
+> **Tucker Arrants · 22nd in this Competition — "Single model 0.934 @ 224px"**
+
+That is 0.022 above our twenty-five-member blend, from one model, at **lower** resolution
+than ours. Read beside Tim Krige at 73rd (0.92, "OOF AUC = LB AUC within noise"), Chikuwabu
+at 15th and Tom Aindow at 105th (0.915), four competitors above us now say the same thing.
+The ensemble axis is not where the score is, and 08:50 understated it — the single-model
+number is not 0.915, it is 0.934, which is four thousandths off tenth place.
+
+**And 224 px removes the constraint that 09:30 called arithmetic.** The six-slice cap is a
+property of 336 px, not of Kaggle:
+
+```
+336px: 2.780 GiB/slice · budget 18.5 GiB affords  6 slices →  6 per slot
+288px: 2.043 GiB/slice · budget 18.5 GiB affords  9 slices →  9 per slot
+224px: 1.236 GiB/slice · budget 18.5 GiB affords 14 slices → 12 per slot
+```
+
+At 224 px the cache is 14.8 GiB against an 18.5 GiB budget, so **twelve slices fit on a
+Kaggle session** — the geometry this page has only ever reached on Modal, and the one that
+scores 0.8317 against six slices at 0.8261.
+
+**But the straight swap is not obviously good on our own numbers, and it should be said.**
+`docs/field.md` prices 336 over 224 at **+0.017** on the board, while 6 to 12 slices is
++0.0037 gold, about +0.003 on the board. On those two published figures 336/6 beats 224/12
+by roughly 0.014. Tucker's 0.934 at 224 px does not overturn that measurement; what it
+establishes is that **the resolution penalty is not what separates 0.912 from 0.934**. Some
+other part of his pipeline dominates both terms. So 224 px is an enabler that unblocks the
+slice axis on the only compute we have, not a lever in itself.
+
 ### 10:15 — the top notebook's gain is in its head, and our head argues against it
 
 `blend-ours` finished clean and is the first submittable model of our own:

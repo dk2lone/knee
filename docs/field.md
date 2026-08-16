@@ -296,6 +296,49 @@ that no visible test identifier or prediction is embedded and no test-time weigh
 performed. That phrasing only earns a place in a change notice if some public notebooks were
 doing the opposite. Treat public leaderboard scores as partly probe-inflated.
 
+## The public head, priced against ours
+
+Taken from `mattiaangeli/bend-the-knee-to-dinov3-ensembled`. Two of the eight differences
+are built here as `kaggle/train-head`; this is what the other six cost.
+
+**The dividing line is the shape the head receives.** `Model.forward` encodes `GROUP = 3`
+consecutive slices as the three channels of one encoder input, pools CLS and patch-mean,
+and hands `SlotHead` a `(B, S, dim)` tensor — **one token per slot, no slice axis at all**.
+The public head receives `(B, S, K, dim)` with K slices still separate. Anything operating
+below the slot level therefore does not port.
+
+| # | Their feature | Cost here | Verdict |
+|---|---|---|---|
+| 1 | per-target MLP heads | +394k params on a ~100k head | **moderate, and against our own argument** |
+| 2 | target-group embedding, 0.25x | ~1k params | **cheap, test it** |
+| 3 | plane + sequence embeddings, 0.35x each | ~1.3k params | **cheap but likely redundant** |
+| 4 | fuse cross-attended context with the study mean | one Linear | **cheap, test it** |
+| 5 | 1-layer transformer over slices | needs a slice axis | **not portable** |
+| 6 | attention pooling over slices | needs a slice axis | **not portable** |
+
+**5 and 6 are not a port, they are a different pipeline.** Giving the head a slice axis
+means encoding each slice separately instead of stacking three as channels: three times the
+encoder passes per slot, a different cache layout, and every measurement on this page taken
+against a different input contract. That is the research project, not the afternoon.
+
+**2 is the best of the cheap four.** The twelve findings are not twelve independent
+problems — three of them are osteoarthritis compartments, two are menisci, two are
+cruciate and collateral ligaments — and this repo already encodes that structure in
+`SLOT_PRIOR_TABLE`, so the grouping needs no new knowledge, only a second use of what is
+written down.
+
+**3 is cheap and probably buys nothing here.** Our `slot_emb` already gives each of the six
+slots its own free vector, which is strictly more expressive than a plane vector plus a
+sequence vector added together. Their version adds plane and sequence *on top of* a slot
+embedding at 0.35, so it reads as a regulariser — a decomposition that shares statistics
+across slots sharing a plane — rather than as new capacity. Worth a slot in a sweep, not a
+run of its own.
+
+**1 contradicts the argument our own head is built on**, which is that with a study-level
+label there is nothing below the slot level to learn from, so extra parameters fit noise.
+Four times the head's parameters against 4,407 studies is exactly the case that argument
+warns about. If it is tested, it should be tested alone.
+
 ## Where the field is
 
 Public leaderboard, 12 Aug 2026: **0.946** at the top, five teams within 0.005 of each other.
