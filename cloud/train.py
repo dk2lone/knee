@@ -273,7 +273,7 @@ def memoize_build_cache(pipeline):
     return wrapped
 
 
-def wrap_build_cache(pipeline, cache_dir):
+def wrap_build_cache(pipeline, cache_dir, budget_gb=200.0):
     """Make the pixel cache persist, so the corpus is decoded once and never again.
 
     A Modal Volume cannot hold 570 GB of DICOM - see issue #32 - but it holds the thing
@@ -288,6 +288,11 @@ def wrap_build_cache(pipeline, cache_dir):
     count, crop, band - because a cache built under one reading and loaded under another
     is the exact failure `check_fingerprint` exists to catch, arriving through a different
     door. A cache whose name does not match is rebuilt, not reused.
+
+    `budget_gb` bounds what accumulates. Each distinct geometry keeps its own copy - 33.4
+    GiB at 336 and 12 slices, 41.7 at 15 slices, 59.3 at 448 - so a few sweeps of the kind
+    worth running would fill a Volume between them. Over the cap it declines to write and
+    says so, which costs one decode and cannot wedge the workspace.
     """
     import numpy as np
 
@@ -304,7 +309,12 @@ def wrap_build_cache(pipeline, cache_dir):
         msk = base.with_suffix(".mask.npy")
         if arr.is_file() and ids.is_file() and msk.is_file():
             t0 = time.time()
-            c = np.load(arr, mmap_mode="r")
+            # Read it into RAM, deliberately, rather than mapping it. This file lives on a
+            # network Volume and the training loop reads a random study per step, so a
+            # mapped array turns every batch into page faults over the network and makes
+            # the epoch time a property of the mount. The whole point of the cache is that
+            # it fits in memory - `plan_cache` sized it to fit - so it is loaded.
+            c = np.load(arr)
             s = list(np.load(ids, allow_pickle=True))
             m = np.load(msk)
             pipeline.log(f"cache: loaded {key} {c.shape} in {time.time() - t0:.1f}s "
@@ -312,12 +322,18 @@ def wrap_build_cache(pipeline, cache_dir):
             return s, c, m
 
         s, c, m = orig(slot_map, plane_map, lat_map, tag)
+        held = sum(p.stat().st_size for p in cache_dir.glob("*.npy"))
+        if (held + c.nbytes) / 1024 ** 3 > budget_gb:
+            pipeline.log(f"cache: not saving {key} ({c.nbytes / 1024 ** 3:.1f} GiB) - "
+                         f"{held / 1024 ** 3:.1f} GiB already held against a "
+                         f"{budget_gb:.0f} GiB cap. Delete one to persist this geometry.")
+            return s, c, m
         t0 = time.time()
         np.save(ids, np.array(s, dtype=object), allow_pickle=True)
         np.save(msk, m)
         np.save(arr, c)
         pipeline.log(f"cache: saved {key} {c.shape} "
-                     f"({c.nbytes / 1e9:.1f} GB) in {time.time() - t0:.1f}s")
+                     f"({c.nbytes / 1024 ** 3:.1f} GiB) in {time.time() - t0:.1f}s")
         return s, c, m
 
     return wrapped
@@ -801,6 +817,14 @@ def sweep(arms: list, variant: str = "small", epochs: int = 8, folds: int = 1,
 
     import pandas as pd
 
+    # Two layers, and the order is the point. `wrap_build_cache` goes on first so it is the
+    # thing that actually decodes, and the RAM memo goes on top of it: within one container
+    # a repeated geometry never reaches the disk, and across containers a geometry decoded
+    # once is never decoded again. Setup is 92 minutes - download, extract, order, decode -
+    # and this removes the last of the four for any geometry already seen. Removing the
+    # other three means not fetching the corpus at all, which is only safe once the caches
+    # are known to be on the Volume, so it waits for this sweep to put them there.
+    pipeline.build_cache = wrap_build_cache(pipeline, cache_dir)
     pipeline.build_cache = memoize_build_cache(pipeline)
     pipeline.ORDER_THREADS = order_threads
     pipeline.N_FOLDS = folds

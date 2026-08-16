@@ -207,6 +207,21 @@ def test_a_sweep_arm_gets_the_slice_count_it_asked_for():
             f"{attr} is overridable per arm but is not restored between arms"
 
 
+def test_the_disk_cache_sits_under_the_ram_memo_and_never_maps():
+    """Layer order decides whether the Volume is read once or read every batch."""
+    src = (Path(__file__).resolve().parent.parent / "cloud" / "train.py").read_text()
+    body = src.split("def sweep(", 1)[1]
+
+    assert body.index("wrap_build_cache(pipeline, cache_dir)") \
+        < body.index("memoize_build_cache(pipeline)"), \
+        "the RAM memo must wrap the disk cache, not the other way round"
+
+    # A mapped array over a network Volume makes the epoch time a property of the mount.
+    disk = src.split("def wrap_build_cache(", 1)[1].split("\ndef ", 1)[0]
+    assert "mmap_mode" not in disk, "the persisted cache is mapped rather than loaded"
+    assert "budget_gb" in disk, "nothing bounds what the Volume accumulates"
+
+
 def test_the_arm_memo_holds_one_cache_per_tag():
     """Two resolutions in one sweep must not both sit in RAM.
 
