@@ -120,6 +120,47 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 16:25 — the four members on Kaggle are sound, and the encoder barely moves
+
+16:10 found that a run reaching `TIME_BUDGET` mid-fold went on to save one-epoch members with
+holdouts beside the real ones. `full-band` is the run most exposed to that — it is described as
+having died in fold 4, its Modal log was never pulled, and
+`build_fullband_manifest.py` overwrote all four holdouts with 0.8304 copied from `enc8-small`.
+Nothing in the package could answer the question.
+
+The weights can. All four members start from the same pretrained DINOv2-small, so the relative
+drift of each one's trainable blocks measures how much it actually trained:
+
+```
+  member   frozen 0-5   trained 6-11
+ f0s2026     0.00e+00         0.0054
+ f1s2026     0.00e+00         0.0054
+ f2s2026     0.00e+00         0.0053
+ f3s2026     0.00e+00         0.0054
+```
+
+**None of them is short.** At lr 8e-6 a single epoch would leave about a twenty-second of the
+drift, near 0.0002, and these agree to three digits. Whatever ended that run, it ended it
+cleanly — the four members `blend-ours` votes tonight are properly trained.
+
+Two things fall out of the same table.
+
+**`unfreeze_last = 6` does exactly what it says.** Blocks 0 to 5 drift by *exactly* zero, not
+approximately — no optimizer state leaked into a frozen parameter.
+
+**And `facebook/dinov2-small` is byte-identical to `metaresearch/dinov2/PyTorch/small/1`**,
+since a non-zero difference would have shown up in that same column. The 14:50 checks against
+the upstream configs therefore apply to the Kaggle mounts, which was assumed there and is now
+measured.
+
+**The observation worth carrying into `train-base`:** twenty-two epochs of adaptation move the
+trainable half of the encoder by **0.54%**. `LR_BACKBONE = 8e-6` is commented as "the encoder is
+adapted, not retrained", and this is what that means numerically. Two readings, and this page
+cannot yet separate them: either the pretrained encoder dominates, in which case a better one is
+exactly the right lever — or 8e-6 is too small to exploit a bigger encoder at all, in which case
+`train-base` measures the learning rate rather than the backbone. If base lands close to
+0.8261, that is the first thing to check rather than a verdict on size.
+
 ### 16:20 — one command for what a training run actually did
 
 `eda/read_train_log.py` answers, from a kernel log, the four things that decide whether a
