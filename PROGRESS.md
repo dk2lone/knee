@@ -120,6 +120,59 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 15:50 — the pipeline probe-ours mounts was two days old, and the order for tonight
+
+**`dk2lone/knee-pipeline` was stale.** 132,342 bytes from 15 Aug against 148,563 locally, and
+`probe.py` imports the pipeline from that mount rather than carrying it inline. Every blend
+kernel is generated with the pipeline embedded in the notebook, so none of them noticed; the
+probe kernels are the only ones that read the dataset, and they had not run since.
+
+What the mounted copy was missing:
+
+```
+def set_norm             mounted 0   local 1
+def build_mricore        mounted 0   local 1
+SLOT_DROP                mounted 0   local 2
+STUDY_LAYERS             mounted 0   local 6
+provenance: unconfirmed  mounted 0   local 1
+raise FileNotFoundError  mounted 3   local 4
+```
+
+Shipped, and the dataset now reports 148,563. Nothing in flight is affected: `knee-train-bmc`
+carries its own code, and no scored submission reads this mount.
+
+## The order for tonight
+
+Reset is 20:00 EDT and there are no slots before it. `knee-train-bmc` should land near 16:49,
+seven hours into an eight-hour budget.
+
+| when | what | cost | why |
+|---|---|---|---|
+| on COMPLETE | read bmc's `memory:` and `backbone:` lines, then score its OOF | minutes, CPU | the memory line decides whether the run means anything at all |
+| then | push `kaggle/probe-ours` | ~20 min T4, no slot | 49 gold studies instead of 19, which is what a per-label rule needs |
+| then | push `kaggle/train-base` | ~8 h T4, no slot | the only lever left, and it removes the 336 px knife edge |
+| 20:00 | submit | slots | see below |
+
+Run `probe-ours` **before** `train-base`, not after. It is twenty minutes against eight hours,
+and if `train-base` takes the GPU first the probe waits until tomorrow.
+
+**The slots.** Nothing built clears 0.912, and 14:10 measured why: five slots last night bought
+a tie. So they go to questions rather than to the board.
+
+| | what it answers | expected |
+|---|---|---|
+| `knee-blend-clean` | whether the licence-clean build works, before October needs it | below 0.912 by design |
+| `knee-blend-ours` | where a model we trained lands, never once measured | ~0.86 |
+| `knee-train-bmc` | only if its holdout clearly beats 0.8261 | prior is negative, −0.0049 |
+| hold | | |
+
+`blend + OURS` is **not** on that list. 15:25 measured it out of fold at +0.0022 with the
+interval crossing zero, which is a third of the 0.006 bar and free to know.
+
+One thing this page cannot check: Kaggle's weekly GPU quota is not in the CLI. `train-base` is
+another eight hours on top of bmc's eight. It is at kaggle.com/settings if the total looks
+tight.
+
 ### 15:40 — probe-ours needs its own joiner, and the joiner is checked before the GPU is
 
 Two things would have gone wrong with `kaggle/probe-ours` as it stood.
