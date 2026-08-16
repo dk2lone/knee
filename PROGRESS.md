@@ -116,6 +116,44 @@ Which makes `knee-frontier-logit` the last open question of the night, and its o
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
 
+### 04:10 — decision: training moves to Kaggle's GPUs
+
+Daniel's call, asked and answered: **move training to Kaggle rather than raise the Modal
+spend limit or wait for the cycle to reset.** Modal is out for now on all five workspaces.
+
+What that changes, and it is not a small pivot:
+
+- **The card is weaker.** Kaggle gives a P100 or a T4 against the L40S every measurement on
+  this page was taken on. Epoch times do not carry across; the runtime signature check and
+  the 45 s/epoch figures are all L40S numbers.
+- **A session is capped**, and the cap is the same 9 hours the scored kernel runs under.
+  A five-fold run has to fit inside it or checkpoint across sessions.
+- **It competes with submissions.** The same weekly GPU quota pays for both, so an hour
+  spent training is an hour not spent scoring. That is a new constraint this page has never
+  had to reason about — Modal was free of it.
+- **The notebook already exists.** `build_train_v2()` generates
+  `kaggle/train-v2/knee-train-v2.ipynb` from the same source as `cloud/pipeline.py`, and
+  `eda/test_cloud.py` holds that the generated file matches the generator byte for byte. So
+  the training path is not new code, it is an existing artefact that has not been driven.
+
+**What carries over unchanged.** Everything measured tonight is a property of the model and
+the data, not of the platform: the adaptation table, the clean 6→12 slice number, the
+encoder comparison, the conversion `board = 0.825 x gold + 0.1841`, and the 0.006 bar. The
+two sweep bugs are fixed in `cloud/train.py`, which Kaggle does not use — but the confound
+they caused is in results this page quotes, and those corrections stand.
+
+**What is now dead weight.** `prepare`, the corpus skip, the cache persistence, the disk
+probe and the 2 TiB ephemeral disk are all Modal-side. They are committed, tested and
+correct, and they are worth nothing until Modal has budget again. None of it should be
+deleted — the moment a limit is raised, `cloud/launch.py prepare` is still the first thing
+to run, and it turns a 110-minute setup into minutes.
+
+**The open experiments do not change, only where they run.** `ctl`, `xs-cheap`, `sl-15`,
+`res-448` and the five `enc2` arms are all still the right questions. `enc2` is the one that
+matters most, on the reasoning at 02:05: BiomedCLIP beat DINOv2-small by +0.012 holdout
+while handicapped by a learning rate the adaptation table rules out, and it has never run at
+the settings that win.
+
 ### 03:55 — every Modal workspace is out of budget, and that stops all cloud training
 
 ```
@@ -771,6 +809,18 @@ A `scoreDescending` sort rank is not a score. Two notebooks can trade places on 
 being the same code, and this pair does.
 
 ## Running now
+
+**Nothing is running.** Modal is out of budget on all five workspaces and training moves to
+Kaggle — see 04:10. Best public score is **0.912**; tenth place is 0.938.
+
+The next three actions, in order:
+
+1. Drive `kaggle/train-v2/knee-train-v2.ipynb` on a Kaggle GPU session. It is generated from
+   the same source as `cloud/pipeline.py` and has never been used to train.
+2. Run the `enc2` arms there — BiomedCLIP and RAD-DINO at `lr_backbone` 8e-6 and 12 slices,
+   against `enc2-small` as the control. Largest untested lever on the board, see 02:05.
+3. Rebuild the submission queue out of what those return. Everything in the old queue is a
+   pooling or weighting variant and every one of them is under the 0.006 bar, see 01:05.
 
 | What | Where | State |
 |---|---|---|
