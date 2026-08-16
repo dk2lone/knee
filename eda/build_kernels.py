@@ -32,6 +32,11 @@ TRAINED = []
 # through cloud/export.py, and join this list once one has been pushed.
 WEIGHT_PACKAGES = ["pilkwang/rsna-knee-weights"]
 
+# The members this project trained. Retrieved from the Modal Volume on 16 Aug;
+# the run died in fold 4 and eda/build_fullband_manifest.py wrote the manifest
+# main() never reached.
+OURS = ["dk2lone/knee-members-full-band"]
+
 # Both encoders, because the blend rebuilds each member from its manifest's
 # `config.variant` before loading the weights. A base member with only the small encoder
 # attached does not fail at mount time - find_dinov2 returns the small directory, the
@@ -1090,6 +1095,16 @@ def infer_from_package(path, dev):''')
     n.write("kaggle/blend-clean/knee-blend-clean.ipynb")
     meta("kaggle/blend-clean/kernel-metadata.json", "knee-blend-clean",
          "knee blend clean", "knee-blend-clean.ipynb", WEIGHT_PACKAGES, TRAINED)
+
+    # Our four members and nothing else. Every submission this project has made ran on
+    # other people's weights, so the one number never measured is where a model we
+    # trained lands on the board. Three competitors ranked 15th, 72nd and 105th report
+    # 0.915-0.92 from a single model (discussion/735304), which is the whole strategy
+    # question - and it cannot be answered by a kernel that also votes 20 public members.
+    Path("kaggle/blend-ours").mkdir(parents=True, exist_ok=True)
+    n.write("kaggle/blend-ours/knee-blend-ours.ipynb")
+    meta("kaggle/blend-ours/kernel-metadata.json", "knee-blend-ours",
+         "knee blend ours", "knee-blend-ours.ipynb", OURS, TRAINED)
 
 
 # ---------------------------------------------------------------------- duo --- #
