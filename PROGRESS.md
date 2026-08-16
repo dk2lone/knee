@@ -2719,6 +2719,26 @@ rebuilding from whatever is.
 
 Recorded before the timings land so the reading cannot be fitted to them.
 
+**And v4's own time answers a question this page has never been able to ask: how big is the
+hidden test set?** Every efficiency number here is a function of an unknown `N`. The table
+had to be written across 500, 1000 and 2000 studies precisely because nothing on disk says
+which. But the runtime model runs both ways:
+
+```
+T = 5 members x 10 windows x N x 0.067 s + fixed        ->    N = (T - fixed) / 3.33
+```
+
+`fixed` is the mount, encoder construction and decode, which the dry run puts at roughly
+25 s plus per-study decoding. So a v4 that completes in ~20 minutes implies about 350
+studies; ~55 minutes implies about 1,000. **The number is inferrable from a submission that
+was made for an entirely different reason**, and it is the input the whole efficiency case
+is parameterised on.
+
+Read it as an order of magnitude rather than a count: `fixed` is estimated, the queue may
+add latency that is not runtime, and the 0.067 is itself the thing under test — so solving
+for `N` with it assumes what it is trying to check. What survives even so is the scale, and
+scale is what decides whether a 25-member entry fits inside the 9 h cap at all.
+
 **The efficiency track may be within reach as a by-product.** Third place there pays the
 same as tenth on the main board, and the host's own standings show the accuracy floor for
 a top-3 efficiency rank is about 0.915. This blend is 5 members at 10 windows plus a
