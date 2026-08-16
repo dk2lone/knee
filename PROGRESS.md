@@ -327,7 +327,7 @@ being the same code, and this pair does.
 | What | Where | State |
 |---|---|---|
 | **`xslice2`** — `xs-cheap` against `grp-3-again` | Modal `daniel21cn2016` | **queued 60 min** for L40S; give-up rule below |
-| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **extracting 21:49**, downloaded in 39.8 min; holdouts ~22:25 |
+| **`res`** — `res-336` against `res-448` | Modal `danielz51666` | **extracting since 21:49**; import ~22:07, holdouts ~22:38 |
 | Cross-slice sweep — `xs-flat` against `xs-cross` | Modal `daniel21cn2016` | **done**: 0.8071 against 0.8311, and see below |
 | Grouping sweep — `grp-3` against `grp-1`, both at 12 slices | Modal `daniel21cn2016` | **done**: grp-3 0.8298, grp-1 0.8106 |
 | Diversity run — 5 folds, 22 epochs, 12 slices at band (0.02, 0.98) | Modal `sunnypathca` | **died in fold 4**, 4 members, no manifest |
@@ -489,6 +489,16 @@ decode 336       5 min      train res-336   6 min at 45 s/epoch
 decode 448       9 min      train res-448  11 min at 80 s/epoch
 holdouts        ~22:21
 ```
+
+**Extraction is not free either, and the schedule above assumed it was.** It began at 21:49
+and was still running at 21:56. The earlier run looked instant only because the first glance
+at it happened to land near the end — the honest reading of that log is that extraction ran
+roughly 17 minutes there too. So `res` imports around 22:07 and its holdouts land nearer
+**22:38** than 22:21.
+
+That also raises the prize on persisting the decoded cache: the setup it would skip is
+download **plus extraction plus ordering plus decode**, which on tonight's numbers is
+40 + 17 + 21 + 14 = about **92 minutes**, not the 55 estimated earlier.
 
 **Download measured: 39.8 minutes**, against the 31 projected from the instantaneous rate at
 15%. The rate wandered between 59 and 137 MB/s over the run, so an ETA read off any single
