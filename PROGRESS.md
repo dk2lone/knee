@@ -81,6 +81,10 @@ fixed rule made it look like 0.022.
 of pooling, identical to three decimals. **The curve is doing real work**, and it means the
 open question is the 24-voter version — `knee-frontier-logit`, still scoring.
 
+> **Closed 16 Aug 14:10.** It scored **0.912**, tying `knee-frontier-alpha` v2. The
+> prediction was +0.001 and the measurement is +0.000. See the 14:10 entry: this was the
+> last of the two levers that could clear 0.912, and it did not.
+
 **And the runtime experiment is already answering.** Both five-member kernels finished inside
 54 minutes; both twenty-five-member kernels are still running. That is the direction the
 0.067 s per study-window model predicts, from a comparison nothing was designed to make.
@@ -115,6 +119,53 @@ slot returns nothing. Every pooling variant on this page is under that bar. The 
 Which makes `knee-frontier-logit` the last open question of the night, and its own prediction
 is +0.001 — under the bar. **Expect it to tie `knee-frontier-alpha` v2.** If it does, the
 logit-pooling line of work is closed by measurement rather than by argument.
+
+### 14:10 — the pooling axis is spent, and nothing built clears 0.912 tonight
+
+Last night's five slots are scored. Read together they say one thing, and it is not the
+thing any individual prediction said.
+
+| | scored | what it changed |
+|---|---:|---|
+| v4, five members, corrected weight map | 0.910 | member set + weight map |
+| `knee-blend-logit` | 0.910 | member pooling in logit space |
+| `knee-blend-ttalogit` | 0.910 | TTA-window pooling in logit space |
+| `knee-frontier-alpha` v2 | 0.912 | PF OA and Synovitis to 0.7 |
+| `knee-frontier-logit` | 0.912 | member pooling at 24 voters |
+
+Against **0.912 already held from 15 Aug 07:02**. Five slots, five variants of pooling and
+weighting, and the best of them ties a number that was a week old. Every one landed inside
+0.910-0.912.
+
+`knee-frontier-logit` is the one that matters, because 23:0x named it *the* open question:
+the voter-scaling curve measured logit pooling at 0.0000 / −0.0003 / +0.0005 / +0.0021 for
+1/2/3/4 voters and the curve is steepest at the top, so 24 voters was where the gain should
+have appeared. It did not. **The curve does not extend.**
+
+**So of the two things that could clear 0.912, one is now spent.** The model axis is the
+other, and it is the only one left.
+
+**And nothing currently built is a score attempt.** All three ready kernels were checked
+against this today, and none of them is aimed at the board:
+
+| kernel | state | what it is for | predicted |
+|---|---|---|---|
+| `knee-blend-ours` | COMPLETE | where a model *we* trained lands, never once measured | ~0.86 |
+| `knee-blend-clean` | built | licence insurance for the October final two | below 0.912 |
+| `knee-train-bmc` | RUNNING | a training run, not a submission | — |
+
+`knee-blend-ours` ran clean — 4 of 4 members, every fingerprint matching within 0.00023,
+336 px x 12 slices, nulls 0, both optional arms reporting "not attached" so the four members
+stand alone. But our members hold out 0.8304, and the conversion this page recorded at 2313
+is holdout plus about 0.023, so it projects to roughly **0.86**. It is a calibration
+measurement, not a score attempt, and it should be described as one when it is spent.
+
+**What this means for tonight.** There is no submission ready that is expected to beat 0.912,
+and inventing another pooling variant to fill a slot would be the sixth member of a family
+whose five measurements are all inside 0.002. The slots are better spent on the two numbers
+we do not have — where our own model lands, and whether the licence-clean build survives —
+while the score work moves to the model axis, which is `knee-train-bmc` now and
+`kaggle/train-head` next.
 
 ### 14:30 — the head changes aim at our three worst labels, and the slot table says why
 
