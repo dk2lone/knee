@@ -165,6 +165,17 @@ and it has been choosing a 22M-parameter one for eleven runs while an 87M one sa
 `kaggle/train-base` is built: `VARIANT=base`, `CACHE_IMG=224`. Two subs on train-v2, no new
 mounts. **Not pushed** — `knee-train-bmc` holds the GPU.
 
+**And `find_dinov2` had to be made to refuse first.** It fell back to the first mounted
+checkpoint when the requested variant was absent, which the note at `build_kernels.py:40`
+already recognised as a hazard *at inference* — the member rebuilds at the wrong width and its
+fingerprint refuses it, costing one kernel. The training path has no fingerprint to fail
+against: it would converge, write a manifest saying `base`, and report a holdout belonging to
+DINOv2-small. That is the shape of the bug 564cc2a fixed, still unguarded on the side that
+matters more. It now logs the resolved path and raises when the variant is not mounted, with
+`test_an_absent_encoder_variant_stops_the_run` exercising the real function against a stubbed
+filesystem. No existing kernel changes behaviour: a mismatched variant already died at
+`load_state_dict` on a shape error, so this only moves the failure earlier and names it.
+
 **Slices stay at six, and the cache is not why.** At 224 px the cache affords twelve. The
 encoder is the constraint: `Model.forward` reshapes to `B * S` images in one pass, so a group
 multiplies the batch, not the cache.

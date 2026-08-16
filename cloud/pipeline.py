@@ -961,8 +961,14 @@ def find_dinov2(variant="small"):
             hits.append(Path(root))
     for h in hits:
         if variant in str(h).lower():
+            log(f"encoder: {variant} from {h}")
             return h
-    return hits[0] if hits else None
+    if hits:
+        raise FileNotFoundError(
+            f"DINOv2 variant {variant!r} is not mounted; found "
+            f"{[str(h) for h in hits]}. Attach it rather than training whichever "
+            f"encoder happens to be there.")
+    return None
 
 
 LABEL_COLS = TARGETS + [t + "__conf" for t in TARGETS]

@@ -13,7 +13,10 @@ Run: .venv/bin/python eda/test_cloud.py
 """
 import ast
 import json
+import os
+import pathlib
 import sys
+import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -339,6 +342,51 @@ def test_a_foreign_checkpoint_brings_its_own_normalisation():
     assert 0 < i < j, "build_biomedclip no longer ends in a Model"
     assert "set_norm(" in body[i:j], \
         "build_biomedclip builds a Model without adopting the checkpoint's statistics"
+
+
+def test_an_absent_encoder_variant_stops_the_run():
+    """Silently substituting an encoder is only survivable at inference.
+
+    There the member is rebuilt at the wrong width and its own fingerprint refuses it. A
+    training run has nothing to compare against: it converges, writes a manifest naming
+    the variant it was asked for, and reports a holdout belonging to a different model.
+    Exercised on the real function with the filesystem stubbed, so it tests the resolution
+    rule rather than the text of it.
+    """
+    body = GEN.read_text()
+    node = next(n for n in ast.parse(body).body
+                if isinstance(n, ast.FunctionDef) and n.name == "find_dinov2")
+    src = "\n".join(body.splitlines()[node.lineno - 1:node.end_lineno])
+
+    mounts = ["/kaggle/input/dinov2/pytorch/small/1", "/kaggle/input/dinov2/pytorch/base/1"]
+
+    def make(present):
+        ns = {"Path": pathlib.Path, "os": os, "log": lambda _m: None,
+              "walk": None}
+        ns["os"] = types.SimpleNamespace(
+            walk=lambda _b: [(m, [], ["config.json"]) for m in present])
+        ns["Path"] = type("P", (), {
+            "__init__": lambda s, p: setattr(s, "p", str(p)),
+            "is_dir": lambda s: True,
+            "__str__": lambda s: s.p})
+        exec(compile(src, "find_dinov2", "exec"), ns)
+        return ns["find_dinov2"]
+
+    both = make(mounts)
+    assert "small" in str(both("small")), "the small mount no longer resolves"
+    assert "base" in str(both("base")), "the base mount no longer resolves"
+
+    # The failure this guards: base requested, only small attached.
+    small_only = make(mounts[:1])
+    try:
+        small_only("base")
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError("base resolved to the small checkpoint instead of raising")
+
+    # Nothing attached at all still returns None, which callers already handle.
+    assert make([])("small") is None, "an empty mount no longer returns None"
 
 
 if __name__ == "__main__":

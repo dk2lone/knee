@@ -253,6 +253,29 @@ def build_model(unfreeze_last, source=None, variant="small", pool="cls_mean",'''
     from transformers import AutoModel
     p = source if source is not None else find_dinov2(variant)''')
 
+    # --- refuse the wrong encoder rather than train it ----------------------- #
+    #
+    # `find_dinov2` fell back to the first mounted checkpoint when the requested variant
+    # was absent. At inference that costs one kernel: the member is rebuilt at the wrong
+    # width and its own fingerprint refuses it. A training run has no fingerprint to fail
+    # against, so it converges, writes a manifest that says `base`, and reports a holdout
+    # belonging to a different model. That is the shape of the bug 564cc2a fixed, and the
+    # training path is where it is still unguarded.
+    n.sub('''    for h in hits:
+        if variant in str(h).lower():
+            return h
+    return hits[0] if hits else None''',
+          '''    for h in hits:
+        if variant in str(h).lower():
+            log(f"encoder: {variant} from {h}")
+            return h
+    if hits:
+        raise FileNotFoundError(
+            f"DINOv2 variant {variant!r} is not mounted; found "
+            f"{[str(h) for h in hits]}. Attach it rather than training whichever "
+            f"encoder happens to be there.")
+    return None''')
+
     # --- DINOv3, which is what the public frontier's newest members are ------ #
     #
     # `mattiaangeli/knee-mri-fold-weights`, mounted by every 0.911-0.916 notebook, holds
