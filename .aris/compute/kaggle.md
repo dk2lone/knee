@@ -162,4 +162,4 @@ kaggle kernels output dk2lone/knee-convnext-head-training -p /tmp/knee-top10/hea
 The managed entrypoint `python3 /kaggle/src/script.py` verifies a seeded CPU
 matrix checksum, reconstruction of actual classifier logits from extracted
 features, finite optimizer results, and nonzero fitted parameter updates.
-Version 1 is running and has passed the seeded CPU calculation. Feature extraction is progressing; the complete reconstruction and fitted-parameter witnesses remain pending. This consumes CPU rather than free GPU hours.
+Version 1 completed. The seeded CPU calculation, reconstruction from actual pooled features, and nonzero fitted classifier update all passed. Completed artifact shape is 3 × 12 × 385 with fixed regularization 0.1. Classifier CV worsened from 0.9105 to 0.9061, so the research candidate is rejected. The independent CPU/GPU baseline parity check failed: maximum probability difference 0.00666 exceeds the declared 0.005 tolerance. No classifier artifact is released for submission. This consumed CPU rather than free GPU hours.

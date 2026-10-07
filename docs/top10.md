@@ -24,7 +24,7 @@ current target. Rank and cutoff must be refreshed after each scored improvement.
 | `dk2lone/knee-effnet-cache-contract` | Compare raw image reconstruction with the training cache | Complete; all three controls match exactly |
 | `dk2lone/knee-meniscus-bag-gold` | Evaluate a public weak-only meniscus reader | Complete; rejected |
 | `dk2lone/knee-convnext-study-fold0` | Train a 320 px ConvNeXt reader with series and slice context | Running; GPU and parameter-update checks passed |
-| `dk2lone/knee-convnext-head-training` | Update the public reader classifier using official labels and five-fold CV | CPU feature extraction running |
+| `dk2lone/knee-convnext-head-training` | Update the public reader classifier using official labels and five-fold CV | Complete; classifier CV worsened; rejected |
 | `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Running; corrected GPU and update checks passed |
 
 The dense reader keeps the same checkpoints and global 30% rank blend. Its
@@ -112,6 +112,15 @@ unchanged reader. Its final classifiers use all 58 official training labels.
 Those rows are training data for this candidate and cannot establish its final
 held-out performance. Upstream use of the same rows for development also limits
 interpretation of CV; a scored Kaggle submission is the deciding check.
+
+The completed classifier CV scores 0.9061 macro AUC against 0.9105 for
+unchanged frozen readers. The correction is rejected and receives no scored
+submission. Actual feature/logit reconstruction and nonzero fitted parameter
+checks passed. Independent CPU/GPU baseline comparison found a maximum
+probability difference of 0.00666, exceeding the declared 0.005 tolerance.
+The verifier therefore failed the inference parity gate as well. The fold
+membership and metrics are saved in
+`docs/top10-results/head_fit.json`; baseline and OOF prediction files accompany it.
 
 ## Automatic submission queue
 

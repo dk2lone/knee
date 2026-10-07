@@ -1,0 +1,119 @@
+{
+  "status": "failed",
+  "verification_scope": "same-family provisional environment verification",
+  "canonical_spec_hash": "a6df813c",
+  "source_sha256": "89d83ec1f2f00224d4afd988cba1ef2e4521576b488a1b5782d0338f6421a237",
+  "head_delta_sha256": "760e33bb16fe27b75f490b8f51fd5d17aeae04784e7b5ac44122fd9a571725ad",
+  "baseline_maxabs_difference": 0.006660339999999987,
+  "reason": "AssertionError: (0.006660339999999987, 'CPU baseline diverges from GPU baseline')",
+  "evidence_paths": [
+    "/tmp/knee-top10/head-output",
+    "/tmp/knee-top10/head-live.log"
+  ],
+  "metrics": {
+    "baseline": {
+      "macro_auc": 0.9104843682418796,
+      "per_label": {
+        "ACL": 0.9656862745098038,
+        "MCL": 0.9478458049886622,
+        "Medial Meniscus": 0.9591346153846154,
+        "Lateral Meniscus": 0.8906832298136645,
+        "Medial OA": 0.9658914728682171,
+        "Lateral OA": 0.862669245647969,
+        "PF OA": 0.8442728442728442,
+        "Effusion": 0.8782608695652174,
+        "Synovitis": 0.7574671445639188,
+        "Baker's": 0.9764492753623188,
+        "Contusion": 0.9635627530364372,
+        "Fracture": 0.9138888888888888
+      }
+    },
+    "oof": {
+      "macro_auc": 0.9061402493385846,
+      "per_label": {
+        "ACL": 0.9620098039215685,
+        "MCL": 0.9410430839002267,
+        "Medial Meniscus": 0.9543269230769231,
+        "Lateral Meniscus": 0.888198757763975,
+        "Medial OA": 0.9689922480620154,
+        "Lateral OA": 0.8529980657640232,
+        "PF OA": 0.8314028314028314,
+        "Effusion": 0.8795031055900622,
+        "Synovitis": 0.7586618876941457,
+        "Baker's": 0.9728260869565217,
+        "Contusion": 0.9581646423751687,
+        "Fracture": 0.9055555555555556
+      }
+    }
+  },
+  "independently_calculated_aucs": {
+    "baseline": {
+      "macro_auc": 0.9104843682418796,
+      "per_label": {
+        "ACL": 0.9656862745098038,
+        "MCL": 0.9478458049886622,
+        "Medial Meniscus": 0.9591346153846154,
+        "Lateral Meniscus": 0.8906832298136645,
+        "Medial OA": 0.9658914728682171,
+        "Lateral OA": 0.862669245647969,
+        "PF OA": 0.8442728442728442,
+        "Effusion": 0.8782608695652174,
+        "Synovitis": 0.7574671445639188,
+        "Baker's": 0.9764492753623188,
+        "Contusion": 0.9635627530364372,
+        "Fracture": 0.9138888888888888
+      }
+    },
+    "oof": {
+      "macro_auc": 0.9061402493385846,
+      "per_label": {
+        "ACL": 0.9620098039215685,
+        "MCL": 0.9410430839002267,
+        "Medial Meniscus": 0.9543269230769231,
+        "Lateral Meniscus": 0.888198757763975,
+        "Medial OA": 0.9689922480620154,
+        "Lateral OA": 0.8529980657640232,
+        "PF OA": 0.8314028314028314,
+        "Effusion": 0.8795031055900622,
+        "Synovitis": 0.7586618876941457,
+        "Baker's": 0.9728260869565217,
+        "Contusion": 0.9581646423751687,
+        "Fracture": 0.9055555555555556
+      }
+    }
+  },
+  "cv_improved": false,
+  "regularization": 0.1,
+  "parameter_norm": 3.683825805870239,
+  "model_parameter_norms": [
+    2.055357081159851,
+    2.157243419105413,
+    2.166190358128288
+  ],
+  "studies": 58,
+  "evidence": {
+    "documented_invocations": "status, tail, and collection executed verbatim; COMPLETE; page size 100; all five files retrieved",
+    "source_and_artifact_identity": "Passed: canonical hash a6df813c, source SHA agrees with run and artifact, artifact SHA agrees with run, fixed 0.1 regularization and label order agree",
+    "checkpoint_identity": "All three artifact hashes agree with run receipt and independent dense diagnostic receipt",
+    "cpu_matrix_checksum": 510720.0,
+    "feature_logit_reconstruction": "Actual CPU reconstruction assertions on all studies/readers passed with atol=rtol=1e-6; witness in live and durable logs",
+    "fitted_parameter_update": "All 36 fitted label/classifier corrections finite and nonzero, artifact norm agrees with actual log witness",
+    "folds": "All 12 labels have five folds, validation coverage exactly once over 58 UIDs, train/validation sets disjoint and complementary; deterministic splits independently regenerated",
+    "independent_auc_agreement": "All 24 per-label and both macro AUCs match receipt to <1e-12",
+    "baseline_parity_failed": {
+      "limit": 0.005,
+      "maxabs_difference": 0.006660339999999987,
+      "uid": "1.2.826.0.1.3680043.8.498.73527530686853911124431549317032662220",
+      "label": "Medial Meniscus",
+      "cpu_prediction": 0.32555076,
+      "gpu_prediction": 0.31889042,
+      "values_at_or_above_limit": 1,
+      "mean_absolute_difference": 0.0003567267413793096
+    },
+    "wrapper_mapping": "Only cls_w and cls_b updated; normalized classifier weights divided by sqrt(384), bias added directly; no encoder or attention-pooling updates in reviewed source",
+    "wrapper_numeric_maxabs_difference": 6.394884621840902e-14,
+    "fit_scope": "Final artifact fits all 58 official annotated training labels. OOF excludes each predicted study from that classifier fit. No fitted training score is called held-out.",
+    "final_ledger_check": "Completion, witnesses, shape, regularization and rounded CV results match durable artifacts; no invocation divergence",
+    "assessment": "Environment parity gate failed independently of the separate negative CV result"
+  }
+}
