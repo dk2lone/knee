@@ -1,6 +1,6 @@
 # Kaggle experiment environment
 
-## EfficientNet study fold 0, spec dd5d69c5
+## EfficientNet study fold 0, spec c1a44911
 
 Pinned image and resource configuration: `kaggle/effnet-study-train/env-spec.json`. The container supplies torch, torchvision, NumPy, pandas, and scikit-learn. Training downloads the official torchvision ImageNet weights. It reads the two Raptor corpus parts without copying them.
 
@@ -69,7 +69,7 @@ Retrieve completed outputs:
 kaggle kernels output dk2lone/knee-meniscus-bag-gold -p /tmp/knee-top10/meniscus-gold --file-pattern '^(public0033_bag_raw.csv|public0033_cached_inference_receipt.json|gold_truth.csv|pixel_contract.json)$'
 ```
 
-## High-resolution fold 1
+## High-resolution fold 1, spec 1ae92528
 
 `kaggle/effnet-highres-train/env-spec.json` uses the same pinned image. Version 1
 failed at its first DataParallel forward with a CUDA misaligned-address error.
@@ -90,3 +90,9 @@ Completed outputs:
 ```sh
 kaggle kernels output dk2lone/knee-effnet-high-resolution-fold1 -p /tmp/knee-top10/highres-output --file-pattern '^(run.json|validation.csv|gold.csv|gold_truth.csv|effnet_best.pt)$'
 ```
+
+The witness command is the managed container entrypoint, not a local Mac
+command. Its matrix check runs before training, and the actual weight-update
+check runs during the first epoch. The spec metadata was corrected to name
+that executable command. Container dependencies and resource settings stayed
+pinned; the live jobs provide the execution witnesses for these ledger entries.

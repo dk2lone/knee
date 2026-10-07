@@ -25,7 +25,7 @@
     ],
     "gpu_tests": [
       {
-        "cmd": "train.py runs the fixed GPU matrix witness before training and checks a real model parameter update during the first epoch",
+        "cmd": "python3 /kaggle/src/script.py",
         "expect": "model forward, loss, backward, and optimizer witness passed"
       }
     ],
