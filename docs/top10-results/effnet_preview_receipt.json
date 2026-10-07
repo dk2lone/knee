@@ -1,0 +1,34 @@
+{
+  "checkpoint_sha256": "dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b",
+  "checkpoint_epoch": 7,
+  "validation_auc": 0.8338768710972623,
+  "studies": 3,
+  "gpu": "Tesla T4",
+  "config": {
+    "fold": 0,
+    "seed": 2026,
+    "resolution": 224,
+    "train_windows": 12,
+    "eval_windows": 24,
+    "batch_size": 8,
+    "epochs": 20,
+    "backbone_lr": 0.0001,
+    "head_lr": 0.0008,
+    "weight_decay": 0.02,
+    "ema": 0.995,
+    "patience": 5,
+    "time_limit_seconds": 25200,
+    "slot_lengths": [
+      12,
+      10,
+      8,
+      6,
+      8
+    ],
+    "slice_span": [
+      0.15,
+      0.85
+    ],
+    "crop_mm": 140
+  }
+}

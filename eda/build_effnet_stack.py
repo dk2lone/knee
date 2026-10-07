@@ -9,9 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def build(checkpoint, run_file, variant="baseline"):
-    tag = "effnet" if variant == "baseline" else "effnet-highres"
-    training_folder = "effnet-study-train" if variant == "baseline" else "effnet-highres-train"
-    training_kernel = "knee-effnet-study-fold0" if variant == "baseline" else "knee-effnet-high-resolution-fold1"
+    tag, training_folder, training_kernel = {
+        "baseline": ("effnet", "effnet-study-train", "knee-effnet-study-fold0"),
+        "highres": ("effnet-highres", "effnet-highres-train", "knee-effnet-high-resolution-fold1"),
+        "convnext": ("convnext-reader", "convnext-study-train", "knee-convnext-study-fold0"),
+    }[variant]
     training = (ROOT / "kaggle" / training_folder / "train.py").read_text()
     run = json.loads(run_file.read_text())
     assert run["status"] == "complete"
@@ -71,14 +73,14 @@ assert (_ef_new[_o_labels].nunique() > 1).all()
 _ef_base.to_csv("/kaggle/working/_convnext_stack.csv", index=False)
 _ef_base[_o_labels] = (0.85 * _o_rank(_ef_base) + 0.15 * _o_rank(_ef_new)).rank(method="average", pct=True)
 _ef_base.to_csv(_o_pub, index=False)
-print("EfficientNet blend complete: 15 percent; checkpoint", _ef_sha, flush=True)
+print("Study reader blend complete: 15 percent; checkpoint", _ef_sha, flush=True)
 '''
     cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
                   "source": overlay.splitlines(keepends=True)})
     for cell in cells:
         code = "".join(cell["source"])
         ast.parse(code.split("\n", 1)[1] if code.startswith("%%writefile") else code)
-    intro = "# EfficientNet reader blend\n\nThe reproduced public stack and goodpjw2008 ConvNeXt reader are retained. A reader trained on public weak labels contributes a fixed 15% rank blend. Its checkpoint is selected by scanner/language-held-out validation. Raw DICOM preprocessing reproduces dreaddevelopment's training cache byte for byte on three unlabelled controls.\n"
+    intro = "# Study reader blend\n\nThe reproduced public stack and goodpjw2008 ConvNeXt reader are retained. A reader trained on public weak labels contributes a fixed 15% rank blend. Its checkpoint is selected by scanner/language-held-out validation. Raw DICOM preprocessing reproduces dreaddevelopment's training cache byte for byte on three unlabelled controls.\n"
     notebook["cells"] = [{"cell_type": "markdown", "metadata": {}, "source": intro.splitlines(keepends=True)}, *cells]
     directory = ROOT / "kaggle" / f"{tag}-stack"
     directory.mkdir(exist_ok=True)
@@ -95,6 +97,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("checkpoint", type=Path)
     parser.add_argument("run", type=Path)
-    parser.add_argument("--variant", choices=["baseline", "highres"], default="baseline")
+    parser.add_argument("--variant", choices=["baseline", "highres", "convnext"], default="baseline")
     args = parser.parse_args()
     build(args.checkpoint, args.run, args.variant)

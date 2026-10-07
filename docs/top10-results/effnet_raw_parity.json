@@ -1,0 +1,8 @@
+{
+  "studies": 58,
+  "labels": 12,
+  "maximum_absolute_error": 0.0,
+  "mean_absolute_error": 0.0,
+  "comparison": "raw DICOM replay versus completed cache inference",
+  "checkpoint_sha256": "dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b"
+}

@@ -4,7 +4,7 @@
 
 Pinned image and resource configuration: `kaggle/effnet-study-train/env-spec.json`. The container supplies torch, torchvision, NumPy, pandas, and scikit-learn. Training downloads the official torchvision ImageNet weights. It reads the two Raptor corpus parts without copying them.
 
-The corrected run passed the fixed GPU calculation and a real forward/loss/backward/optimizer witness. The log confirms a model parameter changed, and input validation reports 3,486 training / 863 validation / 58 gold studies. Training and validation scanner/language groups are disjoint. Complete training and final validation remain pending.
+The corrected run passed the fixed GPU calculation and a real forward/loss/backward/optimizer witness. The log confirms a model parameter changed, and input validation reports 3,486 training / 863 validation / 58 gold studies. Training and validation scanner/language groups are disjoint. Training is complete. Epoch 7 was selected at validation AUC 0.8338768711; final gold AUC is 0.8767276878. The raw DICOM replay matches all 58 cached predictions exactly.
 
 Check source and metadata locally:
 
@@ -96,3 +96,34 @@ command. Its matrix check runs before training, and the actual weight-update
 check runs during the first epoch. The spec metadata was corrected to name
 that executable command. Container dependencies and resource settings stayed
 pinned; the live jobs provide the execution witnesses for these ledger entries.
+
+## ConvNeXt fold 0, spec 113019b9
+
+`kaggle/convnext-study-train/env-spec.json` retains the pinned image and one T4
+training process. It downloads official torchvision ConvNeXt Tiny ImageNet
+weights. The 320 px model uses series identity and relative position through
+a two-layer transformer. The 58 annotated studies are excluded from both
+training and checkpoint selection. Version 1 is running. Its fixed GPU matrix calculation and real model parameter-update witness passed. The log confirms 3,486 training / 863 validation / 58 gold studies and official ImageNet weight loading.
+
+Launch once when a batch GPU slot is free:
+
+```sh
+kaggle kernels push -p kaggle/convnext-study-train
+```
+
+Read state and the captured live log:
+
+```sh
+kaggle kernels status dk2lone/knee-convnext-study-fold0
+tail -25 /tmp/knee-top10/convnext-live.log
+```
+
+After completion:
+
+```sh
+kaggle kernels output dk2lone/knee-convnext-study-fold0 -p /tmp/knee-top10/convnext-output --file-pattern '^(run.json|validation.csv|gold.csv|gold_truth.csv|effnet_best.pt)$'
+```
+
+The fixed matrix witness runs before training. A changed real model parameter
+confirms forward/loss/backward/optimizer execution during the first epoch.
+The managed container entrypoint is `python3 /kaggle/src/script.py`.

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+import study_train
 from study_train import CONFIG, LABELS, Reader
 from cache_contract import SLOTS, choose, crop, ordered, pixel
 
@@ -46,7 +47,10 @@ def windows(volume, mask):
     if not len(centres):
         raise RuntimeError("study has no valid windows")
     selected = centres[np.linspace(0, len(centres) - 1, CONFIG["eval_windows"]).round().astype(int)]
-    return np.stack([volume[c - 1:c + 2] for c in selected])
+    images = np.stack([volume[c - 1:c + 2] for c in selected])
+    if CONFIG.get("uses_context"):
+        return images, study_train.positions(selected)
+    return images
 
 
 class Studies(torch.utils.data.Dataset):
@@ -62,7 +66,10 @@ class Studies(torch.utils.data.Dataset):
     def __getitem__(self, index):
         uid = self.ids[index]
         volume, mask = stack(uid, self.series.get(uid, []), self.root)
-        return torch.from_numpy(windows(volume, mask).copy())
+        value = windows(volume, mask)
+        if CONFIG.get("uses_context"):
+            return tuple(torch.from_numpy(part.copy()) for part in value)
+        return torch.from_numpy(value.copy())
 
 
 def main(args):
@@ -88,10 +95,13 @@ def main(args):
     with torch.inference_mode():
         for batch, x in enumerate(loader):
             with torch.autocast("cuda", dtype=torch.float16):
-                p = model(x.cuda(non_blocking=True)).float().sigmoid()
+                if CONFIG.get("uses_context"):
+                    p = model(*(part.cuda(non_blocking=True) for part in x)).float().sigmoid()
+                else:
+                    p = model(x.cuda(non_blocking=True)).float().sigmoid()
             predictions.append(p.cpu().numpy())
             if batch % 25 == 0:
-                print(f"EfficientNet {min((batch + 1) * 4, len(ids))}/{len(ids)}", flush=True)
+                print(f"{CONFIG.get('backbone', 'efficientnet_b0')} {min((batch + 1) * 4, len(ids))}/{len(ids)}", flush=True)
     values = np.concatenate(predictions)
     assert values.shape == (len(ids), len(LABELS)) and np.isfinite(values).all()
     pd.DataFrame(values, index=pd.Index(ids, name="StudyInstanceUID"), columns=LABELS).to_csv(args.output)

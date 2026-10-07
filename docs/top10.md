@@ -18,7 +18,9 @@ current target. Rank and cutoff must be refreshed after each scored improvement.
 | Run | Purpose | State |
 |---|---|---|
 | `dk2lone/knee-convnext-dense-gold` | Compare 12 windows, 24 windows, and 24 windows with crops 0.84/0.92/1.0 | Complete; candidate rejected |
-| `dk2lone/knee-effnet-study-fold0` | Train a separate EfficientNet study reader | Running; GPU and weight-update checks passed |
+| `dk2lone/knee-effnet-study-fold0` | Train a separate EfficientNet study reader | Complete; 0.8339 validation, 0.8767 diagnostic AUC |
+| `dk2lone/knee-effnet-raw-probe` | Replay the selected reader on raw MRI files | Complete; all 58 predictions match exactly |
+| `dk2lone/knee-effnet-study-stack` | Fixed 15% reader blend into the 0.944 stack | Submitted version 1; scoring pending |
 | `dk2lone/knee-effnet-cache-contract` | Compare raw image reconstruction with the training cache | Complete; all three controls match exactly |
 | `dk2lone/knee-meniscus-bag-gold` | Evaluate a public weak-only meniscus reader | Complete; rejected |
 | `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Running; corrected GPU and update checks passed |
@@ -79,7 +81,41 @@ inference on both T4 GPUs, and no fallback predictions. The parent pixel
 configuration matches; the vendor's original training-cache byte audit and
 training UID set are unavailable for independent verification.
 
+## EfficientNet result
+
+The selected 224 px checkpoint is epoch 7, chosen at 0.8339 validation AUC.
+Final diagnostic AUC is 0.8767. A fixed 15% blend into the standalone ConvNeXt
+diagnostic scores 0.9117 versus 0.9105. Its paired bootstrap delta interval
+is [-0.0037, 0.0055], so this does not establish an improvement. The full 0.944
+stack requires a scored submission. Raw MRI replay on all 58 studies matches
+cached predictions exactly. The builder pins checkpoint
+`dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b`.
+
+## Larger reader
+
+`kaggle/convnext-study-train` trains a torchvision ConvNeXt Tiny reader at
+320 px, fold 0, seed 2029, and 32 evaluation windows. Series identity and
+relative slice position enter a two-layer transformer before finding-specific
+attention pooling. It uses the same labels,
+cache geometry, gold exclusion, and validation selection. Version 1 is running with its fixed GPU and real optimizer-update checks passed. Its trial blend is fixed at the same 15% before validation or gold results.
+
 ## Commands
+
+Build the selected reader blend:
+
+```sh
+python3 eda/build_effnet_stack.py /tmp/knee-top10/effnet-output/effnet_best.pt /tmp/knee-top10/effnet-output/run.json
+kaggle kernels push -p kaggle/effnet-stack
+```
+
+Verify the completed preview before submitting:
+
+```sh
+kaggle kernels status dk2lone/knee-effnet-study-stack
+kaggle kernels output dk2lone/knee-effnet-study-stack -p /tmp/knee-top10/effnet-preview --file-pattern '^(submission.csv|_effnet.csv|_effnet.receipt.json|_convnext_stack.csv)$' --page-size 100
+```
+
+
 
 Score the completed dense evaluation:
 
@@ -97,12 +133,14 @@ python3 eda/build_dense_convnext.py
 Submit a completed candidate by its explicit notebook version:
 
 ```sh
-kaggle competitions submit rsna-knee-abnormality-detection -k dk2lone/knee-convnext-dense-stack -v 1 -f submission.csv -m '24-window ConvNeXt with fixed crop averaging, 30 percent blend'
+kaggle competitions submit rsna-knee-abnormality-detection -k dk2lone/knee-effnet-study-stack -v 1 -f submission.csv -m 'EfficientNet reader with fixed 15 percent rank blend'
 ```
 
 The installed CLI supports code-competition submissions. Earlier project notes
 claiming this requires the browser are outdated. A pushed notebook must finish
-successfully before submission.
+successfully before submission. Use page size 100 for notebooks that save private
+Python package directories. The default 20-item pages can trigger API rate limits
+while listing those package files, even with an anchored download pattern.
 
 The GPU experiments use Kaggle's free GPU allocation. No paid external
 compute was launched. The first attempts were replaced after metadata discovery
