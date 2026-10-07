@@ -25,7 +25,7 @@ current target. Rank and cutoff must be refreshed after each scored improvement.
 | `dk2lone/knee-meniscus-bag-gold` | Evaluate a public weak-only meniscus reader | Complete; rejected |
 | `dk2lone/knee-convnext-study-fold0` | Train a 320 px ConvNeXt reader with series and slice context | Running; GPU and parameter-update checks passed |
 | `dk2lone/knee-convnext-head-training` | Update the public reader classifier using official labels and five-fold CV | Complete; classifier CV worsened; rejected |
-| `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Running; corrected GPU and update checks passed |
+| `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Complete; 0.7963 validation, 0.8892 diagnostic AUC; raw replay running |
 
 The dense reader keeps the same checkpoints and global 30% rank blend. Its
 comparison uses 58 annotated studies excluded from the published reader's
@@ -121,6 +121,22 @@ probability difference of 0.00666, exceeding the declared 0.005 tolerance.
 The verifier therefore failed the inference parity gate as well. The fold
 membership and metrics are saved in
 `docs/top10-results/head_fit.json`; baseline and OOF prediction files accompany it.
+
+## High-resolution reader result
+
+The 336 px fold-1 run completed with best epoch 9 and validation AUC 0.7963.
+Its single gold evaluation scores 0.8892. The fixed 15% blend with the standalone
+ConvNeXt diagnostic improves macro AUC from 0.9105 to 0.9148. The paired
+bootstrap interval for the difference is [0.00047, 0.00847]. These 58 development
+rows do not measure the complete stack's Kaggle score.
+
+At 7 October 04:29 UTC, a queue bug was repaired: the diagnostic scorer had
+received the dense output directory instead of `convnext_baseline.csv`.
+Training itself completed successfully. The scorer was rerun successfully on
+its real outputs, the raw replay was launched as version 1, and the combined
+candidate was restored to wait for its required readers. No remote submission
+was repeated. The completed diagnostic is saved as
+`docs/top10-results/highres_comparison.json`.
 
 ## Automatic submission queue
 

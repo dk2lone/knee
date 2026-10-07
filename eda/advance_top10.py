@@ -161,7 +161,7 @@ def run():
                     elif train_status[name] == 'COMPLETE':
                         destination = WORK / f'queue/{name}-training'
                         collect(f'dk2lone/{TRAINING[name][0]}', destination, PATTERN)
-                        command([NUMERIC, 'eda/score_reader.py', destination, WORK / 'dense'])
+                        command([NUMERIC, 'eda/score_reader.py', destination, WORK / 'dense/convnext_baseline.csv'])
                         job.update(training=str(destination), stage='ready_raw')
                 if job['stage'] == 'waiting_verifier' and (WORK / 'head_env_verified.json').exists():
                     verified = json.loads((WORK / 'head_env_verified.json').read_text())
