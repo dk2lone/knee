@@ -1,0 +1,44 @@
+{
+  "base": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "enable_gpu": false,
+  "enable_internet": false,
+  "system_pkgs": [],
+  "pip_phases": [
+    {
+      "source": "attached public reader wheels",
+      "packages": [
+        "timm==1.0.22",
+        "pylibjpeg==2.1.0",
+        "pylibjpeg-libjpeg",
+        "pylibjpeg-openjpeg"
+      ],
+      "no_index": true,
+      "no_deps": true
+    }
+  ],
+  "env": {
+    "OMP_NUM_THREADS": "4",
+    "OPENBLAS_NUM_THREADS": "4"
+  },
+  "smoke": {
+    "import_names": [
+      "torch",
+      "timm",
+      "numpy",
+      "pandas",
+      "scipy",
+      "sklearn",
+      "pylibjpeg"
+    ],
+    "gpu_tests": [],
+    "cpu_tests": [
+      {
+        "cmd": "python3 /kaggle/src/script.py",
+        "expect": "feature/logit reconstruction witness passed; regularized head update witness passed"
+      }
+    ],
+    "cli_checks": [
+      "kaggle kernels status dk2lone/knee-convnext-head-training"
+    ]
+  }
+}

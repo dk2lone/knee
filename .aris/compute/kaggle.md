@@ -127,3 +127,39 @@ kaggle kernels output dk2lone/knee-convnext-study-fold0 -p /tmp/knee-top10/convn
 The fixed matrix witness runs before training. A changed real model parameter
 confirms forward/loss/backward/optimizer execution during the first epoch.
 The managed container entrypoint is `python3 /kaggle/src/script.py`.
+
+## Supervised classifier update, CPU spec a6df813c
+
+`kaggle/convnext-head-train/env-spec.json` uses the same pinned image on CPU.
+GPU is disabled and `machine_shape` is omitted. Offline decoder and timm wheels
+come from the same public reader dataset used by the dense diagnostic.
+The job freezes all three published readers, extracts their finding-specific
+pooled features, and fits L2-regularized corrections to their final classifiers.
+Regularization 0.1 is fixed before results. Label-wise five-fold cross-validation
+excludes each predicted study's labels from that classifier fit. The final model
+uses all 58 official annotated training studies, so its fitted training score
+cannot be treated as held-out evidence.
+
+Launch once:
+
+```sh
+kaggle kernels push -p kaggle/convnext-head-train
+```
+
+Read state and captured progress:
+
+```sh
+kaggle kernels status dk2lone/knee-convnext-head-training
+tail -25 /tmp/knee-top10/head-live.log
+```
+
+Collect completed artifacts:
+
+```sh
+kaggle kernels output dk2lone/knee-convnext-head-training -p /tmp/knee-top10/head-output --file-pattern '^(head_delta.npz|head_fit.json|head_baseline.csv|head_oof.csv|gold_truth.csv)$' --page-size 100
+```
+
+The managed entrypoint `python3 /kaggle/src/script.py` verifies a seeded CPU
+matrix checksum, reconstruction of actual classifier logits from extracted
+features, finite optimizer results, and nonzero fitted parameter updates.
+Version 1 is running and has passed the seeded CPU calculation. Feature extraction is progressing; the complete reconstruction and fitted-parameter witnesses remain pending. This consumes CPU rather than free GPU hours.

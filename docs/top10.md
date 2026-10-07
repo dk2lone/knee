@@ -23,6 +23,8 @@ current target. Rank and cutoff must be refreshed after each scored improvement.
 | `dk2lone/knee-effnet-study-stack` | Fixed 15% reader blend into the 0.944 stack | Submitted version 1; scoring pending |
 | `dk2lone/knee-effnet-cache-contract` | Compare raw image reconstruction with the training cache | Complete; all three controls match exactly |
 | `dk2lone/knee-meniscus-bag-gold` | Evaluate a public weak-only meniscus reader | Complete; rejected |
+| `dk2lone/knee-convnext-study-fold0` | Train a 320 px ConvNeXt reader with series and slice context | Running; GPU and parameter-update checks passed |
+| `dk2lone/knee-convnext-head-training` | Update the public reader classifier using official labels and five-fold CV | CPU feature extraction running |
 | `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Running; corrected GPU and update checks passed |
 
 The dense reader keeps the same checkpoints and global 30% rank blend. Its
@@ -98,6 +100,58 @@ cached predictions exactly. The builder pins checkpoint
 relative slice position enter a two-layer transformer before finding-specific
 attention pooling. It uses the same labels,
 cache geometry, gold exclusion, and validation selection. Version 1 is running with its fixed GPU and real optimizer-update checks passed. Its trial blend is fixed at the same 15% before validation or gold results.
+
+## Supervised classifier experiment
+
+The CPU experiment freezes the three public ConvNeXt readers and extracts their
+finding-specific pooled features. It fits regularized logistic corrections to
+classifier weights and biases. Regularization 0.1 is fixed before results.
+Label-wise five-fold cross-validation excludes each predicted study from that
+label's classifier fit. A candidate is built only when CV AUC improves on the
+unchanged reader. Its final classifiers use all 58 official training labels.
+Those rows are training data for this candidate and cannot establish its final
+held-out performance. Upstream use of the same rows for development also limits
+interpretation of CV; a scored Kaggle submission is the deciding check.
+
+## Automatic submission queue
+
+At 7 October 03:04 UTC, the Mac background service
+`com.dk2lone.knee-top10-queue` started `eda/advance_top10.py`.
+It waits for the independent CPU verifier and the two running GPU trainers.
+Completed readers must reproduce their 58 cached predictions from raw DICOM
+before their three-study submission preview. Each actual preview must pass
+checkpoint identity, finite predictions, and exact rank-blend checks before
+an explicit version-1 submission. No failed branch is submitted.
+
+The combined candidate assigns 5% to each of the three separately trained
+readers and 85% to the retained ensemble. These weights were fixed before
+any new reader's leaderboard score. The supervised classifier update enters
+that retained ensemble only if its CV improves and its preview passes.
+This queue submits at most four further candidates. It records actual scores
+and refreshes the rank after improvement. Finishing these trials does not
+establish top 10 unless the downloaded leaderboard places the team there.
+
+Read the queue's durable state:
+
+```sh
+cat /tmp/knee-top10/submission_queue.json
+launchctl list com.dk2lone.knee-top10-queue
+```
+
+The JSON shows each training, verification, preview, and scoring stage.
+The service listing should contain a PID while work remains. Kaggle training
+continues remotely if the Mac sleeps, but queued builds and submissions wait
+for the Mac to wake. This service is not installed to survive a reboot.
+
+Stop further queued writes without cancelling running Kaggle jobs:
+
+```sh
+touch /tmp/knee-top10/STOP_SUBMISSION_QUEUE
+```
+
+The queue checks this file before each launch or submission. Its source hashes
+and branch are also checked before writes. An ambiguous submission response is
+looked up by description rather than submitted again.
 
 ## Commands
 
