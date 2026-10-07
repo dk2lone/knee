@@ -4,9 +4,9 @@ RSNA Knee Abnormality Detection — [Kaggle](https://www.kaggle.com/competitions
 
 | | |
 |---|---|
-| Public score | **0.912** |
-| Rank | **121 of 1627** teams (`dk2lone`, 15 Aug 20:51 EDT) |
-| Tenth place | 0.938 |
+| Public score | **0.944** |
+| Rank | **517 of 5354** teams (`dk2lone`, 7 Oct 01:33 UTC) |
+| Tenth place | 0.960 |
 | Final submission | 22 Oct 2026 |
 
-Read [PROGRESS.md](PROGRESS.md) for what has been measured and what runs next.
+Read [top 10 experiments](docs/top10.md) for the current runs. [PROGRESS.md](PROGRESS.md) holds the earlier measurements.

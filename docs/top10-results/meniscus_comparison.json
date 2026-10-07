@@ -1,0 +1,17 @@
+{
+  "rows": 58,
+  "blend_weight": 0.1,
+  "per_label": {
+    "Medial Meniscus": {
+      "convnext_auc": 0.9591346153846154,
+      "bag_auc": 0.8834134615384616,
+      "diagnostic_blend_auc": 0.9573317307692307
+    },
+    "Lateral Meniscus": {
+      "convnext_auc": 0.8906832298136645,
+      "bag_auc": 0.7677018633540372,
+      "diagnostic_blend_auc": 0.884472049689441
+    }
+  },
+  "mean_meniscus_delta": -0.004007032369804098
+}

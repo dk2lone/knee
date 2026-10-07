@@ -1,0 +1,24 @@
+{
+  "band": [
+    0.2,
+    0.8
+  ],
+  "crop_mm": 130.0,
+  "group": 3,
+  "img": 336,
+  "rules": {
+    "decode_fill": "nearest",
+    "lat": "centre",
+    "order": "normal",
+    "slot_fallback": false
+  },
+  "slices": 12,
+  "slots": [
+    "SAG_FLUID_FS",
+    "COR_FLUID_FS",
+    "AX_FLUID_FS",
+    "SAG_FLUID_NOFS",
+    "COR_T1",
+    "SAG_T1"
+  ]
+}

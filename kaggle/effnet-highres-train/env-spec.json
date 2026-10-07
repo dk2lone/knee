@@ -1,0 +1,36 @@
+{
+  "base": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": true,
+  "system_pkgs": [],
+  "pip_phases": [],
+  "env": {
+    "OMP_NUM_THREADS": "4",
+    "OPENBLAS_NUM_THREADS": "4"
+  },
+  "weight_dirs": {
+    "efficientnet_b0": {
+      "source": "torchvision EfficientNet_B0_Weights.IMAGENET1K_V1",
+      "path": "torch hub checkpoint cache",
+      "gated": false
+    }
+  },
+  "smoke": {
+    "import_names": [
+      "torch",
+      "torchvision",
+      "numpy",
+      "pandas",
+      "sklearn"
+    ],
+    "gpu_tests": [
+      {
+        "cmd": "train.py runs fixed matrix witness and real model forward/loss/backward/optimizer before epoch 0",
+        "expect": "model forward, loss, backward, and optimizer witness passed"
+      }
+    ],
+    "cli_checks": [
+      "kaggle kernels status dk2lone/knee-effnet-high-resolution-fold1"
+    ]
+  }
+}

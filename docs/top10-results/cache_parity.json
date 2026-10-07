@@ -1,0 +1,109 @@
+{
+  "controls": [
+    {
+      "uid": "1.2.826.0.1.3680043.8.498.10004873229099053869093324292195817260",
+      "row": 0,
+      "variants": {
+        "(1, 99)": {
+          "mean_absolute_uint8_error": 13.705366403190064,
+          "max_error": 58,
+          "exact_fraction": 0.14528858418367346,
+          "mask_exact": true
+        },
+        "(2, 98)": {
+          "mean_absolute_uint8_error": 0.0,
+          "max_error": 0,
+          "exact_fraction": 1.0,
+          "mask_exact": true
+        },
+        "(0.5, 99.5)": {
+          "mean_absolute_uint8_error": 22.9689613771645,
+          "max_error": 86,
+          "exact_fraction": 0.11577046775149454,
+          "mask_exact": true
+        }
+      }
+    },
+    {
+      "uid": "1.2.826.0.1.3680043.8.498.10124701778993602117271554854098856833",
+      "row": 40,
+      "variants": {
+        "(1, 99)": {
+          "mean_absolute_uint8_error": 9.640237273886827,
+          "max_error": 55,
+          "exact_fraction": 0.2285172354926819,
+          "mask_exact": true
+        },
+        "(2, 98)": {
+          "mean_absolute_uint8_error": 0.0,
+          "max_error": 0,
+          "exact_fraction": 1.0,
+          "mask_exact": true
+        },
+        "(0.5, 99.5)": {
+          "mean_absolute_uint8_error": 20.777906013257574,
+          "max_error": 130,
+          "exact_fraction": 0.18802381274479488,
+          "mask_exact": true
+        }
+      }
+    },
+    {
+      "uid": "1.2.826.0.1.3680043.8.498.10274956886032850418742861294277331382",
+      "row": 100,
+      "variants": {
+        "(1, 99)": {
+          "mean_absolute_uint8_error": 10.45688872139765,
+          "max_error": 67,
+          "exact_fraction": 0.2147761093073593,
+          "mask_exact": true
+        },
+        "(2, 98)": {
+          "mean_absolute_uint8_error": 0.0,
+          "max_error": 0,
+          "exact_fraction": 1.0,
+          "mask_exact": true
+        },
+        "(0.5, 99.5)": {
+          "mean_absolute_uint8_error": 18.183509803068954,
+          "max_error": 105,
+          "exact_fraction": 0.18333989609101217,
+          "mask_exact": true
+        }
+      }
+    }
+  ],
+  "labels_read": false,
+  "slots": [
+    [
+      "Sagittal",
+      1,
+      12
+    ],
+    [
+      "Sagittal",
+      0,
+      10
+    ],
+    [
+      "Coronal",
+      1,
+      8
+    ],
+    [
+      "Coronal",
+      0,
+      6
+    ],
+    [
+      "Axial",
+      -1,
+      8
+    ]
+  ],
+  "span": [
+    0.15,
+    0.85
+  ],
+  "crop_mm": 140
+}
