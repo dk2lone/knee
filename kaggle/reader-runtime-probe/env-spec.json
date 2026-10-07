@@ -1,0 +1,41 @@
+{
+  "base": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": false,
+  "system_pkgs": [],
+  "pip_phases": [
+    {
+      "source": "attached D4 timm and public reader decoder wheels",
+      "no_index": true,
+      "no_deps": true,
+      "packages": [
+        "timm==1.0.22",
+        "pylibjpeg",
+        "pylibjpeg-libjpeg",
+        "pylibjpeg-openjpeg"
+      ]
+    }
+  ],
+  "env": {
+    "OMP_NUM_THREADS": "4",
+    "OPENBLAS_NUM_THREADS": "4"
+  },
+  "smoke": {
+    "import_names": [
+      "torch",
+      "torchvision",
+      "numpy",
+      "pandas",
+      "pylibjpeg"
+    ],
+    "gpu_tests": [
+      {
+        "cmd": "python3 /kaggle/src/script.py",
+        "expect": "all four actual parity witnesses passed"
+      }
+    ],
+    "cli_checks": [
+      "kaggle kernels status dk2lone/knee-reader-runtime-probe"
+    ]
+  }
+}

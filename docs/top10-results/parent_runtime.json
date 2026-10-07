@@ -1,0 +1,357 @@
+{
+  "status": "complete",
+  "studies": 48,
+  "seconds": 1004.5506155490875,
+  "phase_events": [
+    {
+      "a5_without_matching_acquisition": 0,
+      "elapsed_seconds": 0.9213099479675293,
+      "gpus": [
+        {
+          "allocated_bytes": 0,
+          "id": 0,
+          "reserved_bytes": 0
+        },
+        {
+          "allocated_bytes": 0,
+          "id": 1,
+          "reserved_bytes": 0
+        }
+      ],
+      "max_rss_kib": 1058764,
+      "memory.current": "1610727424",
+      "memory.max": "32212254720",
+      "missing_fluid_flags": 0,
+      "stage": "input_metadata",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 1.312412977218628,
+      "gpus": [
+        {
+          "allocated_bytes": 0,
+          "id": 0,
+          "reserved_bytes": 0
+        },
+        {
+          "allocated_bytes": 0,
+          "id": 1,
+          "reserved_bytes": 0
+        }
+      ],
+      "max_rss_kib": 1058764,
+      "memory.current": "1616097280",
+      "memory.max": "32212254720",
+      "stage": "dinov2",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 131.81595134735107,
+      "gpus": [
+        {
+          "allocated_bytes": 9568256,
+          "id": 0,
+          "reserved_bytes": 23068672
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 195035136
+        }
+      ],
+      "max_rss_kib": 4333124,
+      "memory.current": "10629656576",
+      "memory.max": "32212254720",
+      "stage": "dinov2",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 131.8586299419403,
+      "gpus": [
+        {
+          "allocated_bytes": 9568256,
+          "id": 0,
+          "reserved_bytes": 23068672
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 195035136
+        }
+      ],
+      "max_rss_kib": 4333124,
+      "memory.current": "10629787648",
+      "memory.max": "32212254720",
+      "stage": "a5",
+      "status": "START"
+    },
+    {
+      "absent": 0,
+      "applicable": 48,
+      "elapsed_seconds": 177.7877082824707,
+      "gpus": [
+        {
+          "allocated_bytes": 9568256,
+          "id": 0,
+          "reserved_bytes": 23068672
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 5427484,
+      "memory.current": "12641665024",
+      "memory.max": "32212254720",
+      "stage": "a5",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 177.91961812973022,
+      "gpus": [
+        {
+          "allocated_bytes": 9568256,
+          "id": 0,
+          "reserved_bytes": 23068672
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 5427484,
+      "memory.current": "12641574912",
+      "memory.max": "32212254720",
+      "stage": "radimagenet",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 221.087651014328,
+      "gpus": [
+        {
+          "allocated_bytes": 9568256,
+          "id": 0,
+          "reserved_bytes": 23068672
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 5427484,
+      "memory.current": "13492609024",
+      "memory.max": "32212254720",
+      "stage": "radimagenet",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 221.38409113883972,
+      "gpus": [
+        {
+          "allocated_bytes": 9568256,
+          "id": 0,
+          "reserved_bytes": 23068672
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 5427484,
+      "memory.current": "13492719616",
+      "memory.max": "32212254720",
+      "stage": "public_raptor",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 414.2389461994171,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "16259174400",
+      "memory.max": "32212254720",
+      "stage": "public_raptor",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 416.95697569847107,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "16301883392",
+      "memory.max": "32212254720",
+      "stage": "residual_coat",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 416.95716094970703,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "16301883392",
+      "memory.max": "32212254720",
+      "stage": "d4",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 598.9602723121643,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "22287925248",
+      "memory.max": "32212254720",
+      "ok": true,
+      "stage": "d4",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 649.8602359294891,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "17057898496",
+      "memory.max": "32212254720",
+      "ok": true,
+      "stage": "residual_coat",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 649.871755361557,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "17057779712",
+      "memory.max": "32212254720",
+      "stage": "repairv1_coat",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 649.8718492984772,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "17057779712",
+      "memory.max": "32212254720",
+      "stage": "global96_coat",
+      "status": "START"
+    },
+    {
+      "elapsed_seconds": 895.664546251297,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "21471252480",
+      "memory.max": "32212254720",
+      "ok": true,
+      "stage": "repairv1_coat",
+      "status": "COMPLETE"
+    },
+    {
+      "elapsed_seconds": 932.7142007350922,
+      "gpus": [
+        {
+          "allocated_bytes": 19136512,
+          "id": 0,
+          "reserved_bytes": 62914560
+        },
+        {
+          "allocated_bytes": 9568256,
+          "id": 1,
+          "reserved_bytes": 23068672
+        }
+      ],
+      "max_rss_kib": 8496404,
+      "memory.current": "16919834624",
+      "memory.max": "32212254720",
+      "ok": true,
+      "stage": "global96_coat",
+      "status": "COMPLETE"
+    }
+  ],
+  "scope": "fixed unlabelled training proxy, not hidden-test runtime",
+  "reference_notebook_sha256": "cd97dafc175c63ed2c55c8228b33d8d010b61b916e0990f11298ad84dec66266"
+}

@@ -1,0 +1,10 @@
+{
+  "stage": "submitted",
+  "kernel": "dk2lone/knee-effnet-runtime-stack",
+  "version": 2,
+  "description": "same 15 percent reader blend with verified two GPU dispatch",
+  "preview_verified": "/tmp/knee-top10/fast_runtime_candidate_verified.json",
+  "folder": "kaggle/effnet-runtime-stack",
+  "submission_ref": 56913142,
+  "submit_message": ""
+}

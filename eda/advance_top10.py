@@ -132,7 +132,7 @@ def run():
             time.sleep(60); continue
         score_changed = False
         refs = [state['first_submission_ref'], *[j['submission_ref'] for j in state['jobs'].values() if 'submission_ref' in j]]
-        state['submissions'] = [{'ref': ref, 'status': str(submissions[ref].status), 'score': submissions[ref].public_score}
+        state['submissions'] = [{'ref': ref, 'status': str(submissions[ref].status), 'score': submissions[ref].public_score, 'error': submissions[ref].error_description}
                                 for ref in refs if ref in submissions]
         for row in state['submissions']:
             if row['score'] and float(row['score']) > state['best_score']:
@@ -206,7 +206,9 @@ def run():
                             submit(state, job)
                 if job['stage'] == 'submitted':
                     submission = submissions.get(job['submission_ref'])
-                    if submission and str(submission.status).endswith('COMPLETE') and submission.public_score:
+                    if submission and submission.error_description:
+                        job.update(stage='failed', error=submission.error_description)
+                    elif submission and str(submission.status).endswith('COMPLETE') and submission.public_score:
                         job.update(stage='scored', score=submission.public_score)
                     elif submission and str(submission.status).endswith('ERROR'):
                         job.update(stage='failed', error='Kaggle scoring error')

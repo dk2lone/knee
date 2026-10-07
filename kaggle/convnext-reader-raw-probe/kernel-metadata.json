@@ -1,0 +1,23 @@
+{
+  "id": "dk2lone/knee-convnext-reader-raw-probe",
+  "title": "knee convnext-reader raw probe",
+  "code_file": "probe.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "dataset_sources": [
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader"
+  ],
+  "kernel_sources": [
+    "dk2lone/knee-convnext-study-fold0"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "machine_shape": "NvidiaTeslaT4"
+}

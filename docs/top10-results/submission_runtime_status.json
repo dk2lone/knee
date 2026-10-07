@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-07T14:16:40.420671+00:00",
+  "submissions": [
+    {
+      "ref": 56913142,
+      "status": "SubmissionStatus.PENDING",
+      "score": "",
+      "error": "",
+      "date": "2026-10-07 14:16:02.250000"
+    },
+    {
+      "ref": 56901100,
+      "status": "SubmissionStatus.PENDING",
+      "score": "",
+      "error": "",
+      "date": "2026-10-07 05:22:56.293000"
+    },
+    {
+      "ref": 56901092,
+      "status": "SubmissionStatus.PENDING",
+      "score": "",
+      "error": "",
+      "date": "2026-10-07 05:22:45.627000"
+    },
+    {
+      "ref": 56900281,
+      "status": "SubmissionStatus.COMPLETE",
+      "score": "0.941",
+      "error": "",
+      "date": "2026-10-07 04:38:36.223000"
+    },
+    {
+      "ref": 56897663,
+      "status": "SubmissionStatus.COMPLETE",
+      "score": "",
+      "error": "Your submission notebook exceeded the allowed runtime. Review the competition's Code Requirements page for the time limits. Note that the hidden dataset can be larger/smaller/different than the public dataset.",
+      "date": "2026-10-07 02:26:55.443000"
+    },
+    {
+      "ref": 56865473,
+      "status": "SubmissionStatus.COMPLETE",
+      "score": "0.944",
+      "error": "",
+      "date": "2026-10-06 00:27:05.630000"
+    }
+  ]
+}

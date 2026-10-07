@@ -163,3 +163,131 @@ The managed entrypoint `python3 /kaggle/src/script.py` verifies a seeded CPU
 matrix checksum, reconstruction of actual classifier logits from extracted
 features, finite optimizer results, and nonzero fitted parameter updates.
 Version 1 completed. The seeded CPU calculation, reconstruction from actual pooled features, and nonzero fitted classifier update all passed. Completed artifact shape is 3 × 12 × 385 with fixed regularization 0.1. Classifier CV worsened from 0.9105 to 0.9061, so the research candidate is rejected. The independent CPU/GPU baseline parity check failed: maximum probability difference 0.00666 exceeds the declared 0.005 tolerance. No classifier artifact is released for submission. This consumed CPU rather than free GPU hours.
+
+## Reader runtime probe, spec e6d3455c
+
+`kaggle/reader-runtime-probe/env-spec.json` pins the existing image on two T4s,
+internet disabled, and offline public decoder wheels plus the D4 timm wheel attachment. The probe
+runs four real pairs on all 58 annotated training MRIs: the three-model public
+ConvNeXt reader and each of the three trained study readers. The reference uses
+one GPU with two data-loader workers; the new dispatcher uses both GPUs with
+two workers each and complete four-study batches. The production public
+reader used four workers on one GPU, so this public-segment timing is not a
+like-for-like comparison with that production worker setting. The three
+study-reader references retain their original two-worker setting.
+Original checkpoints, preprocessing, view counts, and model precision are retained.
+A scratch cache reuses exact 44-slice reconstructions across the three study
+readers. Prediction parity must be within 1e-6; no threshold relaxation.
+
+Build and launch once:
+
+```sh
+/Users/dz/.local/share/uv/tools/kaggle/bin/python eda/build_runtime_probe.py
+kaggle kernels push -p kaggle/reader-runtime-probe
+```
+
+Read current execution:
+
+```sh
+kaggle kernels status dk2lone/knee-reader-runtime-probe
+tail -25 /tmp/knee-top10/runtime-v2-live.log
+```
+
+After COMPLETE, collect actual predictions and timing:
+
+```sh
+kaggle kernels output dk2lone/knee-reader-runtime-probe -p /tmp/knee-top10/runtime-output --file-pattern '^(runtime_probe.json|public_(reference|fast)\.csv|public_fast\.receipt\.json|reader[0-2]_(reference|fast)\.csv|reader[0-2]_fast\.receipt\.json)$' --page-size 100
+```
+
+The managed entrypoint `python3 /kaggle/src/script.py` checks a seeded matrix
+checksum 510720 on each actual GPU before model execution. Its final sentinel
+`all four actual parity witnesses passed` requires finite, UID-aligned inference
+and all four comparisons within tolerance, plus exact cache cardinality 58.
+Version 1 failed before model inference because the D4 timm wheel source was
+not attached. Spec e6d3455c and version 2 add that explicit source.
+Runtime measurements include worker startup. This probe measures added readers,
+not the public parent or hidden test data. Version 2 completed and independent verification passed. All four actual
+prediction pairs match exactly. This does not establish nine-hour compliance.
+
+## Complete parent timing proxy, spec a042a031
+
+`kaggle/parent-runtime-probe/env-spec.json` retains the hash-pinned bootstrap,
+image, two T4s, offline packages, and all inputs of the verified 0.944 parent.
+It samples 48 unlabelled training studies with seed 2031 and supplies their
+real MRI directories and metadata through a local test-format adapter. Model
+weights, sampling, precision, and rank blending remain the same. The adapter
+is for runtime measurement only and is never submitted to the leaderboard.
+The parent reader branch must succeed; no fallback candidate is published.
+
+Build and launch once:
+
+```sh
+/Users/dz/.local/share/uv/tools/kaggle/bin/python eda/build_parent_runtime_probe.py
+kaggle kernels push -p kaggle/parent-runtime-probe
+```
+
+Read execution:
+
+```sh
+kaggle kernels status dk2lone/knee-parent-runtime-probe
+tail -25 /tmp/knee-top10/parent-runtime-live.log
+```
+
+After COMPLETE:
+
+```sh
+kaggle kernels output dk2lone/knee-parent-runtime-probe -p /tmp/knee-top10/parent-runtime-output --file-pattern '^(parent_runtime.json|parent_runtime_cohort.json|submission.csv|_public_stack.csv|_own.csv|diagnostics/phase_events.jsonl|diagnostics/current_phase.json)$' --page-size 100
+```
+
+The generated notebook executes `python3 /kaggle/working/runtime_witness.py`
+for the deterministic fixed-matrix checksum 510720 on both actual T4s. The final sentinel is
+`complete parent runtime witness passed`. Phase events record actual timings
+for the eight instrumented public families. The own ConvNeXt reader records
+its elapsed time separately in the execution log and must pass its success
+gate. The final report records time since inherited T0 after bootstrap and GPU
+import preflight; execution logs separately show that startup overhead. The inherited CoAt dispatcher runs paired branches only for cohorts of 48 or
+fewer, and serial branches above 48. This proxy exercises the paired schedule,
+so its total cannot be extrapolated directly to the serial hidden-test schedule.
+It cannot guarantee hidden-test size or nine-hour compliance.
+Version 1 completed and independent verification passed. The retained ensemble
+produced finite 48 x 12 predictions in 1004.55 seconds after the recorded T0.
+All eight public phases succeeded, and the three-checkpoint reader finished in
+68 seconds. The final 70/30 rank blend was independently reconstructed. These
+measurements apply only to this paired-schedule proxy; no full hidden-runtime
+speed claim is made.
+
+## Runtime-repaired submission preview
+
+The candidate `dk2lone/knee-effnet-runtime-stack` version 2 warm-reuses the
+existing pinned parent environment and benchmark-verified helper sources.
+The public ConvNeXt and 224 px study reader use verified dispatch. The study
+script is rendered from the exact certified shared inference source; its optional
+context branches are inactive for this EfficientNet checkpoint. The larger
+parent keeps its original size-dependent CoAt schedule. All three public test
+predictions, including intermediate parent and study-reader predictions, must
+match the original timed-out candidate exactly. No model or blend change is made.
+
+Read and collect the completed version without relaunching:
+
+```sh
+kaggle kernels status dk2lone/knee-effnet-runtime-stack
+kaggle kernels output dk2lone/knee-effnet-runtime-stack -p /tmp/knee-top10/effnet-runtime-preview --file-pattern '^(submission.csv|_effnet.csv|_effnet.receipt.json|_convnext_stack.csv|_own.csv|_own.receipt.json|_public_stack.csv)$' --page-size 100
+/tmp/knee-top10/venv/bin/python eda/check_candidate.py reader /tmp/knee-top10/effnet-runtime-preview --training /tmp/knee-top10/effnet-output
+```
+
+Then compare UID-aligned `submission.csv`, `_effnet.csv`, and
+`_convnext_stack.csv` with `/tmp/knee-top10/effnet-preview`. Require zero maximum
+absolute difference in each, finite 3 x 12 predictions, retained checkpoint
+identity, and the exact helper sources certified by runtime probe version 2.
+A fresh verifier must report these actual checks before an explicit version-2
+submission. Version 1 was blocked because its older study inference script
+did not byte-match the probe-certified script, despite exact prediction parity.
+Version 2 renders that certified script rather than waiving source identity.
+The small preview does not certify hidden-test runtime.
+
+Version 2 completed and all 37 independent checks passed. The executed study
+source SHA256 is 8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb,
+matching the probe certificate. All three saved matrices match the original
+exactly. Kaggle accepted explicit version 2 as submission 56913142 at
+7 October 14:16 UTC; the corrected queue monitors it. This is a completed
+preview verification and accepted submission, not a completed scored rerun.

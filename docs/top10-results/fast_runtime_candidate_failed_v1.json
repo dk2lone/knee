@@ -1,0 +1,186 @@
+{
+  "status": "failed",
+  "candidate": "dk2lone/knee-effnet-runtime-stack",
+  "requested_version": 1,
+  "verified_at_utc": "2026-10-07T14:03:53.325840+00:00",
+  "checks": {
+    "actual_remote_source_cells_equal_local_candidate": true,
+    "submission.csv_unique_uid_coverage": true,
+    "submission.csv_columns_and_finite_3x12": true,
+    "submission.csv_exact_zero_error": true,
+    "_effnet.csv_unique_uid_coverage": true,
+    "_effnet.csv_columns_and_finite_3x12": true,
+    "_effnet.csv_exact_zero_error": true,
+    "_convnext_stack.csv_unique_uid_coverage": true,
+    "_convnext_stack.csv_columns_and_finite_3x12": true,
+    "_convnext_stack.csv_exact_zero_error": true,
+    "runtime_probe_v2_passed": true,
+    "runtime_probe_source_hash_matches_certificate": true,
+    "executed_probe_source_receipt_matches_certificate": true,
+    "parallel_readers.py_local_equals_all_certified_embedded_probe_helpers": true,
+    "parallel_readers.py_candidate_embedded_equals_certified_helper": true,
+    "fast_infer.py_local_equals_all_certified_embedded_probe_helpers": true,
+    "fast_infer.py_candidate_embedded_equals_certified_helper": true,
+    "original_code_cell_count_preserved_plus_two_helpers": true,
+    "only_expected_dispatch_cache_and_receipt_changes": true,
+    "all_model_view_weight_precision_blend_code_retained": true,
+    "parent_coat_original_size_schedule_retained": true,
+    "actual_study_checkpoint_identity_retained": true,
+    "actual_study_config_epoch_auc_retained": true,
+    "actual_study_reference_source_identity_certified": false,
+    "actual_study_cache_signature_certified": true,
+    "actual_study_worker_checkpoint_config_identity": true,
+    "actual_public_checkpoint_worker_identity_certified": true,
+    "public_actual_preview_worker_evidence": true,
+    "study_actual_preview_worker_evidence": true,
+    "builder_actual_readonly_guard_passes": true,
+    "builder_guard_rejects_wrong_status": true,
+    "builder_guard_rejects_wrong_version": true,
+    "builder_guard_rejects_wrong_source_sha256": true,
+    "candidate_original_environment_and_assets_retained": true,
+    "documented_checker_passed": true,
+    "documented_status_completed": true,
+    "documented_collector_all_seven_expected_artifacts": true,
+    "actual_study_reference_source_matches_original_candidate": false
+  },
+  "details": {
+    "submission.csv_exact_zero_error": {
+      "maximum_absolute_error": 0.0,
+      "shape": [
+        3,
+        12
+      ],
+      "file_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a",
+      "reference_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a",
+      "study_uids": [
+        "1.2.826.0.1.3680043.8.498.10047035057544427318018579121635276191",
+        "1.2.826.0.1.3680043.8.498.10062861783145312629332250977456991776",
+        "1.2.826.0.1.3680043.8.498.10067514707072572280263481548497591402"
+      ]
+    },
+    "_effnet.csv_exact_zero_error": {
+      "maximum_absolute_error": 0.0,
+      "shape": [
+        3,
+        12
+      ],
+      "file_sha256": "03852e474d435229ccb9d0090b65ae3beaecd69f7b2645ae1315182b07641908",
+      "reference_sha256": "03852e474d435229ccb9d0090b65ae3beaecd69f7b2645ae1315182b07641908",
+      "study_uids": [
+        "1.2.826.0.1.3680043.8.498.10047035057544427318018579121635276191",
+        "1.2.826.0.1.3680043.8.498.10062861783145312629332250977456991776",
+        "1.2.826.0.1.3680043.8.498.10067514707072572280263481548497591402"
+      ]
+    },
+    "_convnext_stack.csv_exact_zero_error": {
+      "maximum_absolute_error": 0.0,
+      "shape": [
+        3,
+        12
+      ],
+      "file_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a",
+      "reference_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a",
+      "study_uids": [
+        "1.2.826.0.1.3680043.8.498.10047035057544427318018579121635276191",
+        "1.2.826.0.1.3680043.8.498.10062861783145312629332250977456991776",
+        "1.2.826.0.1.3680043.8.498.10067514707072572280263481548497591402"
+      ]
+    },
+    "runtime_probe_source_hash_matches_certificate": {
+      "source_sha256": "30608dd71bafd5ac58fc900886bdb106db6bd3da71ce7feb5135e2dbc07c27b3"
+    },
+    "only_expected_dispatch_cache_and_receipt_changes": {
+      "changed_original_code_cells": [
+        27,
+        31
+      ],
+      "expected_changed_cells": [
+        27,
+        31
+      ]
+    },
+    "actual_study_checkpoint_identity_retained": {
+      "checkpoint_sha256": "dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b"
+    },
+    "actual_study_reference_source_identity_certified": {
+      "reference_source_sha256": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb"
+    },
+    "actual_public_checkpoint_worker_identity_certified": {
+      "cnxt_v0_fold0.pt": "0b64baa9d1c29c8d5c4dffe06d9ab2c941119b37738e5a2346e882ab694e7b80",
+      "cnxt_v0_fold1.pt": "61696b6e67474695242fc8049e96e2ea13987db6e20d04410dc2961a689585cb",
+      "cnxt_v0_fold2.pt": "f5cf19cf591600c1c1a04f1aa5ff467751ef01513426a4ea3baa789443656cb6"
+    },
+    "public_actual_preview_worker_evidence": {
+      "worker_count": 1,
+      "gpu_ids": [
+        0
+      ],
+      "elapsed_seconds": 24.41260391100002
+    },
+    "study_actual_preview_worker_evidence": {
+      "worker_count": 1,
+      "gpu_ids": [
+        0
+      ],
+      "elapsed_seconds": 16.496447920000037
+    },
+    "builder_actual_readonly_guard_passes": {
+      "guard_statement_count": 9,
+      "contains_no_destination_write": true
+    },
+    "documented_status_completed": "Actual documented CLI returned KernelWorkerStatus.COMPLETE"
+  },
+  "source_hashes": {
+    "original_notebook_sha256": "85540d9a4ded0f2688e10f3048cd3a1a080e3f4c9739f11984161a54fb5a2558",
+    "local_candidate_notebook_sha256": "79d0275b298c17b70852d115e78c18c2487ec575d505dc4658a65f0c58a5e581",
+    "downloaded_candidate_notebook_sha256": "8ce765cbeed3c4a69d271840c44edd9f3f06fe8721740692e354d8aad362a399",
+    "candidate_code_sources_sha256": "7163170cf18962d63711a939046e0b0801251716d52f608412099d71b94dfffc",
+    "runtime_probe_v2_sha256": "30608dd71bafd5ac58fc900886bdb106db6bd3da71ce7feb5135e2dbc07c27b3",
+    "runtime_certificate_sha256": "6d200714674e0c5b57f59839d21dcf533f0e5998f19c683cc403ee3c577365c1",
+    "builder_sha256": "22b7c44e1c04cae8001d917e29b88b1134e637a889d2fc13f492e62d0484ab6d",
+    "helpers_sha256": {
+      "parallel_readers.py": "c5c717a32766490c54473409a1b4a98c14a5b66d1d228e725dec8217d9226bac",
+      "fast_infer.py": "83b03e17c6b1acdb889e7e564afb94673659ca8cf86be634fcd2e06e2db13249"
+    }
+  },
+  "maximum_absolute_errors": {
+    "submission.csv": 0.0,
+    "_effnet.csv": 0.0,
+    "_convnext_stack.csv": 0.0
+  },
+  "checkpoint_sha256": "dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b",
+  "parent_coat_schedule": {
+    "paired_default_max_studies": 48,
+    "serial_default_min_studies": 49,
+    "changed": false,
+    "environment_override": "RSNA_PARALLEL_COAT_READERS"
+  },
+  "hidden_test_runtime_proven": false,
+  "nine_hour_compliance_proven": false,
+  "doc_vs_reality_divergences": [
+    "Actual candidate infer.py source differs from certified probe reader0 infer.py source. Both added helper files exactly match the certified probe. No documented command failed."
+  ],
+  "limits": [
+    "Completed preview contains only 3 public studies. It does not prove full hidden-test runtime or nine-hour compliance.",
+    "Three studies fit one intact four-study shard, so actual preview receipts exercise GPU 0 only. Two-GPU dispatch/parity evidence comes from the separately certified version-2 58-study probe.",
+    "Original parent CoAt reader schedule remains paired at <=48 studies and serial above 48 unless explicitly overridden by RSNA_PARALLEL_COAT_READERS. Full parent bottleneck remains unmeasured here.",
+    "Public checkpoint binaries are not local. Actual preview public-worker hashes match the independently certified executed probe worker receipts."
+  ],
+  "commands_executed_verbatim": [
+    "kaggle kernels status dk2lone/knee-effnet-runtime-stack",
+    "kaggle kernels output dk2lone/knee-effnet-runtime-stack -p /tmp/knee-top10/effnet-runtime-preview --file-pattern '^(submission.csv|_effnet.csv|_effnet.receipt.json|_convnext_stack.csv|_own.csv|_own.receipt.json|_public_stack.csv)$' --page-size 100",
+    "/tmp/knee-top10/venv/bin/python eda/check_candidate.py reader /tmp/knee-top10/effnet-runtime-preview --training /tmp/knee-top10/effnet-output"
+  ],
+  "source_divergence": {
+    "file": "own_src/infer.py",
+    "original_and_runtime_candidate_sha256": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb",
+    "certified_probe_embedded_sha256": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb",
+    "actual_candidate_receipt_sha256": "a8a242cc137deb3a3e2dd35cf92a6d2f250a9ba92f74f6c02a22c3ca5336205a",
+    "actual_probe_receipt_sha256": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb",
+    "serialization_only": false,
+    "current_config_uses_context": false,
+    "diff": "",
+    "interpretation": "The candidate retains the original image-only inference source. The probe source has additional context-dependent branches which the original config does not select. Exact candidate-versus-original prediction parity is proven for three public studies. Byte identity with the certified probe reference source is false."
+  },
+  "reason": "Required preview commands, exact prediction parity, helper certification, original model/blend preservation and builder guard pass. Gate is conservatively failed because executed study reference source differs from the certified probe reference source. No source was changed and no tolerance was relaxed."
+}

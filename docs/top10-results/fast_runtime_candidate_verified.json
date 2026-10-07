@@ -1,0 +1,148 @@
+{
+  "status": "passed",
+  "candidate": "dk2lone/knee-effnet-runtime-stack",
+  "version": 2,
+  "verified_at_utc": "2026-10-07T14:15:35.504593+00:00",
+  "checks": {
+    "actual_downloaded_notebook_cells_match_local": true,
+    "submission.csv_uid_columns_finite_3x12": true,
+    "submission.csv_exact_zero_parity": true,
+    "_effnet.csv_uid_columns_finite_3x12": true,
+    "_effnet.csv_exact_zero_parity": true,
+    "_convnext_stack.csv_uid_columns_finite_3x12": true,
+    "_convnext_stack.csv_exact_zero_parity": true,
+    "probe_v2_certificate_passed_exact_source_hash": true,
+    "executed_probe_source_receipt_matches": true,
+    "parallel_readers.py_rendered_exact_probe_reader0": true,
+    "parallel_readers.py_local_exact_all_certified_readers": true,
+    "fast_infer.py_rendered_exact_probe_reader0": true,
+    "fast_infer.py_local_exact_all_certified_readers": true,
+    "infer.py_rendered_exact_probe_reader0": true,
+    "infer.py_local_exact_all_certified_readers": true,
+    "study_train.py_rendered_exact_probe_reader0": true,
+    "cache_contract.py_rendered_exact_probe_reader0": true,
+    "only_expected_dispatch_cache_receipt_shared_infer_changes": true,
+    "all_other_model_view_weight_precision_blend_code_unchanged": true,
+    "original_public_infer_unchanged": true,
+    "original_config_retained_context_branches_inactive": true,
+    "study_checkpoint_epoch_auc_retained": true,
+    "actual_executed_study_source_exact_certified_hash": true,
+    "actual_study_worker_checkpoint_config_cache_certified": true,
+    "actual_public_checkpoint_hashes_match_certified_workers": true,
+    "public_actual_preview_worker_evidence": true,
+    "study_actual_preview_worker_evidence": true,
+    "parent_coat_paired_le48_serial_gt48_original_schedule_retained": true,
+    "actual_builder_readonly_guard_passes": true,
+    "builder_guard_rejects_invalid_status": true,
+    "builder_guard_rejects_invalid_version": true,
+    "builder_guard_rejects_invalid_source_hash": true,
+    "original_environment_assets_checkpoint_sources_retained": true,
+    "documented_completed_status": true,
+    "documented_all_seven_artifacts_freshly_collected": true,
+    "documented_candidate_checker_passed": true,
+    "rendered_config_static_arithmetic_equals_actual_original_training": true
+  },
+  "details": {
+    "submission.csv_exact_zero_parity": {
+      "max_abs_error": 0.0,
+      "actual_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a",
+      "original_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a"
+    },
+    "_effnet.csv_exact_zero_parity": {
+      "max_abs_error": 0.0,
+      "actual_sha256": "03852e474d435229ccb9d0090b65ae3beaecd69f7b2645ae1315182b07641908",
+      "original_sha256": "03852e474d435229ccb9d0090b65ae3beaecd69f7b2645ae1315182b07641908"
+    },
+    "_convnext_stack.csv_exact_zero_parity": {
+      "max_abs_error": 0.0,
+      "actual_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a",
+      "original_sha256": "8f0c5e7b2b561538dae55439a4d2e9173141096da3defd9bc0a4bac351eef37a"
+    },
+    "only_expected_dispatch_cache_receipt_shared_infer_changes": {
+      "changed_original_code_cells": [
+        27,
+        30,
+        31
+      ]
+    },
+    "actual_executed_study_source_exact_certified_hash": {
+      "actual_hashes": [
+        "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb"
+      ]
+    },
+    "actual_public_checkpoint_hashes_match_certified_workers": {
+      "cnxt_v0_fold0.pt": "0b64baa9d1c29c8d5c4dffe06d9ab2c941119b37738e5a2346e882ab694e7b80",
+      "cnxt_v0_fold1.pt": "61696b6e67474695242fc8049e96e2ea13987db6e20d04410dc2961a689585cb",
+      "cnxt_v0_fold2.pt": "f5cf19cf591600c1c1a04f1aa5ff467751ef01513426a4ea3baa789443656cb6"
+    },
+    "public_actual_preview_worker_evidence": {
+      "gpu_ids": [
+        0
+      ],
+      "elapsed_seconds": 23.061117818999946
+    },
+    "study_actual_preview_worker_evidence": {
+      "gpu_ids": [
+        0
+      ],
+      "elapsed_seconds": 17.147618397999963
+    },
+    "documented_completed_status": "Actual Kaggle CLI returned KernelWorkerStatus.COMPLETE before collector",
+    "actual_downloaded_notebook_cells_match_local": {
+      "exact_joined_cell_text_equal": true,
+      "serialization_difference": "Local JSON stores source as line arrays. Kaggle downloaded completed notebook JSON stores source as strings. Concatenated cell text and code bytes are exactly equal, with no whitespace or code normalization.",
+      "local_code_sha256": "0fc75f140e3a454fa8e4c51b3cf5713dce6127cde3a953014dcc8632d53b16bc",
+      "downloaded_code_sha256": "0fc75f140e3a454fa8e4c51b3cf5713dce6127cde3a953014dcc8632d53b16bc"
+    },
+    "rendered_config_static_arithmetic_equals_actual_original_training": {
+      "time_limit_seconds": 25200,
+      "uses_context": false,
+      "evaluation": "Read-only restricted AST literal evaluation including numeric arithmetic. No training module executed."
+    }
+  },
+  "source_hashes": {
+    "/Users/dz/knee/kaggle/effnet-stack/knee-effnet-stack.ipynb": "85540d9a4ded0f2688e10f3048cd3a1a080e3f4c9739f11984161a54fb5a2558",
+    "/Users/dz/knee/kaggle/effnet-runtime-stack/effnet-runtime.ipynb": "d95c096cc72e9c6b2b0512e8fbad9a27927018fad2f8813aa2e66ce287033f2b",
+    "/tmp/knee-top10/effnet-runtime-v2-source/knee-effnet-runtime-stack.ipynb": "66f0f6f678ffda5626b9373cd8f3fdd6d0abab6b4045749cdca3858fc2cf60f0",
+    "/Users/dz/knee/kaggle/effnet-study-infer/parallel_readers.py": "c5c717a32766490c54473409a1b4a98c14a5b66d1d228e725dec8217d9226bac",
+    "/Users/dz/knee/kaggle/effnet-study-infer/fast_infer.py": "83b03e17c6b1acdb889e7e564afb94673659ca8cf86be634fcd2e06e2db13249",
+    "/Users/dz/knee/kaggle/effnet-study-infer/infer.py": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb",
+    "/Users/dz/knee/eda/build_fast_effnet_stack.py": "09b3c7511d68147784470ae0a7ec0422b5b77b4ecca2e42971e6ab4d899423b1",
+    "/Users/dz/knee/kaggle/reader-runtime-probe/probe.py": "30608dd71bafd5ac58fc900886bdb106db6bd3da71ce7feb5135e2dbc07c27b3",
+    "/tmp/knee-top10/runtime_env_verified.json": "6d200714674e0c5b57f59839d21dcf533f0e5998f19c683cc403ee3c577365c1"
+  },
+  "actual_study_reference_sha256": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb",
+  "checkpoint_sha256": "dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b",
+  "maximum_absolute_errors": {
+    "submission.csv": 0.0,
+    "_effnet.csv": 0.0,
+    "_convnext_stack.csv": 0.0
+  },
+  "doc_vs_reality_divergences": [],
+  "hidden_test_runtime_proven": false,
+  "nine_hour_compliance_proven": false,
+  "parent_coat_schedule": {
+    "paired_default_max_studies": 48,
+    "serial_default_min_studies": 49,
+    "changed": false,
+    "environment_override": "RSNA_PARALLEL_COAT_READERS"
+  },
+  "limits": [
+    "Three-study public preview does not prove full hidden-test runtime or nine-hour compliance.",
+    "Preview uses GPU 0 only because three studies fit one four-study shard. Both-GPU evidence comes from separately certified version-2 58-study probe.",
+    "Parent CoAt remains paired by default for <=48 studies and serial above 48, unless RSNA_PARALLEL_COAT_READERS overrides it. Full parent hidden runtime remains unmeasured.",
+    "Public checkpoint binaries are unavailable locally. Actual preview hashes match executed certified probe worker hashes."
+  ],
+  "reason": "Actual completed version 2 predictions are exactly equal to the original. Executed study source and rendered helpers match certified probe source, and checkpoint/config/model/blend identities are retained. Full hidden runtime remains unproven.",
+  "commands_executed_verbatim": [
+    "kaggle kernels status dk2lone/knee-effnet-runtime-stack",
+    "kaggle kernels output dk2lone/knee-effnet-runtime-stack -p /tmp/knee-top10/effnet-runtime-preview --file-pattern '^(submission.csv|_effnet.csv|_effnet.receipt.json|_convnext_stack.csv|_own.csv|_own.receipt.json|_public_stack.csv)$' --page-size 100",
+    "/tmp/knee-top10/venv/bin/python eda/check_candidate.py reader /tmp/knee-top10/effnet-runtime-preview --training /tmp/knee-top10/effnet-output"
+  ],
+  "requested_version": 2,
+  "actual_completed_version_evidence": {
+    "source": "Latest explicitly pushed version 2 fetched after completed status",
+    "executed_study_reference_sha256": "8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb",
+    "distinguishes_v1": "Version 1 actual study reference SHA was a8a242cc137deb3a3e2dd35cf92a6d2f250a9ba92f74f6c02a22c3ca5336205a. Completed artifacts have certified version 2 hash 8ceb9048d9739a2c2ba34a691081dc6fcd6b8a4b9eb576cb8accc677be5b5ddb."
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "status": "passed",
+  "verified_at_utc": "2026-10-07T14:01:34.914721+00:00",
+  "verifier": "fresh independent agent-follows-doc",
+  "kernel": "dk2lone/knee-parent-runtime-probe",
+  "version": 1,
+  "spec_hash": "a042a031",
+  "failures": [],
+  "spec_sha256": "a042a031d345cad6e689fd0ae331fefd315bf7705963050190ceb7d134ab7a39",
+  "source_hashes": {
+    "/Users/dz/knee/kaggle/convnext-stack/rsna-knee-stack-2-5d-convnext-mil-lb-0-944.ipynb": "cd97dafc175c63ed2c55c8228b33d8d010b61b916e0990f11298ad84dec66266",
+    "/Users/dz/knee/kaggle/parent-runtime-probe/parent-runtime.ipynb": "d2fbdb15655d5f0b6a4e40939edc85512ac5d3fe3a9b405a72527397796ba0f9",
+    "/Users/dz/knee/kaggle/parent-runtime-probe/env-spec.json": "e7b0380511c209365660fc2e811e08eebb88fec3826490c14f6ed4a0f3e623cf",
+    "/Users/dz/knee/kaggle/convnext-stack/kernel-metadata.json": "b02aac5c0e78c748baf8a6f5436802971736598ed3ccd96dc7ade1ce9191d051",
+    "/Users/dz/knee/kaggle/parent-runtime-probe/kernel-metadata.json": "b022511741886fd33c4665ea24323ab09eeffdeabc485a1812a15830819e8ecb",
+    "/Users/dz/knee/eda/build_parent_runtime_probe.py": "7af277b48216086914d52a9c41d94a96f7788b66e2bf161e2046e776d7f7b35e",
+    "/tmp/knee-top10/data/train.csv": "8ca2203c0e9d61c080c7a314c7cdb51c1b03a1d9eb4770819f7f34af53ef4e33"
+  },
+  "environment": {
+    "bootstrap_sha256": "25e69f00b3cebe2fdca50e18fa911f1c287b9f45836dd4cd80a459956033b20d",
+    "base_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+    "offline": true,
+    "actual_gpu_count": 2,
+    "actual_gpu_name": "Tesla T4",
+    "metadata_diff_keys": [
+      "code_file",
+      "title",
+      "id"
+    ],
+    "sources_match_parent": true,
+    "retained_model_cells": 28,
+    "identical_model_cells": 26,
+    "permitted_changed_cell_indices": [
+      3,
+      27
+    ],
+    "witness": "deterministic arange(64) fixed matrix checksum 510720 on cuda:0 and cuda:1; no RNG used"
+  },
+  "cohort": {
+    "studies": 48,
+    "seed": 2031,
+    "independent_resampling_matches": true,
+    "all_576_ground_truth_values_missing": true,
+    "mri_provenance": "Notebook symlinks actual train_series/{UID}, asserts every directory exists, and copies only selected train_series metadata; live DINOv2 logs decode 219/219 selected slot-series from 265 series headers",
+    "prediction_injection": false,
+    "adapter_scope": "test-format UID/series/root adapter and zero-valued schema placeholder; placeholder labels are not used as predictions"
+  },
+  "prediction_checks": {
+    "submission.csv": {
+      "shape": [
+        48,
+        12
+      ],
+      "finite": true,
+      "uid_complete": true,
+      "nonconstant_each_label": true,
+      "minimum_unique_per_label": 46,
+      "min": 0.0208333333333333,
+      "max": 1.0,
+      "sha256": "20076c649704076135a1e99ea2bb3ac71c358e094bb6f3a955bcc95fe914f88c"
+    },
+    "_public_stack.csv": {
+      "shape": [
+        48,
+        12
+      ],
+      "finite": true,
+      "uid_complete": true,
+      "nonconstant_each_label": true,
+      "minimum_unique_per_label": 47,
+      "min": 0.0208333333333333,
+      "max": 1.0,
+      "sha256": "9513dd08fd384fca1f87033466dea230b354dc64bdfc5485e40d6a9b8d1f6913"
+    },
+    "_own.csv": {
+      "shape": [
+        48,
+        12
+      ],
+      "finite": true,
+      "uid_complete": true,
+      "nonconstant_each_label": true,
+      "minimum_unique_per_label": 48,
+      "min": 0.012135409,
+      "max": 0.9913017,
+      "sha256": "c20126b09f9100e1bbf3661ca7bf33fb715734dafc568cbbd88d0070e56341d0"
+    }
+  },
+  "final_blend": {
+    "public_weight": 0.7,
+    "reader_weight": 0.3,
+    "formula": "rank(0.7 * rank(public) + 0.3 * rank(reader)), average ties, percentile ranks",
+    "max_absolute_reconstruction_error": 6.938893903907228e-17,
+    "final_differs_from_public_stack": true
+  },
+  "timing": {
+    "inference_elapsed_seconds": 1004.5506155490875,
+    "phases": {
+      "dinov2": {
+        "start_seconds": 1.312412977218628,
+        "complete_seconds": 131.81595134735107,
+        "duration_seconds": 130.50353837013245,
+        "success": true
+      },
+      "a5": {
+        "start_seconds": 131.8586299419403,
+        "complete_seconds": 177.7877082824707,
+        "duration_seconds": 45.929078340530396,
+        "success": true
+      },
+      "radimagenet": {
+        "start_seconds": 177.91961812973022,
+        "complete_seconds": 221.087651014328,
+        "duration_seconds": 43.16803288459778,
+        "success": true
+      },
+      "public_raptor": {
+        "start_seconds": 221.38409113883972,
+        "complete_seconds": 414.2389461994171,
+        "duration_seconds": 192.8548550605774,
+        "success": true
+      },
+      "residual_coat": {
+        "start_seconds": 416.95697569847107,
+        "complete_seconds": 649.8602359294891,
+        "duration_seconds": 232.90326023101807,
+        "success": true
+      },
+      "d4": {
+        "start_seconds": 416.95716094970703,
+        "complete_seconds": 598.9602723121643,
+        "duration_seconds": 182.00311136245728,
+        "success": true
+      },
+      "global96_coat": {
+        "start_seconds": 649.8718492984772,
+        "complete_seconds": 932.7142007350922,
+        "duration_seconds": 282.842351436615,
+        "success": true
+      },
+      "repairv1_coat": {
+        "start_seconds": 649.871755361557,
+        "complete_seconds": 895.664546251297,
+        "duration_seconds": 245.79279088974,
+        "success": true
+      }
+    },
+    "own_reader": {
+      "checkpoint_count": 3,
+      "elapsed_seconds_rounded_log": 68,
+      "success": true,
+      "evidence": {
+        "stream_name": "stdout",
+        "time": 1033.567823846,
+        "data": "own reader: blended 3 checkpoints at weight 0.3 in 68s\n"
+      }
+    },
+    "kernel_relative_completion_sentinel_seconds": 1033.602422327,
+    "kernel_relative_last_export_log_seconds": 1045.21736081,
+    "scope": "Inherited T0 starts after cohort setup, bootstrap, and import/GPU preflight; report covers preprocessing and all ensemble inference including reader. Kernel log offsets additionally include startup to completion/export."
+  },
+  "evidence_hashes": {
+    "/tmp/knee-top10/parent-runtime-output/parent_runtime_cohort.json": "d343851411e3e2230010c66b946c6c35e57f191bb9a6c06a7a48b364153c2224",
+    "/tmp/knee-top10/parent-runtime-output/_own.csv": "c20126b09f9100e1bbf3661ca7bf33fb715734dafc568cbbd88d0070e56341d0",
+    "/tmp/knee-top10/parent-runtime-output/submission.csv": "20076c649704076135a1e99ea2bb3ac71c358e094bb6f3a955bcc95fe914f88c",
+    "/tmp/knee-top10/parent-runtime-output/parent_runtime.json": "4f38055dd77a5112b1220468455200a697f8d314da488db9579c50156e8e7abc",
+    "/tmp/knee-top10/parent-runtime-output/knee-parent-runtime-probe.log": "99dd230b7bdf33bf661b35204bc2649c53cd6c48eef3a8ad72b16230f65ea26d",
+    "/tmp/knee-top10/parent-runtime-output/_public_stack.csv": "9513dd08fd384fca1f87033466dea230b354dc64bdfc5485e40d6a9b8d1f6913",
+    "/tmp/knee-top10/parent-runtime-output/diagnostics/current_phase.json": "ebc1e2c2ced3d6690abf4e06633a51a46e3e1b3188419b34328c80a11843e3ed",
+    "/tmp/knee-top10/parent-runtime-output/diagnostics/phase_events.jsonl": "80b3f69299619e6a1224b6573f020a90637596b3da0d4a484d9e53ab6f2edfb3"
+  },
+  "documented_invocations": [
+    "kaggle kernels status dk2lone/knee-parent-runtime-probe",
+    "tail -25 /tmp/knee-top10/parent-runtime-live.log",
+    "kaggle kernels output dk2lone/knee-parent-runtime-probe -p /tmp/knee-top10/parent-runtime-output --file-pattern '^(parent_runtime.json|parent_runtime_cohort.json|submission.csv|_public_stack.csv|_own.csv|diagnostics/phase_events.jsonl|diagnostics/current_phase.json)$' --page-size 100"
+  ],
+  "doc_following": {
+    "executed_verbatim": true,
+    "status": "KernelWorkerStatus.COMPLETE",
+    "all_seven_requested_artifacts_collected": true,
+    "criterion_clarification": "Parent instructed: START/COMPLETE for eight instrumented stack families; actual reader elapsed log, fail-closed success gate, and complete predictions for own reader. Deterministic fixed-matrix GPU witness requires no RNG seed."
+  },
+  "limits": [
+    "48-study unlabelled training MRI proxy only. No hidden-test size, hidden-test ETA, nine-hour compliance, score, or accuracy inference.",
+    "Inherited CoAt readers run in paired parallel groups at <=48 studies, serially at >48 studies by default; no direct runtime scaling extrapolation.",
+    "Inference report excludes cohort preparation, bootstrap and import/GPU preflight. Kernel-relative log offsets are recorded separately and are not a precise scheduler total duration.",
+    "Own reader elapsed log is rounded to whole seconds and has no separate phase_events START/COMPLETE records.",
+    "No submission, retraining, push, source edit, or documentation edit performed by verifier."
+  ]
+}

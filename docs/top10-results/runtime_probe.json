@@ -1,0 +1,38 @@
+{
+  "status": "complete",
+  "studies": 58,
+  "parity_tolerance": 1e-06,
+  "timing": {
+    "public": {
+      "reference_seconds": 129.34033172,
+      "fast_seconds": 67.475471255,
+      "maximum_absolute_error": 0.0
+    },
+    "reader0": {
+      "reference_seconds": 53.22648056999998,
+      "fast_seconds": 43.80700073299994,
+      "checkpoint_sha256": "dee6e2115dd923b71a1db57e69f35fa4d7e9a3be329c8cfd5efa093e8eee7f5b",
+      "maximum_absolute_error": 0.0,
+      "cached_prediction_maximum_error": 0.0,
+      "cache_files": 58
+    },
+    "reader1": {
+      "reference_seconds": 35.132402374000094,
+      "fast_seconds": 19.91276256499998,
+      "checkpoint_sha256": "ef8722452be9c5000e8ca5838e5adab7cb235fbe3ff373352f0cc6b104a1f7ae",
+      "maximum_absolute_error": 0.0,
+      "cached_prediction_maximum_error": 0.0,
+      "cache_files": 58
+    },
+    "reader2": {
+      "reference_seconds": 37.82275775000005,
+      "fast_seconds": 25.444231022000054,
+      "checkpoint_sha256": "4a722a9508b8cc035587fc99fba6ae3a783df552a686abe149a0b1653ed487a8",
+      "maximum_absolute_error": 0.0,
+      "cached_prediction_maximum_error": 0.0,
+      "cache_files": 58
+    }
+  },
+  "source_sha256": "30608dd71bafd5ac58fc900886bdb106db6bd3da71ce7feb5135e2dbc07c27b3",
+  "scope": "added readers only; full parent and hidden test runtime are not measured by this probe"
+}

@@ -1,6 +1,6 @@
 # Top 10 experiments
 
-Updated 6 October 2026. Branch: `public-stack-baseline`.
+Updated 7 October 2026. Branch: `public-stack-baseline`.
 
 ## Measured position
 
@@ -9,9 +9,9 @@ Updated 6 October 2026. Branch: `public-stack-baseline`.
 | Unchanged public stack | 0.943 |
 | Public stack with goodpjw2008's ConvNeXt reader | 0.944 |
 
-The 7 October 01:33 UTC leaderboard export puts `dk2lone` at 517 of 5,354 teams.
-Tenth place scores 0.960. Multiple teams tie at that score, so 0.961 is the
-current target. Rank and cutoff must be refreshed after each scored improvement.
+The 7 October 14:17 UTC leaderboard export puts `dk2lone` at 592 of 5,395 teams.
+Tenth place scores 0.961. Rank and cutoff must be refreshed after
+each scored improvement. Top 10 is not achieved.
 
 ## Current runs
 
@@ -20,12 +20,13 @@ current target. Rank and cutoff must be refreshed after each scored improvement.
 | `dk2lone/knee-convnext-dense-gold` | Compare 12 windows, 24 windows, and 24 windows with crops 0.84/0.92/1.0 | Complete; candidate rejected |
 | `dk2lone/knee-effnet-study-fold0` | Train a separate EfficientNet study reader | Complete; 0.8339 validation, 0.8767 diagnostic AUC |
 | `dk2lone/knee-effnet-raw-probe` | Replay the selected reader on raw MRI files | Complete; all 58 predictions match exactly |
-| `dk2lone/knee-effnet-study-stack` | Fixed 15% reader blend into the 0.944 stack | Submitted version 1; scoring pending |
+| `dk2lone/knee-effnet-study-stack` | Fixed 15% reader blend into the 0.944 stack | Version 1 failed: hidden rerun exceeded nine-hour limit |
+| `dk2lone/knee-effnet-runtime-stack` | Speed up the timed-out 224 px blend with verified two-GPU inference | Version 1 blocked on source identity; version 2 verified and submitted |
 | `dk2lone/knee-effnet-cache-contract` | Compare raw image reconstruction with the training cache | Complete; all three controls match exactly |
 | `dk2lone/knee-meniscus-bag-gold` | Evaluate a public weak-only meniscus reader | Complete; rejected |
-| `dk2lone/knee-convnext-study-fold0` | Train a 320 px ConvNeXt reader with series and slice context | Running; GPU and parameter-update checks passed |
+| `dk2lone/knee-convnext-study-fold0` | Train a 320 px ConvNeXt reader with series and slice context | Complete; 0.8439 validation, 0.8856 diagnostic AUC; submitted |
 | `dk2lone/knee-convnext-head-training` | Update the public reader classifier using official labels and five-fold CV | Complete; classifier CV worsened; rejected |
-| `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Complete; 0.7963 validation, 0.8892 diagnostic AUC; raw replay running |
+| `dk2lone/knee-effnet-high-resolution-fold1` | Test a 336 px reader on a different held-out fold | Complete; scored 0.941, below the 0.944 baseline |
 
 The dense reader keeps the same checkpoints and global 30% rank blend. Its
 comparison uses 58 annotated studies excluded from the published reader's
@@ -99,7 +100,7 @@ cached predictions exactly. The builder pins checkpoint
 320 px, fold 0, seed 2029, and 32 evaluation windows. Series identity and
 relative slice position enter a two-layer transformer before finding-specific
 attention pooling. It uses the same labels,
-cache geometry, gold exclusion, and validation selection. Version 1 is running with its fixed GPU and real optimizer-update checks passed. Its trial blend is fixed at the same 15% before validation or gold results.
+cache geometry, gold exclusion, and validation selection. Training completed with best epoch 12 at 0.8439 validation AUC and 0.8856 diagnostic AUC. Raw replay and preview passed. Its fixed 15% trial blend is submitted and awaiting a score.
 
 ## Supervised classifier experiment
 
@@ -177,6 +178,52 @@ touch /tmp/knee-top10/STOP_SUBMISSION_QUEUE
 The queue checks this file before each launch or submission. Its source hashes
 and branch are also checked before writes. An ambiguous submission response is
 looked up by description rather than submitted again.
+
+## Hidden-runtime failure and repair
+
+The first EfficientNet blend (submission 56897663) exceeded the competition's
+nine-hour hidden-rerun limit and has no score. Kaggle marks this failure
+`COMPLETE` while supplying an `errorDescription`. The original monitor checked
+only status and score, so it missed that error. It now stores the error field
+and treats an errored completed submission as failed. The 336 px candidate
+(submission 56900281) finished with score 0.941 and does not improve 0.944.
+Current outcomes are saved in `docs/top10-results/submission_runtime_status.json`.
+
+All three new training runs completed, and both later raw replays match their
+cached predictions exactly on all 58 rows. Preview validation covers three
+public test studies; it does not establish hidden-rerun runtime. Earlier timing
+estimates based on those previews were too optimistic.
+
+The repair splits intact four-study batches between two T4 processes and
+reuses the exact 44-slice reconstruction across study readers. Original model
+weights, precision, window counts, and fixed blend weights remain unchanged.
+Independent checks on 58 actual MRI studies found maximum prediction error
+0.0 for all four reader pairs. Study-reader times were 53.23 to 43.81 seconds,
+35.13 to 19.91 seconds, and 37.82 to 25.44 seconds. The public reader benchmark
+was 129.34 to 67.48 seconds, but its reference used two loader workers while
+production used four. That segment's ratio is not a production speed estimate.
+The measured report and independent audit are saved as `runtime_probe.json`
+and `runtime_env_verified.json` in `docs/top10-results`.
+
+`eda/build_fast_effnet_stack.py` requires the independent probe pass before
+building a revised version of the timed-out 15% blend. Its preview must match
+its saved rank blend and the original public-test predictions before submission.
+The first repair preview matched predictions but retained an older embedded
+study script than the runtime probe. Independent source verification blocked
+that version. Version 2 renders the exact certified shared inference source,
+including optional context branches inactive for this EfficientNet checkpoint.
+Version 2 passed all 37 independent checks, including executed source identity
+and zero prediction difference on all three public test studies. Submission
+56913142 was accepted at 7 October 14:16 UTC and remains pending. The background
+queue now tracks it with the two older pending submissions. Its source and
+preview records are saved in `fast_runtime_candidate_verified.json` and
+`runtime_repair_submission.json` under `docs/top10-results`.
+
+A separate 48-study timing proxy exercises every retained parent family. The
+parent runs paired CoAt branches for at most 48 studies and serial branches above
+that threshold, so the small preview and proxy do not measure the hidden-test
+schedule. Neither proxy establishes the hidden dataset's size or runtime. Nine-hour
+compliance remains unproven until a full scored rerun finishes.
 
 ## Commands
 
